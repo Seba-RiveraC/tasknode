@@ -2,6 +2,8 @@
 
 TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field Service Management) diseñada para estructurar el flujo de información entre técnicos operativos y coordinadores de servicio.
 
+> **Importante:** Este proyecto se encuentra en una fase preliminar y está diseñado específicamente como un mockup funcional para demostración y validación de concepto.
+
 ## Arquitectura
 
 * Backend: FastAPI (Python)
