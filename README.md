@@ -16,7 +16,7 @@ TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field
 * app/main.py: Definición de endpoints API RESTful y servicio de archivos estáticos
 * app/database.py: Inicialización de esquemas y gestión de conexiones SQLite
 * static/index.html: Interfaz móvil para el registro de estados e incidentes en terreno
-* dashboard.py: Panel analítico para monitoreo de faenas y exportación de datos
+* dashboard.py: Panel analítico para monitoreo de faenas y exportación de datos.
 
 ## Instalación
 
