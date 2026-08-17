@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | Terreno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 font-sans flex items-center justify-center">
+
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-6">
+        
+        <!-- Branding Header -->
+        <div class="text-center border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-extrabold tracking-wider text-blue-500">TASK<span class="text-white">NODE</span></h1>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Registro Operativo de Terreno</p>
+        </div>
+
+        <!-- Formularo Cero-Tipeo -->
+        <div class="space-y-5">
+            <!-- 1. Seleccionar Faena -->
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Seleccionar Faena</label>
+                <select id="faena" class="w-full p-3.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="Edificio Central">Edificio Central</option>
+                    <option value="Planta Solar Norte">Planta Solar Norte</option>
+                    <option value="Mantención Clínica">Mantención Clínica</option>
+                </select>
+            </div>
+
+            <!-- 2. Semáforo de Avance -->
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2. Estado de Avance</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button type="button" onclick="setEstado('VERDE', this)" class="btn-estado bg-emerald-600/20 border-2 border-emerald-500 text-emerald-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-emerald-600/30 transition">
+                        <span>🟢</span>
+                        <span class="text-xs uppercase tracking-wider">Normal</span>
+                    </button>
+                    <button type="button" onclick="setEstado('AMARILLO', this)" class="btn-estado bg-amber-600/20 border-2 border-transparent text-amber-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-amber-600/30 transition">
+                        <span>🟡</span>
+                        <span class="text-xs uppercase tracking-wider">Retraso</span>
+                    </button>
+                    <button type="button" onclick="setEstado('ROJO', this)" class="btn-estado bg-rose-600/20 border-2 border-transparent text-rose-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-rose-600/30 transition">
+                        <span>🔴</span>
+                        <span class="text-xs uppercase tracking-wider">Bloqueo</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Motivo Bloqueo (Oculto por defecto) -->
+            <div id="div-motivos" class="hidden transition-all">
+                <label class="block text-xs font-bold text-rose-400 uppercase tracking-wider mb-2">3. Causa del Incidente</label>
+                <select id="motivo" class="w-full p-3.5 bg-slate-900 border border-rose-500/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-rose-500 outline-none">
+                    <option value="">Selecciona un motivo...</option>
+                    <option value="Faltan materiales">Faltan materiales / insumos</option>
+                    <option value="Falta combustible">Falta combustible / transporte</option>
+                    <option value="Cliente no responde">Cliente no responde / Sin acceso</option>
+                    <option value="Falla equipo">Falla de equipo / herramienta</option>
+                    <option value="Condiciones clima">Condiciones climáticas adversas</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Botón Enviar -->
+        <button onclick="enviarReporte()" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition text-white font-bold py-4 rounded-xl text-lg shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+            <span>⚡</span> REGISTRAR EN TASKNODE
+        </button>
+
+        <!-- Feedback UI -->
+        <div id="mensaje" class="hidden text-center text-sm font-semibold p-3 rounded-xl"></div>
+    </div>
+
+    <script>
+        let estadoSeleccionado = 'VERDE';
+
+        function setEstado(estado, btnElement) {
+            estadoSeleccionado = estado;
+            
+            document.querySelectorAll('.btn-estado').forEach(btn => {
+                btn.classList.remove('border-emerald-500', 'border-amber-500', 'border-rose-500');
+                btn.classList.add('border-transparent');
+            });
+
+            if (estado === 'VERDE') btnElement.classList.add('border-emerald-500');
+            if (estado === 'AMARILLO') btnElement.classList.add('border-amber-500');
+            if (estado === 'ROJO') btnElement.classList.add('border-rose-500');
+
+            const divMotivos = document.getElementById('div-motivos');
+            if (estado === 'ROJO' || estado === 'AMARILLO') {
+                divMotivos.classList.remove('hidden');
+            } else {
+                divMotivos.classList.add('hidden');
+                document.getElementById('motivo').value = '';
+            }
+        }
+
+        async function enviarReporte() {
+            const faena = document.getElementById('faena').value;
+            const motivo = document.getElementById('motivo').value;
+            const msgBox = document.getElementById('mensaje');
+
+            if ((estadoSeleccionado === 'ROJO' || estadoSeleccionado === 'AMARILLO') && !motivo) {
+                alert('⚠️ Indica el motivo del problema antes de enviar.');
+                return;
+            }
+
+            const payload = {
+                faena: faena,
+                estado: estadoSeleccionado,
+                motivo: motivo
+            };
+
+            try {
+                const response = await fetch('/api/reportar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    msgBox.className = "text-center text-sm font-semibold p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 block";
+                    msgBox.innerText = "✅ Reporte sincronizado correctamente";
+                    setTimeout(() => { msgBox.className = "hidden"; }, 3000);
+                } else {
+                    throw new Error('Error en el servidor');
+                }
+            } catch (error) {
+                msgBox.className = "text-center text-sm font-semibold p-3 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/50 block";
+                msgBox.innerText = "❌ Error al conectar con TaskNode";
+            }
+        }
+    </script>
+</body>
+</html>
