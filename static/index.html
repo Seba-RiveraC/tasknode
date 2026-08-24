@@ -2,133 +2,162 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Terreno</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaskNode - Terreno</title>
+    <!-- Tailwind CSS para diseño rápido y moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4 font-sans flex items-center justify-center">
+<body class="bg-gray-100 text-gray-800 font-sans antialiased min-h-screen flex flex-col">
 
-    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-6 space-y-6">
-        
-        <!-- Branding Header -->
-        <div class="text-center border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-extrabold tracking-wider text-blue-500">TASK<span class="text-white">NODE</span></h1>
-            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">Registro Operativo de Terreno</p>
-        </div>
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md">
+        <h1 class="text-xl font-bold text-center">TaskNode App</h1>
+        <p class="text-xs text-center text-blue-200">Panel de Técnico en Terreno</p>
+    </header>
 
-        <!-- Formularo Cero-Tipeo -->
-        <div class="space-y-5">
-            <!-- 1. Seleccionar Faena -->
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">1. Seleccionar Faena</label>
-                <select id="faena" class="w-full p-3.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="Edificio Central">Edificio Central</option>
-                    <option value="Planta Solar Norte">Planta Solar Norte</option>
-                    <option value="Mantención Clínica">Mantención Clínica</option>
-                </select>
-            </div>
-
-            <!-- 2. Semáforo de Avance -->
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">2. Estado de Avance</label>
-                <div class="grid grid-cols-3 gap-3">
-                    <button type="button" onclick="setEstado('VERDE', this)" class="btn-estado bg-emerald-600/20 border-2 border-emerald-500 text-emerald-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-emerald-600/30 transition">
-                        <span>🟢</span>
-                        <span class="text-xs uppercase tracking-wider">Normal</span>
-                    </button>
-                    <button type="button" onclick="setEstado('AMARILLO', this)" class="btn-estado bg-amber-600/20 border-2 border-transparent text-amber-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-amber-600/30 transition">
-                        <span>🟡</span>
-                        <span class="text-xs uppercase tracking-wider">Retraso</span>
-                    </button>
-                    <button type="button" onclick="setEstado('ROJO', this)" class="btn-estado bg-rose-600/20 border-2 border-transparent text-rose-400 p-4 rounded-xl font-bold text-2xl flex flex-col items-center gap-1 hover:bg-rose-600/30 transition">
-                        <span>🔴</span>
-                        <span class="text-xs uppercase tracking-wider">Bloqueo</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 3. Motivo Bloqueo (Oculto por defecto) -->
-            <div id="div-motivos" class="hidden transition-all">
-                <label class="block text-xs font-bold text-rose-400 uppercase tracking-wider mb-2">3. Causa del Incidente</label>
-                <select id="motivo" class="w-full p-3.5 bg-slate-900 border border-rose-500/50 rounded-xl text-white font-medium focus:ring-2 focus:ring-rose-500 outline-none">
-                    <option value="">Selecciona un motivo...</option>
-                    <option value="Faltan materiales">Faltan materiales / insumos</option>
-                    <option value="Falta combustible">Falta combustible / transporte</option>
-                    <option value="Cliente no responde">Cliente no responde / Sin acceso</option>
-                    <option value="Falla equipo">Falla de equipo / herramienta</option>
-                    <option value="Condiciones clima">Condiciones climáticas adversas</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Botón Enviar -->
-        <button onclick="enviarReporte()" class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition text-white font-bold py-4 rounded-xl text-lg shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
-            <span>⚡</span> REGISTRAR EN TASKNODE
-        </button>
-
-        <!-- Feedback UI -->
-        <div id="mensaje" class="hidden text-center text-sm font-semibold p-3 rounded-xl"></div>
-    </div>
-
-    <script>
-        let estadoSeleccionado = 'VERDE';
-
-        function setEstado(estado, btnElement) {
-            estadoSeleccionado = estado;
+    <!-- Main Content -->
+    <main class="flex-1 p-4 max-w-md mx-auto w-full">
+        <div class="bg-white rounded-lg shadow-sm p-5">
+            <h2 class="text-lg font-semibold mb-4 border-b pb-2">Nuevo Reporte</h2>
             
-            document.querySelectorAll('.btn-estado').forEach(btn => {
-                btn.classList.remove('border-emerald-500', 'border-amber-500', 'border-rose-500');
-                btn.classList.add('border-transparent');
-            });
+            <form id="reportForm" class="space-y-4">
+                
+                <!-- Faena -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de la Faena</label>
+                    <input type="text" id="faena_nombre" required placeholder="Ej: Planta Sur" 
+                           class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
 
-            if (estado === 'VERDE') btnElement.classList.add('border-emerald-500');
-            if (estado === 'AMARILLO') btnElement.classList.add('border-amber-500');
-            if (estado === 'ROJO') btnElement.classList.add('border-rose-500');
+                <!-- Estado (Semáforo) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Estado Operativo</label>
+                    <select id="estado" required onchange="toggleMotivo()"
+                            class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="" disabled selected>Seleccione un estado...</option>
+                        <option value="VERDE">🟢 Normal (Sin problemas)</option>
+                        <option value="AMARILLO">🟡 Advertencia (Operando con lentitud)</option>
+                        <option value="ROJO">🔴 Crítico (Operación detenida)</option>
+                    </select>
+                </div>
 
-            const divMotivos = document.getElementById('div-motivos');
-            if (estado === 'ROJO' || estado === 'AMARILLO') {
-                divMotivos.classList.remove('hidden');
+                <!-- Motivo de Bloqueo (Oculto por defecto, se muestra si es Amarillo o Rojo) -->
+                <div id="div_motivo" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo del problema</label>
+                    <select id="motivo_bloqueo" class="w-full border border-gray-300 rounded-md p-2">
+                        <option value="Falla Eléctrica">Falla Eléctrica</option>
+                        <option value="Falla Mecánica">Falla Mecánica</option>
+                        <option value="Falta de Insumos">Falta de Insumos</option>
+                        <option value="Otros">Otros (Especificar en notas)</option>
+                    </select>
+                </div>
+
+                <!-- Notas libres (Lo que me pediste antes) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notas adicionales (Opcional)</label>
+                    <textarea id="notas" rows="3" placeholder="Detalles del reporte o justificación de 'Otros'..."
+                              class="w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <!-- GPS Status -->
+                <div class="text-xs text-gray-500 flex items-center justify-between bg-gray-50 p-2 rounded">
+                    <span>📍 Ubicación GPS:</span>
+                    <span id="gps_status" class="font-mono text-blue-600">Buscando...</span>
+                </div>
+
+                <!-- Submit -->
+                <button type="submit" id="btn_submit"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md transition-colors duration-200">
+                    Enviar Reporte
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- Lógica de la PWA -->
+    <script>
+        // Variables globales para el GPS
+        let currentLat = null;
+        let currentLng = null;
+
+        // 1. Obtener GPS apenas carga la app
+        window.onload = () => {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        currentLat = position.coords.latitude;
+                        currentLng = position.coords.longitude;
+                        document.getElementById('gps_status').innerText = `${currentLat.toFixed(4)}, ${currentLng.toFixed(4)}`;
+                        document.getElementById('gps_status').classList.replace('text-blue-600', 'text-green-600');
+                    },
+                    (error) => {
+                        document.getElementById('gps_status').innerText = "Denegado / Error";
+                        document.getElementById('gps_status').classList.replace('text-blue-600', 'text-red-500');
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
             } else {
-                divMotivos.classList.add('hidden');
-                document.getElementById('motivo').value = '';
+                document.getElementById('gps_status').innerText = "No soportado";
+            }
+        };
+
+        // 2. Mostrar/Ocultar el motivo de bloqueo según el estado
+        function toggleMotivo() {
+            const estado = document.getElementById('estado').value;
+            const divMotivo = document.getElementById('div_motivo');
+            if (estado === 'AMARILLO' || estado === 'ROJO') {
+                divMotivo.classList.remove('hidden');
+            } else {
+                divMotivo.classList.add('hidden');
+                document.getElementById('motivo_bloqueo').value = ''; // Limpiar
             }
         }
 
-        async function enviarReporte() {
-            const faena = document.getElementById('faena').value;
-            const motivo = document.getElementById('motivo').value;
-            const msgBox = document.getElementById('mensaje');
+        // 3. Enviar datos al Backend (FastAPI)
+        document.getElementById('reportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('btn_submit');
+            btn.innerText = "Enviando...";
+            btn.disabled = true;
 
-            if ((estadoSeleccionado === 'ROJO' || estadoSeleccionado === 'AMARILLO') && !motivo) {
-                alert('⚠️ Indica el motivo del problema antes de enviar.');
-                return;
-            }
-
+            // Construir el paquete JSON (Ojo: hardcodeamos empresa 1 y tecnico 1 por ahora)
             const payload = {
-                faena: faena,
-                estado: estadoSeleccionado,
-                motivo: motivo
+                empresa_id: 1,
+                tecnico_id: 1,
+                faena_nombre: document.getElementById('faena_nombre').value,
+                estado: document.getElementById('estado').value,
+                motivo_bloqueo: document.getElementById('estado').value === 'VERDE' ? null : document.getElementById('motivo_bloqueo').value,
+                notas: document.getElementById('notas').value || null,
+                latitud: currentLat,
+                longitud: currentLng
             };
 
             try {
-                const response = await fetch('/api/reportar', {
+                // Apuntamos al backend local (Uvicorn)
+                const response = await fetch('http://localhost:8000/api/reportes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
 
                 if (response.ok) {
-                    msgBox.className = "text-center text-sm font-semibold p-3 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 block";
-                    msgBox.innerText = "✅ Reporte sincronizado correctamente";
-                    setTimeout(() => { msgBox.className = "hidden"; }, 3000);
+                    alert('✅ Reporte enviado con éxito');
+                    document.getElementById('reportForm').reset();
+                    toggleMotivo();
                 } else {
-                    throw new Error('Error en el servidor');
+                    const err = await response.json();
+                    alert('❌ Error del servidor: ' + JSON.stringify(err));
                 }
             } catch (error) {
-                msgBox.className = "text-center text-sm font-semibold p-3 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/50 block";
-                msgBox.innerText = "❌ Error al conectar con TaskNode";
+                // Aquí es donde en el futuro meteremos la lógica de guardado Offline (IndexedDB)
+                alert('⚠️ No hay conexión al servidor. (En el futuro esto se guardará offline).');
+                console.error(error);
+            } finally {
+                btn.innerText = "Enviar Reporte";
+                btn.disabled = false;
             }
-        }
+        });
     </script>
 </body>
 </html>

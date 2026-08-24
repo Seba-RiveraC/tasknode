@@ -1,12 +1,31 @@
-# Ignorar base de datos local
+# 1. Base de datos local de prueba
 *.db
 *.sqlite3
+tasknode_test.db
 
-# Ignorar entornos virtuales (si decides crear uno luego)
+# 2. Entornos virtuales de Python
 venv/
 .venv/
 env/
+ENV/
 
-# Ignorar archivos temporales de Python
+# 3. Archivos temporales y caché de Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# 4. Variables de entorno y credenciales (Clave para cuando usemos Azure/Postgres)
+.env
+.env.local
+*.env
+
+# 5. Configuración de editores (VS Code, JetBrains)
+.vscode/
+.idea/
+*.swp
+
+# 6. Logs y archivos del sistema
+*.log
+.DS_Store
+Thumbs.db

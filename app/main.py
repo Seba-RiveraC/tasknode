@@ -1,13 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime
-from app.database import init_db, get_connection
+from typing import Optional
+import app.models as models
+from app.database import engine, get_db
 
-app = FastAPI(title="TaskNode API", version="0.1.0-prealpha")
+# 1. Construir las tablas en la base de datos (Si no existen)
+models.Base.metadata.create_all(bind=engine)
 
+app = FastAPI(title="TaskNode Enterprise API", version="0.1.0")
+
+# 2. Configuración CORS (Vital para que el frontend HTML pueda hablar con esta API)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,29 +19,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Servir archivos estáticos (CSS, JS, imágenes)
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.on_event("startup")
-def startup_event():
-    init_db()
-
-# Ruta raíz que entrega directamente la webapp del técnico
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
-
-class ReporteIn(BaseModel):
-    faena: str
+# 3. Esquemas Pydantic (Los guardias de seguridad de la puerta)
+class ReporteCreate(BaseModel):
+    empresa_id: int
+    tecnico_id: int
+    faena_nombre: str
     estado: str
-    motivo: str = ""
+    motivo_bloqueo: Optional[str] = None
+    notas: Optional[str] = None
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
+    # No pedimos foto_url aún, ni fecha, porque eso lo maneja el backend o Azure.
 
-@app.post("/api/reportar")
-def recibir_reporte(reporte: ReporteIn):
-    with get_connection() as conn:
-        c = conn.cursor()
-        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        c.execute("INSERT INTO reportes (fecha, faena, estado, motivo) VALUES (?, ?, ?, ?)",
-                  (fecha_actual, reporte.faena, reporte.estado, reporte.motivo))
-        conn.commit()
-    return {"status": "ok", "message": "Reporte registrado"}
+# 4. Endpoints (Las puertas de acceso)
+
+@app.post("/api/reportes", status_code=201)
+def crear_reporte(reporte: ReporteCreate, db: Session = Depends(get_db)):
+    """Recibe un reporte del celular del técnico y lo guarda en Postgres."""
+    # Convertimos el esquema Pydantic a un modelo SQLAlchemy
+    nuevo_reporte = models.ReporteTerreno(**reporte.model_dump())
+    
+    db.add(nuevo_reporte)
+    db.commit()
+    db.refresh(nuevo_reporte) # Refresca para obtener el ID autogenerado
+    
+    return {"status": "ok", "mensaje": "Reporte sincronizado con éxito", "id": nuevo_reporte.id}
+
+@app.get("/api/reportes")
+def listar_reportes(db: Session = Depends(get_db)):
+    """Entrega los reportes al dashboard del coordinador."""
+    # En la Fase 3, aquí agregaremos el filtro por empresa_id para el Multi-Tenant
+    reportes = db.query(models.ReporteTerreno).order_by(models.ReporteTerreno.id.desc()).all()
+    return reportes
