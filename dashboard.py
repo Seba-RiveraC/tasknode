@@ -1,22 +1,41 @@
 import streamlit as st
 import pandas as pd
-from app.database import get_connection
+import requests
 
-st.set_page_config(page_title="TaskNode | Admin", layout="wide")
-st.title(" TaskNode — Control de Operaciones")
+st.set_page_config(page_title="TaskNode - Oficina", layout="wide")
+st.title("Panel de Supervisión TaskNode")
 
-def cargar_datos():
-    with get_connection() as conn:
-        return pd.read_sql_query("SELECT * FROM reportes ORDER BY id DESC", conn)
+API_URL = "http://localhost:8000/api/reportes"
 
-df = cargar_datos()
+# Botón para refrescar
+if st.button("🔄 Actualizar Datos"):
+    st.rerun()
 
-if not df.empty:
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Reportes", len(df))
-    col2.metric("Bloqueos 🔴", len(df[df['estado'] == 'ROJO']))
-    col3.metric("Retrasos 🟡", len(df[df['estado'] == 'AMARILLO']))
+try:
+    # Consumo de la API REST
+    response = requests.get(API_URL)
     
-    st.markdown("---")
-    st.dataframe(df, use_container_width=True)
-    st.download_button("📥 Exportar CSV", df.to_csv(index=False).encode('utf-8'), "tasknode_export.csv", "text/csv")
+    if response.status_code == 200:
+        datos = response.json()
+        
+        if datos:
+            df = pd.DataFrame(datos)
+            
+            # Vista previa interactiva
+            st.dataframe(df, use_container_width=True)
+            
+            # Exportación
+            csv = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Exportar a CSV",
+                data=csv,
+                file_name="reportes_faena.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No hay reportes registrados en el sistema.")
+    else:
+        st.error(f"Error en el servidor: {response.status_code}")
+
+except requests.exceptions.ConnectionError:
+    st.error("No se pudo conectar al Backend. Asegúrate de que Uvicorn esté corriendo en el puerto 8000.")
