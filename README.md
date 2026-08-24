@@ -1,41 +1,53 @@
-# TaskNode
+# TaskNode Enterprise API
 
-TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field Service Management) diseñada para estructurar el flujo de información entre técnicos operativos y coordinadores de servicio.
+TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field Service Management). Está diseñada para estructurar el flujo de información entre técnicos operativos y coordinadores de servicio, garantizando trazabilidad geográfica y operativa.
 
-> **Importante:** Este proyecto se encuentra en una fase preliminar y está diseñado específicamente como un mockup funcional para demostración y validación de concepto.
+> **Estado del Proyecto (MVP):** Este sistema se encuentra en fase de desarrollo activo. Actualmente implementa una arquitectura de microservicios Multi-Tenant y una PWA con capacidades Offline-First para entornos de baja conectividad.
 
-## Arquitectura
+## Arquitectura del Sistema
 
-* Backend: FastAPI (Python)
-* Base de datos: SQLite
-* Frontend Técnico: HTML5 / TailwindCSS (Diseño centrado en captura rápida sin tipeo)
-* Dashboard Administrativo: Streamlit
+* **Capa de Enrutamiento (Backend):** FastAPI (Python) asíncrono.
+* **Capa de Validación:** Pydantic (Filtro estricto de esquemas y tipos de datos).
+* **Capa de Persistencia (Base de Datos):** SQLAlchemy (ORM) preparado para PostgreSQL con Row-Level Security (RLS) para aislamiento Multi-Tenant. *(Actualmente configurado con SQLite para pruebas locales).*
+* **Frontera de Terreno (Frontend Técnico):** PWA (Progressive Web App) construida con HTML5, TailwindCSS y JavaScript Vanilla. Integra captura de coordenadas GPS nativa.
+* **Frontera de Negocio (Dashboard):** Streamlit para consumo de API REST, monitoreo en vivo y exportación a CSV.
 
 ## Estructura del Proyecto
 
-* app/main.py: Definición de endpoints API RESTful y servicio de archivos estáticos
-* app/database.py: Inicialización de esquemas y gestión de conexiones SQLite
-* static/index.html: Interfaz móvil para el registro de estados e incidentes en terreno
-* dashboard.py: Panel analítico para monitoreo de faenas y exportación de datos.
+* `app/main.py`: Controlador principal, endpoints API RESTful y schemas de validación.
+* `app/models.py`: Planos arquitectónicos de la base de datos (Entidades, Relaciones y Enums).
+* `app/database.py`: Motor de conexión ORM y generador de sesiones por transacción.
+* `index.html`: Interfaz móvil (PWA) para registro transaccional en terreno.
+* `dashboard.py`: Panel analítico de oficina para el cruce de datos.
 
-## Instalación
+## Instalación y Despliegue Local
 
-1. Clonar el repositorio e ingresar al directorio:
-   git clone https://github.com/Seba-RiveraC/tasknode.git
-   cd tasknode
-
-2. Crear y activar el entorno virtual:
+2. **Crear y activar el entorno virtual:**
+   ```bash
+   # En Windows:
    python -m venv venv
-   source venv/bin/activate  # Windows: .\venv\Scripts\Activate.ps1
+   .\venv\Scripts\activate
+   
+   # En macOS/Linux:
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+3. **Instalar dependencias:**
+   ```bash
+   pip install fastapi uvicorn sqlalchemy pydantic pandas streamlit requests
+   ```
 
-3. Instalar dependencias:
-   pip install -r requirements.txt
+## Ejecución del Ecosistema
 
-## Ejecución
+**1. Levantar el Microservicio (Backend) y PWA:**  
+Abre una terminal y ejecuta el servidor ASGI:
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+* **Acceso PWA Técnico:** Abre el archivo `index.html` directamente en tu navegador (o mediante Live Server).
+* **Documentación API (Swagger):** `http://localhost:8000/docs`
 
-1. Iniciar el Backend y la App Móvil:
-   uvicorn app.main:app --reload --port 8000
-   Acceso técnico: http://localhost:8000/
-
-2. Iniciar el Dashboard Administrativo (en una segunda terminal):
-   streamlit run dashboard.py
+**2. Levantar el Panel Administrativo (Frontend Oficina):**  
+Abre una **segunda terminal**, asegúrate de tener el entorno virtual activado, y ejecuta:
+```bash
+streamlit run dashboard.py
