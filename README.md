@@ -22,7 +22,7 @@ TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field
 
 ## Instalación y Despliegue Local
 
-2. **Crear y activar el entorno virtual:**
+1. **Crear y activar el entorno virtual:**
    ```bash
    # En Windows:
    python -m venv venv
@@ -32,7 +32,7 @@ TaskNode es una plataforma SaaS B2B de Gestión de Operaciones en Terreno (Field
    python3 -m venv venv
    source venv/bin/activate
    ```
-3. **Instalar dependencias:**
+2. **Instalar dependencias:**
    ```bash
    pip install fastapi uvicorn sqlalchemy pydantic pandas streamlit requests
    ```
