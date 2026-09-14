@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | App Terreno</title>
+    <!-- Estilos corporativos -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
+        .card { border: none; border-radius: 15px; }
+        .form-control, .form-select { border-radius: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
+        .form-control:focus, .form-select:focus { background-color: #fff; box-shadow: none; border-color: #0d6efd; }
+        .btn-transmitir { border-radius: 8px; font-weight: 600; padding: 12px; font-size: 1.1rem; }
+        
+        /* Estilos Pantalla de Bloqueo (Mockup Biométrico) */
+        #pantalla-bloqueo {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0f172a; color: white; z-index: 1050;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        .btn-huella {
+            width: 80px; height: 80px; border-radius: 50%;
+            background-color: rgba(59, 130, 246, 0.1); border: 2px solid #3b82f6;
+            color: #3b82f6; font-size: 2.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s ease; margin: 0 auto;
+        }
+        .btn-huella:hover { background-color: rgba(59, 130, 246, 0.2); transform: scale(1.05); }
+        .btn-huella.success { border-color: #10b981; color: #10b981; background-color: rgba(16, 185, 129, 0.1); }
+        
+        /* Animación de entrada para la app principal */
+        @keyframes fadeInApp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .app-activa { animation: fadeInApp 0.6s ease forwards; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. PANTALLA DE BLOQUEO (MOCKUP LOGIN ESTILO MERCADO PAGO) -->
+    <div id="pantalla-bloqueo">
+        <div class="text-center">
+            <i class="bi bi-shield-lock-fill text-primary mb-3 d-block" style="font-size: 3.5rem;"></i>
+            <h2 class="fw-bold mb-0">TaskNode</h2>
+            <p class="text-secondary mb-5">Acceso Seguro</p>
+
+            <div class="mb-5">
+                <!-- Avatar simulado usando UI Avatars -->
+                <img src="https://ui-avatars.com/api/?name=Juan+Perez&background=0D8ABC&color=fff&rounded=true&size=80" alt="Avatar" class="mb-3 shadow-sm">
+                <h4 class="mb-1">Hola, Juan</h4>
+                <p class="text-secondary small">Técnico Electromecánico</p>
+            </div>
+
+            <div id="btn-autenticar" class="btn-huella mb-3">
+                <i class="bi bi-fingerprint" id="icono-auth"></i>
+            </div>
+            <p class="text-secondary small" id="texto-auth">Toca para usar tu huella o PIN</p>
+        </div>
+    </div>
+
+    <!-- 2. APLICACIÓN PRINCIPAL (Oculta al inicio) -->
+    <div id="app-principal" style="display: none;">
+        <!-- Cabecera -->
+        <nav class="navbar navbar-dark bg-dark shadow-sm">
+            <div class="container d-flex justify-content-between align-items-center" style="max-width: 480px;">
+                <span class="navbar-brand mb-0 h1"><i class="bi bi-cpu-fill me-2 text-primary"></i>TaskNode</span>
+                <span class="badge bg-success rounded-pill"><i class="bi bi-shield-check me-1"></i>Verificado</span>
+            </div>
+        </nav>
+
+        <!-- Formulario principal -->
+        <div class="container mt-4 mb-5" style="max-width: 480px;">
+            <h5 class="text-muted text-center mb-3">Registro de Avance en Terreno</h5>
+            
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form id="formularioEstado">
+                        
+                        <!-- Operario Fijo (Sesión activa) -->
+                        <div class="mb-3 d-none">
+                            <input type="hidden" id="operario_id" value="45">
+                        </div>
+
+                        <!-- Tareas Desplegables -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Tarea Asignada hoy</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-card-checklist text-muted"></i></span>
+                                <select class="form-select border-start-0 ps-0" id="tarea_id">
+                                    <option value="101">[ID: 101] Mantenimiento Preventivo Bombas de Agua</option>
+                                    <option value="102">[ID: 102] Inspección de Seguridad Perimetral Norte</option>
+                                    <option value="103">[ID: 103] Reemplazo de Válvulas Subacuáticas</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Estados Globales -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Estado de Avance</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-activity text-muted"></i></span>
+                                <select class="form-select border-start-0 ps-0" id="estado">
+                                    <option>Todo en orden</option>
+                                    <option>Interrumpido</option>
+                                    <option>Finalizado</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- GPS -->
+                        <div class="mb-3">
+                            <label class="form-label text-muted small fw-bold">Ubicación Actual (GPS)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-geo-alt-fill text-danger"></i></span>
+                                <input type="text" class="form-control border-start-0 ps-0" id="gps" value="-41.4693, -72.9424" required>
+                            </div>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-bold">Observaciones / Novedades</label>
+                            <textarea class="form-control" id="obs" rows="2" placeholder="Describa cualquier novedad..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-transmitir w-100" id="btnEnviar">
+                            <i class="bi bi-cloud-upload-fill me-2"></i>Transmitir a Central
+                        </button>
+                    </form>
+
+                    <!-- Mensaje de éxito/error -->
+                    <div id="mensaje" class="alert mt-4 d-none text-center" role="alert"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts lógicos -->
+    <script>
+        // Lógica de la Pantalla de Bloqueo (Mockup)
+        document.getElementById('btn-autenticar').addEventListener('click', async function() {
+            const btn = this;
+            const icono = document.getElementById('icono-auth');
+            const texto = document.getElementById('texto-auth');
+            const pantallaBloqueo = document.getElementById('pantalla-bloqueo');
+            const appPrincipal = document.getElementById('app-principal');
+
+            // 1. Simula escaneo
+            icono.className = 'spinner-border spinner-border-sm';
+            texto.innerText = 'Verificando credenciales...';
+            btn.style.pointerEvents = 'none'; // Deshabilita clics dobles
+
+            await new Promise(r => setTimeout(r, 1200)); // Espera 1.2 segundos
+
+            // 2. Simula éxito
+            icono.className = 'bi bi-check-lg';
+            btn.classList.add('success');
+            texto.innerText = 'Identidad verificada';
+            texto.classList.replace('text-secondary', 'text-success');
+
+            await new Promise(r => setTimeout(r, 800)); // Pausa breve para que se vea el ticket verde
+
+            // 3. Transición a la app
+            pantallaBloqueo.style.opacity = '0';
+            pantallaBloqueo.style.visibility = 'hidden';
+            
+            setTimeout(() => {
+                appPrincipal.style.display = 'block';
+                appPrincipal.classList.add('app-activa');
+            }, 300);
+        });
+
+        // Lógica de transmisión a FastAPI (La misma de antes)
+        document.getElementById('formularioEstado').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('btnEnviar');
+            const mensajeDiv = document.getElementById('mensaje');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sincronizando...';
+            mensajeDiv.classList.add('d-none');
+
+            const datos = {
+                tarea_id: parseInt(document.getElementById('tarea_id').value),
+                operario_id: parseInt(document.getElementById('operario_id').value), // Saca el ID oculto
+                estado: document.getElementById('estado').value,
+                coordenadas_gps: document.getElementById('gps').value,
+                observacion: document.getElementById('obs').value
+            };
+
+            try {
+                await new Promise(r => setTimeout(r, 600));
+
+                const respuesta = await fetch('http://127.0.0.1:8000/api/v1/estados/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+
+                if (respuesta.ok) {
+                    mensajeDiv.className = 'alert alert-success mt-4 mb-0 fw-bold';
+                    mensajeDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registro guardado en base de datos';
+                    mensajeDiv.classList.remove('d-none');
+                    document.getElementById('obs').value = ''; 
+                } else {
+                    throw new Error('Error de validación');
+                }
+            } catch (error) {
+                mensajeDiv.className = 'alert alert-danger mt-4 mb-0 fw-bold';
+                mensajeDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Error de conexión con la central';
+                mensajeDiv.classList.remove('d-none');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i>Transmitir a Central';
+            }
+        });
+    </script>
+</body>
+</html>
