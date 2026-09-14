@@ -1,10 +1,43 @@
-# Entornos virtuales
-venv/
-env/
 
 # Caché de Python
 __pycache__/
-*.pyc
 
-# Variables de entorno
+Entornos virtuales
+
+venv/
+env/
+.venv/
+
+Caché de Python
+
+pycache/
+*.pyc
+*.pyo
+*.pyd
+
+Variables de entorno y secretos (¡Crítico!)
+
 .env
+.env.*
+*.pem
+
+Bases de datos locales (por si haces pruebas sin Docker)
+
+*.sqlite3
+*.db
+
+Archivos del Sistema Operativo
+
+.DS_Store
+Thumbs.db
+
+Configuraciones de Editores de Código (VS Code, Zed, Cursor)
+
+.vscode/
+.idea/
+.zed/
+
+Archivos de logs y testing
+
+*.log
+.pytest_cache/
