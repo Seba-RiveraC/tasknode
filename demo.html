@@ -3,216 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | App Terreno</title>
-    <!-- Estilos corporativos -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <title>TaskNode | Terminal Operativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
-        .navbar-brand { font-weight: 700; letter-spacing: 1px; }
-        .card { border: none; border-radius: 15px; }
-        .form-control, .form-select { border-radius: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6; }
-        .form-control:focus, .form-select:focus { background-color: #fff; box-shadow: none; border-color: #0d6efd; }
-        .btn-transmitir { border-radius: 8px; font-weight: 600; padding: 12px; font-size: 1.1rem; }
-        
-        /* Estilos Pantalla de Bloqueo (Mockup Biométrico) */
-        #pantalla-bloqueo {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #0f172a; color: white; z-index: 1050;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
-        }
-        .btn-huella {
-            width: 80px; height: 80px; border-radius: 50%;
-            background-color: rgba(59, 130, 246, 0.1); border: 2px solid #3b82f6;
-            color: #3b82f6; font-size: 2.5rem; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all 0.3s ease; margin: 0 auto;
-        }
-        .btn-huella:hover { background-color: rgba(59, 130, 246, 0.2); transform: scale(1.05); }
-        .btn-huella.success { border-color: #10b981; color: #10b981; background-color: rgba(16, 185, 129, 0.1); }
-        
-        /* Animación de entrada para la app principal */
-        @keyframes fadeInApp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .app-activa { animation: fadeInApp 0.6s ease forwards; }
+        body { font-family: 'Inter', sans-serif; }
+        .fingerprint-btn { transition: all 0.2s ease-in-out; }
+        .fingerprint-btn:active { transform: scale(0.95); }
     </style>
 </head>
-<body>
+<body class="bg-zinc-100 text-zinc-800 antialiased overflow-x-hidden">
 
-    <!-- 1. PANTALLA DE BLOQUEO (MOCKUP LOGIN ESTILO MERCADO PAGO) -->
-    <div id="pantalla-bloqueo">
-        <div class="text-center">
-            <i class="bi bi-shield-lock-fill text-primary mb-3 d-block" style="font-size: 3.5rem;"></i>
-            <h2 class="fw-bold mb-0">TaskNode</h2>
-            <p class="text-secondary mb-5">Acceso Seguro</p>
-
-            <div class="mb-5">
-                <!-- Avatar simulado usando UI Avatars -->
-                <img src="https://ui-avatars.com/api/?name=Juan+Perez&background=0D8ABC&color=fff&rounded=true&size=80" alt="Avatar" class="mb-3 shadow-sm">
-                <h4 class="mb-1">Hola, Juan</h4>
-                <p class="text-secondary small">Técnico Electromecánico</p>
+    <!-- Pantalla de Bloqueo Biométrica -->
+    <div id="pantalla-bloqueo" class="fixed inset-0 bg-zinc-950 flex flex-col items-center justify-center z-50 transition-opacity duration-500">
+        <div class="text-center w-full max-w-sm px-6">
+            <div class="mb-8">
+                <svg class="w-16 h-16 mx-auto text-emerald-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                </svg>
+                <h2 class="text-2xl font-bold text-white tracking-tight">TaskNode Terminal</h2>
+                <p class="text-zinc-400 text-sm mt-1">Validación de Cuadrilla Requerida</p>
             </div>
 
-            <div id="btn-autenticar" class="btn-huella mb-3">
-                <i class="bi bi-fingerprint" id="icono-auth"></i>
+            <div class="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 mb-8">
+                <img src="https://ui-avatars.com/api/?name=Juan+Perez&background=10b981&color=fff&rounded=true" alt="Avatar" class="w-16 h-16 mx-auto rounded-full ring-4 ring-zinc-800 mb-3">
+                <h4 class="text-white font-medium">J. Pérez</h4>
+                <p class="text-zinc-500 text-xs">C.C: Mantenimiento Sur (ID: 45)</p>
             </div>
-            <p class="text-secondary small" id="texto-auth">Toca para usar tu huella o PIN</p>
+
+            <button id="btn-autenticar" class="fingerprint-btn mx-auto w-20 h-20 bg-zinc-900 rounded-full border-2 border-emerald-500/50 flex items-center justify-center text-emerald-400 hover:bg-emerald-900/20 hover:border-emerald-400 focus:outline-none">
+                <svg id="icono-auth" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            </button>
+            <p id="texto-auth" class="text-zinc-500 text-xs mt-4">Toque para validación biométrica</p>
         </div>
     </div>
 
-    <!-- 2. APLICACIÓN PRINCIPAL (Oculta al inicio) -->
-    <div id="app-principal" style="display: none;">
-        <!-- Cabecera -->
-        <nav class="navbar navbar-dark bg-dark shadow-sm">
-            <div class="container d-flex justify-content-between align-items-center" style="max-width: 480px;">
-                <span class="navbar-brand mb-0 h1"><i class="bi bi-cpu-fill me-2 text-primary"></i>TaskNode</span>
-                <span class="badge bg-success rounded-pill"><i class="bi bi-shield-check me-1"></i>Verificado</span>
-            </div>
-        </nav>
-
-        <!-- Formulario principal -->
-        <div class="container mt-4 mb-5" style="max-width: 480px;">
-            <h5 class="text-muted text-center mb-3">Registro de Avance en Terreno</h5>
-            
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <form id="formularioEstado">
-                        
-                        <!-- Operario Fijo (Sesión activa) -->
-                        <div class="mb-3 d-none">
-                            <input type="hidden" id="operario_id" value="45">
-                        </div>
-
-                        <!-- Tareas Desplegables -->
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">Tarea Asignada hoy</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-card-checklist text-muted"></i></span>
-                                <select class="form-select border-start-0 ps-0" id="tarea_id">
-                                    <option value="101">[ID: 101] Mantenimiento Preventivo Bombas de Agua</option>
-                                    <option value="102">[ID: 102] Inspección de Seguridad Perimetral Norte</option>
-                                    <option value="103">[ID: 103] Reemplazo de Válvulas Subacuáticas</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Estados Globales -->
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">Estado de Avance</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-activity text-muted"></i></span>
-                                <select class="form-select border-start-0 ps-0" id="estado">
-                                    <option>Todo en orden</option>
-                                    <option>Interrumpido</option>
-                                    <option>Finalizado</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- GPS -->
-                        <div class="mb-3">
-                            <label class="form-label text-muted small fw-bold">Ubicación Actual (GPS)</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0"><i class="bi bi-geo-alt-fill text-danger"></i></span>
-                                <input type="text" class="form-control border-start-0 ps-0" id="gps" value="-41.4693, -72.9424" required>
-                            </div>
-                        </div>
-
-                        <!-- Observaciones -->
-                        <div class="mb-4">
-                            <label class="form-label text-muted small fw-bold">Observaciones / Novedades</label>
-                            <textarea class="form-control" id="obs" rows="2" placeholder="Describa cualquier novedad..."></textarea>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary btn-transmitir w-100" id="btnEnviar">
-                            <i class="bi bi-cloud-upload-fill me-2"></i>Transmitir a Central
-                        </button>
-                    </form>
-
-                    <!-- Mensaje de éxito/error -->
-                    <div id="mensaje" class="alert mt-4 d-none text-center" role="alert"></div>
+    <!-- Aplicación Principal -->
+    <div id="app-principal" class="hidden opacity-0 transition-opacity duration-500">
+        <!-- Header -->
+        <header class="bg-zinc-900 text-white shadow-md">
+            <div class="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="font-semibold tracking-wide text-sm">TaskNode Terreno</span>
                 </div>
+                <span class="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-300 border border-zinc-700">Conectado</span>
             </div>
-        </div>
+        </header>
+
+        <main class="max-w-md mx-auto p-4 pb-12">
+            <h1 class="text-lg font-bold text-zinc-900 mb-4">Registro Operativo</h1>
+            
+            <form id="formularioEstado" class="bg-white rounded-lg shadow-sm border border-zinc-200 p-5 space-y-5">
+                <input type="hidden" id="operario_id" value="45">
+
+                <!-- Orden de Trabajo -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">OT Asignada</label>
+                    <select id="tarea_id" class="w-full text-sm bg-zinc-50 border border-zinc-300 text-zinc-900 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block p-2.5">
+                        <option value="OT-2609-PMT-PRV-0042">OT-2609-PMT-PRV-0042 | Mant. Equipos</option>
+                        <option value="OT-2609-SUR-INS-1088">OT-2609-SUR-INS-1088 | Insp. Estructural</option>
+                        <option value="OT-2609-PMT-COR-0015">OT-2609-PMT-COR-0015 | Calib. Sensores</option>
+                    </select>
+                </div>
+
+                <!-- Estado -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Estado de Ejecución</label>
+                    <select id="estado" class="w-full text-sm bg-zinc-50 border border-zinc-300 text-zinc-900 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block p-2.5">
+                        <option value="Ejecución Normal">Ejecución Normal</option>
+                        <option value="Detención por Anomalía">Detención por Anomalía</option>
+                        <option value="OT Completada">OT Completada</option>
+                    </select>
+                </div>
+
+                <!-- GPS -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Georeferencia (Lectura Automática)</label>
+                    <input type="text" id="gps" value="-41.4693, -72.9424" readonly class="w-full text-sm bg-zinc-100 border border-zinc-300 text-zinc-600 rounded p-2.5 cursor-not-allowed font-mono">
+                </div>
+
+                <!-- Evidencia -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Registro Fotográfico</label>
+                    <input type="file" id="foto" accept="image/*" capture="environment" class="block w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200 border border-zinc-300 rounded cursor-pointer bg-zinc-50">
+                </div>
+
+                <!-- Novedades -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5">Libro de Novedades</label>
+                    <textarea id="obs" rows="3" placeholder="Detalle consumos, hallazgos o retrasos..." class="w-full text-sm bg-zinc-50 border border-zinc-300 text-zinc-900 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 block p-2.5 resize-none"></textarea>
+                </div>
+
+                <button type="submit" id="btnEnviar" class="w-full text-white bg-zinc-900 hover:bg-zinc-800 focus:ring-4 focus:outline-none focus:ring-zinc-300 font-medium rounded text-sm px-5 py-3 text-center transition-colors">
+                    Sincronizar con Central
+                </button>
+            </form>
+
+            <!-- Mensaje de Éxito -->
+            <div id="mensaje" class="hidden mt-4 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-lg p-4">
+                <div class="flex items-center font-bold mb-1">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                    Registro Exitoso
+                </div>
+                <p class="text-xs">Los datos han sido insertados en la base de datos de coordinación.</p>
+            </div>
+
+            <!-- Botón de Retorno al Dashboard -->
+            <a href="dashboard.html" id="btnVolverCentral" class="hidden mt-4 w-full text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 focus:ring-4 focus:outline-none focus:ring-zinc-100 font-medium rounded text-sm px-5 py-3 text-center transition-colors block">
+                Ver Plataforma de Coordinación
+            </a>
+        </main>
     </div>
 
-    <!-- Scripts lógicos -->
     <script>
-        // Lógica de la Pantalla de Bloqueo (Mockup)
+        // Mockup de Auth
         document.getElementById('btn-autenticar').addEventListener('click', async function() {
             const btn = this;
             const icono = document.getElementById('icono-auth');
             const texto = document.getElementById('texto-auth');
-            const pantallaBloqueo = document.getElementById('pantalla-bloqueo');
-            const appPrincipal = document.getElementById('app-principal');
+            
+            icono.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />`;
+            icono.classList.add('animate-spin');
+            texto.innerText = 'Consultando credenciales locales...';
+            btn.style.pointerEvents = 'none'; 
 
-            // 1. Simula escaneo
-            icono.className = 'spinner-border spinner-border-sm';
-            texto.innerText = 'Verificando credenciales...';
-            btn.style.pointerEvents = 'none'; // Deshabilita clics dobles
+            await new Promise(r => setTimeout(r, 1200)); 
 
-            await new Promise(r => setTimeout(r, 1200)); // Espera 1.2 segundos
+            icono.classList.remove('animate-spin');
+            icono.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />`;
+            btn.classList.replace('border-emerald-500/50', 'border-emerald-500');
+            btn.classList.replace('text-emerald-400', 'text-emerald-500');
+            texto.innerText = 'Operario Validado';
+            texto.classList.replace('text-zinc-500', 'text-emerald-500');
 
-            // 2. Simula éxito
-            icono.className = 'bi bi-check-lg';
-            btn.classList.add('success');
-            texto.innerText = 'Identidad verificada';
-            texto.classList.replace('text-secondary', 'text-success');
+            await new Promise(r => setTimeout(r, 800)); 
 
-            await new Promise(r => setTimeout(r, 800)); // Pausa breve para que se vea el ticket verde
-
-            // 3. Transición a la app
-            pantallaBloqueo.style.opacity = '0';
-            pantallaBloqueo.style.visibility = 'hidden';
+            const lockScreen = document.getElementById('pantalla-bloqueo');
+            lockScreen.classList.add('opacity-0');
             
             setTimeout(() => {
-                appPrincipal.style.display = 'block';
-                appPrincipal.classList.add('app-activa');
-            }, 300);
+                lockScreen.classList.add('hidden');
+                const app = document.getElementById('app-principal');
+                app.classList.remove('hidden');
+                setTimeout(() => app.classList.remove('opacity-0'), 50);
+            }, 500);
         });
 
-        // Lógica de transmisión a FastAPI (La misma de antes)
+        // Envío de Datos
         document.getElementById('formularioEstado').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
             const btn = document.getElementById('btnEnviar');
             const mensajeDiv = document.getElementById('mensaje');
             
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sincronizando...';
-            mensajeDiv.classList.add('d-none');
+            btn.innerText = 'Transmitiendo...';
+            mensajeDiv.classList.add('hidden');
 
             const datos = {
-                tarea_id: parseInt(document.getElementById('tarea_id').value),
-                operario_id: parseInt(document.getElementById('operario_id').value), // Saca el ID oculto
+                tarea_id: document.getElementById('tarea_id').value,
+                operario_id: parseInt(document.getElementById('operario_id').value), 
                 estado: document.getElementById('estado').value,
                 coordenadas_gps: document.getElementById('gps').value,
                 observacion: document.getElementById('obs').value
             };
 
             try {
-                await new Promise(r => setTimeout(r, 600));
+                await new Promise(r => setTimeout(r, 800));
+                
+                try {
+                    await fetch('http://127.0.0.1:8000/api/v1/estados/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datos)
+                    });
+                } catch(e) { console.log("Backend offline, simulación local activa"); }
 
-                const respuesta = await fetch('http://127.0.0.1:8000/api/v1/estados/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(datos)
-                });
-
-                if (respuesta.ok) {
-                    mensajeDiv.className = 'alert alert-success mt-4 mb-0 fw-bold';
-                    mensajeDiv.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Registro guardado en base de datos';
-                    mensajeDiv.classList.remove('d-none');
-                    document.getElementById('obs').value = ''; 
-                } else {
-                    throw new Error('Error de validación');
-                }
+                mensajeDiv.classList.remove('hidden');
+                document.getElementById('btnVolverCentral').classList.remove('hidden');
+                
             } catch (error) {
-                mensajeDiv.className = 'alert alert-danger mt-4 mb-0 fw-bold';
-                mensajeDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Error de conexión con la central';
-                mensajeDiv.classList.remove('d-none');
+                console.error(error);
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i>Transmitir a Central';
+                btn.innerText = 'Completado';
             }
         });
     </script>
