@@ -31,3 +31,15 @@ def registrar_estado(estado: schemas.HistorialCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(nuevo_estado)
     return nuevo_estado
+
+# --- NUEVO: endpoint para el dashboard ---
+@app.get("/api/v1/estados/", response_model=list[schemas.HistorialResponse])
+def listar_estados(db: Session = Depends(get_db)):
+    """
+    Trae todos los reportes operativos ordenados del más reciente al más antiguo.
+    """
+    return (
+        db.query(models.HistorialEstado)
+        .order_by(desc(models.HistorialEstado.timestamp))
+        .all()
+    )

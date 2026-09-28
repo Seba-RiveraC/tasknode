@@ -188,15 +188,99 @@
     </main>
 
     <script>
-        function actualizarTabla() {
-            const icon = document.getElementById('icon-refresh');
-            icon.classList.add('animate-spin');
-            
-            setTimeout(() => {
-                icon.classList.remove('animate-spin');
-                alert("Query finalizada: Sincronización exitosa con Base de Datos de Coordinación.");
-            }, 800);
+    const ESTADOS_STYLE = {
+        'Ejecución Normal': {
+            badge: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+            dot: 'text-emerald-500'
+        },
+        'Detención por Anomalía': {
+            badge: 'bg-red-100 text-red-800 border border-red-200',
+            dot: 'text-red-500'
+        },
+        'OT Completada': {
+            badge: 'bg-zinc-100 text-zinc-800 border border-zinc-200',
+            dot: 'text-zinc-500'
         }
+    };
+
+    function badgeParaEstado(estado) {
+        const estilo = ESTADOS_STYLE[estado] || {
+            badge: 'bg-zinc-100 text-zinc-600 border border-zinc-200',
+            dot: 'text-zinc-400'
+        };
+        return `
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${estilo.badge}">
+                <svg class="-ml-0.5 mr-1.5 h-2 w-2 ${estilo.dot}" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
+                ${estado}
+            </span>
+        `;
+    }
+
+    function formatearTiempoRelativo(isoTimestamp) {
+        const diffMs = Date.now() - new Date(isoTimestamp).getTime();
+        const minutos = Math.floor(diffMs / 60000);
+        if (minutos < 1) return 'Hace instantes';
+        if (minutos < 60) return `Hace ${minutos} min`;
+        const horas = Math.floor(minutos / 60);
+        if (horas < 24) return `Hace ${horas} h`;
+        return `Hace ${Math.floor(horas / 24)} d`;
+    }
+
+    async function actualizarTabla() {
+        const icon = document.getElementById('icon-refresh');
+        const tbody = document.querySelector('table tbody');
+        icon.classList.add('animate-spin');
+
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/v1/estados/');
+            if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+            const reportes = await response.json();
+
+            tbody.innerHTML = ''; // limpia filas mockeadas / anteriores
+
+            if (reportes.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-zinc-500 text-sm">
+                            Sin registros en la base de datos.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            reportes.forEach((reporte) => {
+                const tr = document.createElement('tr');
+                tr.className = 'table-row-hover';
+
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap font-mono font-medium text-zinc-900">Tarea #${reporte.tarea_id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="font-medium text-zinc-900">Operario #${reporte.operario_id}</div>
+                        <div class="text-xs text-zinc-500">Sin cuadrilla asignada</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">${badgeParaEstado(reporte.estado)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-zinc-500 font-mono text-xs">${reporte.coordenadas_gps}</td>
+                    <td class="px-6 py-4 text-zinc-600 truncate max-w-xs">${reporte.observacion ?? 'Sin observaciones'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs text-zinc-500">${formatearTiempoRelativo(reporte.timestamp)}</td>
+                `;
+
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error('Error al sincronizar con Base de Datos:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-red-600 text-sm">
+                        No se pudo conectar con la Base de Datos de Coordinación.
+                    </td>
+                </tr>`;
+        } finally {
+            icon.classList.remove('animate-spin');
+        }
+    }
+
+    // Carga inicial al abrir el dashboard
+    document.addEventListener('DOMContentLoaded', actualizarTabla);
     </script>
 </body>
 </html>
