@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#131417] text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | Confiabilidad UNE-EN 15341</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base">
+
+    <!-- Sidebar SCADA -->
+    <aside class="w-60 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0">
+        <div>
+            <div class="h-14 flex items-center px-4 border-b border-theme-dim justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded bg-amber-600 flex items-center justify-center text-white font-black font-mono text-xs">TN</div>
+                    <div>
+                        <span class="font-bold tracking-wider text-slate-100 text-xs">TASKNODE</span>
+                        <span class="text-[9px] text-slate-500 font-mono block -mt-0.5">CMMS CORE v2.4</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-2.5 space-y-4">
+                <div>
+                    <span class="text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 block mb-1.5">Centro de Despacho</span>
+                    <nav class="space-y-0.5">
+                        <a href="monitor.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            Consola de OTs
+                        </a>
+                        <a href="activos.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            Activos (ISO 55000)
+                        </a>
+                    </nav>
+                </div>
+                <div>
+                    <span class="text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 block mb-1.5">Gobernanza & Auditoría</span>
+                    <nav class="space-y-0.5">
+                        <a href="auditoria.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            Cadena SHA-256
+                        </a>
+                        <a href="metricas.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded bg-surface-2 text-amber-400 font-medium border border-amber-500/30">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            Métricas EN 15341
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        <div class="p-3 border-t border-theme-dim bg-surface-base text-[9px] font-mono text-slate-500">
+            <span>UNE-EN 15341:2020 ENGINE</span>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0">
+            <div>
+                <h1 class="font-mono text-xs font-bold text-slate-200 uppercase tracking-wider">Ingeniería de Confiabilidad y Mantenibilidad</h1>
+                <p class="text-[9px] text-slate-500 font-mono">Indicadores Cuantitativos de Operación (UNE-EN 15341:2020)</p>
+            </div>
+            <button onclick="cargarIndicadoresConfiabilidad()" class="btn-primary font-mono text-[10px] px-3 py-1 rounded transition">Recalcular</button>
+        </header>
+
+        <div class="flex-1 overflow-auto p-4 space-y-3 font-mono">
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-surface-1 border border-theme-dim rounded p-3 space-y-1">
+                    <span class="text-[9px] text-slate-500 uppercase block">Tiempo Medio de Reparación</span>
+                    <div class="text-xl font-bold text-slate-100" id="m-mttr">-- h</div>
+                    <div class="p-1.5 bg-surface-base border border-theme-dim rounded text-[9px] text-slate-400">
+                        MTTR = sum(t_detencion) / k_fallas
+                    </div>
+                </div>
+                <div class="bg-surface-1 border border-theme-dim rounded p-3 space-y-1">
+                    <span class="text-[9px] text-slate-500 uppercase block">Tiempo Medio Entre Fallos</span>
+                    <div class="text-xl font-bold text-slate-100" id="m-mtbf">-- h</div>
+                    <div class="p-1.5 bg-surface-base border border-theme-dim rounded text-[9px] text-slate-400">
+                        MTBF = (T_operacion - sum(t_down)) / k_fallas
+                    </div>
+                </div>
+                <div class="bg-surface-1 border border-theme-dim rounded p-3 space-y-1">
+                    <span class="text-[9px] text-slate-500 uppercase block">Disponibilidad Operacional</span>
+                    <div class="text-xl font-bold text-emerald-400" id="m-ao">--%</div>
+                    <div class="p-1.5 bg-surface-base border border-theme-dim rounded text-[9px] text-slate-400">
+                        Ao = (MTBF / (MTBF + MTTR)) * 100
+                    </div>
+                </div>
+            </div>
+
+            <!-- Adherencia Preventiva -->
+            <div class="bg-surface-1 border border-theme-dim rounded p-3 space-y-2">
+                <div class="flex justify-between items-center text-[10px]">
+                    <span class="text-slate-300 font-bold uppercase">Índice de Cumplimiento Preventivo (ICP)</span>
+                    <span class="text-amber-400 font-bold" id="valor-icp">Calculando...</span>
+                </div>
+                <div class="w-full bg-surface-base border border-theme-dim rounded-full h-2 overflow-hidden">
+                    <div id="progreso-icp" class="bg-amber-500 h-2 transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="static/js/config.js"></script>
+    <script src="static/js/metricas.js"></script>
+</body>
+</html>

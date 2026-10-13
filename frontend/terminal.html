@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#131417] text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaskNode | Terminal Terreno</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body class="h-full flex flex-col font-sans bg-surface-base selection:bg-amber-500 selection:text-black">
+
+    <!-- Notificación HUD Flotante -->
+    <div id="hud-toast" class="fixed top-3 left-3 right-3 z-50 pointer-events-none opacity-0 translate-y-[-6px] transition-all duration-200">
+        <div class="bg-surface-2 border border-theme-bright shadow-2xl px-3 py-2 rounded flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span id="toast-led" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                <span id="toast-msg" class="font-mono text-[10px] text-slate-200">Evento registrado</span>
+            </div>
+            <span class="text-[9px] font-mono text-slate-500">DISPATCH HUD</span>
+        </div>
+    </div>
+
+    <!-- Pantalla de Bloqueo de Turno -->
+    <div id="pantalla-bloqueo" class="fixed inset-0 bg-surface-base flex flex-col items-center justify-center z-40 transition-opacity duration-300">
+        <div class="w-full max-w-xs px-6 text-center space-y-5">
+            <div class="space-y-1">
+                <div class="w-10 h-10 mx-auto rounded border border-amber-500/40 bg-surface-1 flex items-center justify-center font-mono font-bold text-amber-400">TN</div>
+                <h2 class="text-sm font-mono font-bold tracking-wider text-slate-200 uppercase">Terminal de Cuadrilla</h2>
+                <p class="text-slate-500 text-[10px] font-mono">D.S. 594 Art. 53 · Verificación de Turno</p>
+            </div>
+
+            <!-- Identificación Técnica -->
+            <div class="bg-surface-1 border border-theme-dim rounded p-3 text-left font-mono">
+                <div class="text-[9px] text-slate-500 uppercase">Técnico Asignado</div>
+                <div class="font-bold text-xs text-slate-200">S. Rivera</div>
+                <div class="text-[10px] text-slate-400">18.421.903-K</div>
+                <div class="text-[9px] text-amber-400 mt-1">EPP Verificado · Certificación Vigente</div>
+            </div>
+
+            <button id="btn-autenticar" class="w-full py-3 btn-primary font-mono font-bold text-xs uppercase tracking-wider rounded tactile-btn transition">
+                Validar Acceso
+            </button>
+        </div>
+    </div>
+
+    <!-- Interfaz de Terreno Activa -->
+    <div id="app-principal" class="hidden opacity-0 flex-1 flex flex-col transition-opacity duration-200 overflow-hidden">
+        
+        <!-- Barra de Estado de Terreno -->
+        <header class="h-10 bg-surface-1 border-b border-theme-dim px-3 flex items-center justify-between shrink-0 font-mono text-[10px]">
+            <div class="flex items-center gap-2">
+                <span id="dot-red" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span id="txt-red" class="text-slate-300 font-bold">ONLINE</span>
+                <span id="outbox-count" class="text-amber-400 ml-1">Outbox: 0</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-toggle-net" class="px-2 py-0.5 rounded border border-theme-dim bg-surface-2 text-slate-400 hover:text-slate-200">Simular Offline</button>
+                <a href="monitor.html" class="text-slate-400 hover:text-slate-200 ml-1">Salir</a>
+            </div>
+        </header>
+
+        <!-- Formulario Operacional Compacto -->
+        <main class="flex-1 overflow-y-auto p-3 space-y-2.5 max-w-sm mx-auto w-full">
+            <form id="formularioEstado" class="space-y-2.5">
+                <input type="hidden" id="operario_id" value="45">
+
+                <!-- Selector de OT -->
+                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
+                    <label class="block text-[9px] font-mono text-slate-400 uppercase tracking-wider">Orden de Trabajo Asignada</label>
+                    <select id="codigo_ot" required onchange="actualizarInfoOTSeleccionada()" class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 focus:outline-none"></select>
+                    <div id="info-ot-estado" class="text-[9px] font-mono text-slate-500"></div>
+                </div>
+
+                <!-- Selector de Transición FSM -->
+                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
+                    <label class="block text-[9px] font-mono text-slate-400 uppercase tracking-wider">Transición de Estado (EN 13306)</label>
+                    <select id="estado_nuevo" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 focus:outline-none">
+                        <option value="EN EJECUCIÓN">EN EJECUCIÓN (Inicio / En curso)</option>
+                        <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Incidente)</option>
+                        <option value="EN VALIDACIÓN">EN VALIDACIÓN (Fin de labor)</option>
+                        <option value="OT COMPLETADA">OT COMPLETADA (Cierre formal)</option>
+                    </select>
+                </div>
+
+                <!-- Telemetría GPS -->
+                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 flex items-center justify-between font-mono text-[9px]">
+                    <div>
+                        <span class="text-slate-500 uppercase block">Posición WGS84</span>
+                        <span class="text-slate-300 font-bold" id="gps-display">-41.4693, -72.9424</span>
+                        <input type="hidden" id="gps" value="-41.4693, -72.9424">
+                    </div>
+                    <span class="px-1.5 py-0.5 rounded border border-emerald-900 bg-emerald-950/60 text-emerald-400">ST_DWithin OK</span>
+                </div>
+
+                <!-- Viewfinder de Cámara para Evidencia -->
+                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1.5">
+                    <div class="flex justify-between items-center text-[9px] font-mono">
+                        <span class="text-slate-400 uppercase">Captura de Evidencia</span>
+                        <span class="text-slate-500">Laplacian &gt;= 100</span>
+                    </div>
+                    <label class="relative block border border-dashed border-theme-bright rounded p-3 text-center bg-surface-base cursor-pointer hover:border-slate-400 transition">
+                        <input type="file" id="foto" accept="image/*" capture="environment" class="hidden" onchange="actualizarNombreFoto(this)">
+                        <div id="camera-label" class="space-y-1">
+                            <svg class="w-5 h-5 text-slate-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span class="text-[10px] font-mono text-slate-400 block">Abrir sensor de cámara</span>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Libro de Terreno -->
+                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[9px] font-mono text-slate-400 uppercase tracking-wider">Minuta Técnica</label>
+                        <button type="button" onclick="autocompletarNovedad()" class="text-[9px] font-mono text-amber-400 hover:underline">Plantilla</button>
+                    </div>
+                    <textarea id="obs" rows="2" class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none" placeholder="Observaciones de la maniobra..."></textarea>
+                </div>
+
+                <button type="submit" id="btnEnviar" class="w-full py-3 btn-primary font-mono font-bold text-xs uppercase tracking-wider rounded tactile-btn transition">
+                    Sincronizar con Servidor
+                </button>
+            </form>
+
+            <div id="banner-terminal" class="hidden"></div>
+        </main>
+    </div>
+
+    <script src="static/js/config.js"></script>
+    <script src="static/js/terminal.js"></script>
+</body>
+</html>

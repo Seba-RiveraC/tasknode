@@ -1,45 +1,47 @@
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from .database import engine, Base, get_db
-from . import models, schemas
+import os
+os.environ["DISABLE_SQLALCHEMY_CEXT"] = "1"
 
-# Le dice a SQLAlchemy que cree las tablas al iniciar si no existen
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app.core.config import settings
+from app.core.database import engine, Base
+from app.api.v1.router import api_router
+
+# Inicializar tablas
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="TaskNode API", version="0.1.0")
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version="1.0.0",
+    description="Plataforma SaaS B2B de Coordinación y Control Operativo para Faenas y Mantenimiento Industrial."
+)
 
-# Configuración CORS: El escudo de seguridad abierto para que tu HTML pueda entrar
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Montar API
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Montar carpeta de subidas de archivos locales si no se usa Azure Blob
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Montar frontend para servir desde el mismo origen en Azure
+if os.path.exists("frontend"):
+    app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+
 @app.get("/")
-def root():
-    return {"message": "El motor de TaskNode está encendido y listo."}
-
-# El endpoint (Ruta) que recibe los datos desde tu página web HTML
-@app.post("/api/v1/estados/")
-def registrar_estado(estado: schemas.HistorialCreate, db: Session = Depends(get_db)):
-    # Toma los datos, los convierte y los guarda en PostgreSQL
-    nuevo_estado = models.HistorialEstado(**estado.dict())
-    db.add(nuevo_estado)
-    db.commit()
-    db.refresh(nuevo_estado)
-    return nuevo_estado
-
-# --- NUEVO: endpoint para el dashboard ---
-@app.get("/api/v1/estados/", response_model=list[schemas.HistorialResponse])
-def listar_estados(db: Session = Depends(get_db)):
-    """
-    Trae todos los reportes operativos ordenados del más reciente al más antiguo.
-    """
-    return (
-        db.query(models.HistorialEstado)
-        .order_by(desc(models.HistorialEstado.timestamp))
-        .all()
-    )
+def health_check():
+    return {
+        "status": "ONLINE",
+        "system": settings.PROJECT_NAME,
+        "docs_url": "/docs",
+        "api_v1": settings.API_V1_STR
+    }

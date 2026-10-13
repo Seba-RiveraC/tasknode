@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-[#131417] text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | Consola Central de Operaciones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body class="h-full flex overflow-hidden font-sans text-xs">
+
+    <!-- Notificación HUD Flotante -->
+    <div id="hud-toast" class="fixed top-4 right-4 z-50 pointer-events-none opacity-0 translate-y-[-8px] transition-all duration-300">
+        <div class="bg-surface-2 border border-theme-bright shadow-2xl px-4 py-2.5 rounded-lg flex items-center gap-3">
+            <span id="toast-led" class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span id="toast-msg" class="font-mono text-[11px] text-slate-200">Notificación del sistema</span>
+        </div>
+    </div>
+
+    <!-- Telón de fondo para modo cajón en media pantalla / split-screen -->
+    <div id="drawer-backdrop" onclick="cerrarInspector()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden xl:hidden transition-opacity"></div>
+
+    <!-- Barra lateral SCADA responsiva -->
+    <aside id="sidebar-panel" class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0 transition-all duration-200 z-20">
+        <div>
+            <!-- Header Institucional -->
+            <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim justify-between">
+                <div class="flex items-center gap-2.5 overflow-hidden">
+                    <div class="w-7 h-7 rounded bg-amber-600 flex items-center justify-center text-white font-black font-mono text-xs shrink-0">TN</div>
+                    <div class="hidden lg:block truncate">
+                        <span class="font-bold tracking-wider text-slate-100 text-xs">TASKNODE</span>
+                        <span class="text-[9px] text-slate-500 font-mono block -mt-0.5">CMMS CORE v2.4</span>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="hidden lg:block text-slate-500 hover:text-slate-300 p-1" title="Colapsar menú">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+                </button>
+            </div>
+
+            <!-- Navegación -->
+            <div class="p-2 space-y-4">
+                <div>
+                    <span class="hidden lg:block text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 mb-1.5">Despacho</span>
+                    <nav class="space-y-1">
+                        <a href="monitor.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded bg-surface-2 text-amber-400 font-medium border border-amber-500/30" title="Consola de OTs">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                            <span class="hidden lg:inline truncate">Consola OTs</span>
+                        </a>
+                        <a href="activos.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition" title="Activos">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            <span class="hidden lg:inline truncate">Activos (ISO 55000)</span>
+                        </a>
+                    </nav>
+                </div>
+
+                <div>
+                    <span class="hidden lg:block text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 mb-1.5">Auditoría</span>
+                    <nav class="space-y-1">
+                        <a href="auditoria.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition" title="Cadena SHA-256">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            <span class="hidden lg:inline truncate">Cadena SHA-256</span>
+                        </a>
+                        <a href="metricas.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition" title="Métricas EN 15341">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span class="hidden lg:inline truncate">Métricas EN 15341</span>
+                        </a>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-2.5 border-t border-theme-dim bg-surface-base text-center lg:text-left">
+            <span class="hidden lg:inline font-mono text-[9px] text-slate-500 uppercase block">Nodo Central</span>
+            <span class="font-mono text-[10px] text-amber-400 font-bold">ONLINE</span>
+        </div>
+    </aside>
+
+    <!-- Contenedor Maestro -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        
+        <!-- Header Superior Adaptativo -->
+        <header class="h-14 bg-surface-1 border-b border-theme-dim px-4 flex items-center justify-between shrink-0 gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                <h1 class="font-mono font-bold text-slate-200 text-xs truncate">DESPACHO OPERATIVO</h1>
+                <div class="h-4 w-px bg-theme-dim hidden sm:block"></div>
+                <span class="font-mono text-[10px] text-slate-400 hidden sm:block truncate" id="clock-telemetry">--:--:--</span>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="abrirModalOT()" class="btn-primary font-mono font-bold text-[10px] uppercase px-3 py-1.5 rounded flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    <span class="hidden sm:inline">Emitir OT</span>
+                </button>
+
+                <!-- Botón de apertura de ficha en media pantalla -->
+                <button onclick="toggleInspector()" class="xl:hidden bg-surface-2 border border-theme-dim hover:border-theme-bright text-amber-400 font-mono text-[10px] px-2.5 py-1.5 rounded tactile-btn flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span>Ficha</span>
+                </button>
+
+                <a href="terminal.html" target="_blank" class="border border-theme-bright hover:bg-surface-2 text-slate-300 font-mono text-[10px] px-2.5 py-1.5 rounded transition tactile-btn hidden md:inline-block">
+                    Terminal
+                </a>
+
+                <button onclick="actualizarMonitorCompleto()" class="bg-surface-2 hover:bg-surface-3 border border-theme-dim text-slate-300 p-1.5 rounded transition tactile-btn" title="Refrescar">
+                    <svg id="icon-refresh" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Franja de KPIs Responsiva -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 border-b border-theme-dim bg-surface-base shrink-0 font-mono text-slate-300 divide-x divide-y sm:divide-y-0 divide-theme-dim">
+            <div class="px-3.5 py-2">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider block">Volumen Activo</span>
+                <span class="text-sm sm:text-base font-bold text-slate-100" id="kpi-volumen">-</span>
+            </div>
+            <div class="px-3.5 py-2">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider block">En Ejecución</span>
+                <span class="text-sm sm:text-base font-bold text-emerald-400" id="kpi-ejecucion">-</span>
+            </div>
+            <div class="px-3.5 py-2">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider block">Detenciones</span>
+                <span class="text-sm sm:text-base font-bold text-red-400" id="kpi-detenciones">-</span>
+            </div>
+            <div class="px-3.5 py-2">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider block">Resolución ICP</span>
+                <span class="text-sm sm:text-base font-bold text-amber-400" id="kpi-resolucion">-%</span>
+            </div>
+            <div class="px-3.5 py-2 col-span-2 sm:col-span-1">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider block">Disponibilidad (Ao)</span>
+                <span class="text-sm sm:text-base font-bold text-emerald-400" id="kpi-disp">-%</span>
+            </div>
+        </section>
+
+        <!-- Zona de Trabajo Principal -->
+        <div class="flex-1 flex overflow-hidden relative">
+            
+            <!-- Panel Izquierdo: Tabla Maestra de Órdenes -->
+            <div class="flex-1 flex flex-col overflow-hidden bg-surface-base">
+                <div class="h-8 px-4 border-b border-theme-dim bg-surface-1 flex items-center justify-between shrink-0">
+                    <span class="font-mono text-[9px] text-slate-400 uppercase tracking-wider">Órdenes de Trabajo Activas</span>
+                    <span class="font-mono text-[9px] text-slate-500">Toque una fila para ver evidencia</span>
+                </div>
+                <div class="flex-1 overflow-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-theme-dim bg-surface-1 text-[9px] font-mono text-slate-400 uppercase sticky top-0 z-10">
+                                <th class="px-3.5 py-2">Código OT</th>
+                                <th class="px-3.5 py-2">Responsable</th>
+                                <th class="px-3.5 py-2">Estado FSM</th>
+                                <th class="px-3.5 py-2 hidden md:table-cell">WGS84</th>
+                                <th class="px-3.5 py-2 text-right">Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-body" class="divide-y divide-theme-dim font-mono text-[11px]">
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Consultando base de datos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Panel Derecho: Visor de Inspección Forense / Cajón en Media Pantalla -->
+            <div id="panel-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-sm sm:w-[380px] xl:relative xl:w-[360px] 2xl:w-[390px] xl:z-0 bg-surface-1 border-l border-theme-dim flex flex-col shrink-0 overflow-y-auto transform translate-x-full xl:translate-x-0 transition-transform duration-200 ease-out shadow-2xl xl:shadow-none">
+                
+                <!-- Encabezado del Visor con botón de cierre -->
+                <div class="h-10 px-4 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-[10px] text-slate-200 font-bold uppercase tracking-wider">Inspección Forense</span>
+                        <span id="inspect-fsm-pill" class="text-[9px] font-mono px-2 py-0.5 rounded border border-theme-bright bg-surface-base text-slate-300">SIN SELECCIÓN</span>
+                    </div>
+                    <button onclick="cerrarInspector()" class="xl:hidden text-slate-400 hover:text-white p-1 rounded font-mono font-bold" title="Cerrar ficha">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Contenido de Inspección -->
+                <div class="p-3.5 space-y-3.5 flex-1">
+                    <div class="bg-surface-2 border border-theme-dim rounded p-3">
+                        <span class="text-[9px] font-mono text-slate-500 uppercase block">Expediente Seleccionado</span>
+                        <div class="font-mono text-xs font-bold text-slate-100 mt-0.5" id="inspect-ot-code">-</div>
+                        <div class="text-[11px] text-slate-300 mt-1 leading-snug" id="inspect-ot-desc">Seleccione una orden de la lista para auditar.</div>
+                        <div class="text-[10px] font-mono text-slate-400 mt-1.5" id="inspect-ot-crew">Operario: -</div>
+                    </div>
+
+                    <!-- Evidencia Fotográfica y Calidad -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-[10px] font-mono">
+                            <span class="text-slate-400">Respaldo Multimedia</span>
+                            <span class="text-amber-400 font-bold" id="inspect-laplacian-score">Laplacian: --</span>
+                        </div>
+                        <div class="relative bg-surface-base border border-theme-dim rounded aspect-video flex items-center justify-center overflow-hidden">
+                            <img id="inspect-img-view" src="" alt="Evidencia Técnica" class="w-full h-full object-cover hidden">
+                            <div id="inspect-img-placeholder" class="text-center p-3">
+                                <svg class="w-7 h-7 text-slate-600 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                <span class="text-[9px] font-mono text-slate-500 block">Sin registro adjunto</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos Criptográficos -->
+                    <div class="bg-surface-base border border-theme-dim rounded p-2.5 font-mono text-[10px] space-y-1.5">
+                        <div class="text-slate-500 uppercase text-[9px] border-b border-theme-dim pb-1">Trazabilidad Criptográfica (ISO 55001)</div>
+                        <div>
+                            <span class="text-slate-500 block text-[9px]">Firma SHA-256 ($Hash_k$):</span>
+                            <span class="text-amber-400 break-all block text-[9px]" id="inspect-hash-val">----------------------------------------------------------------</span>
+                        </div>
+                        <div class="flex justify-between pt-1 text-[9px]">
+                            <span class="text-slate-500">Coordenadas:</span>
+                            <span class="text-slate-300" id="inspect-gps-val">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Acciones de Transición FSM y Generación de Dossier -->
+                    <div class="pt-2 border-t border-theme-dim space-y-2">
+                        <!-- Botón Dossier Oficial de Ingeniería -->
+                        <button onclick="generarDossierOficial()" class="w-full bg-surface-2 hover:bg-surface-3 border border-theme-dim text-slate-200 font-mono text-[10px] py-2 rounded flex items-center justify-center gap-2 mb-2 transition tactile-btn">
+                            <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Generar Dossier Foliado (Acta Técnica)</span>
+                        </button>
+
+                        <button onclick="auditarOrdenActiva('COMPLETAR')" id="btn-aprobar-fsm" disabled class="w-full btn-primary disabled:bg-surface-2 disabled:text-slate-600 font-mono font-bold py-2 rounded text-[10px] uppercase tracking-wider transition">
+                            Auditar Conformidad (Completar)
+                        </button>
+                        <button onclick="auditarOrdenActiva('RECHAZAR')" id="btn-rechazar-fsm" disabled class="w-full bg-surface-2 hover:bg-red-950/40 disabled:text-slate-600 text-red-400 border border-red-900/40 font-mono font-bold py-2 rounded text-[10px] uppercase tracking-wider transition tactile-btn">
+                            Rechazar y Devolver a Terreno
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal Emisión Formal de OT -->
+    <div id="modal-ot" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="bg-surface-1 border border-theme-bright rounded-lg max-w-md w-full overflow-hidden shadow-2xl">
+            <div class="px-4 py-3 border-b border-theme-dim bg-surface-2 flex justify-between items-center">
+                <span class="font-bold font-mono text-slate-200 text-xs uppercase tracking-wider">Protocolo de Emisión de OT</span>
+                <button type="button" onclick="autocompletarModalOT()" class="px-2 py-0.5 bg-surface-base hover:bg-surface-3 text-slate-300 text-[10px] font-mono rounded border border-theme-dim transition">Cargar Protocolo</button>
+            </div>
+            <form id="form-emitir-ot" class="p-4 space-y-3" onsubmit="enviarNuevaOT(event)">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Código OT</label>
+                        <input type="text" id="form-codigo" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Activo Físico</label>
+                        <select id="form-activo" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs text-slate-200"></select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Tipo Intervención</label>
+                        <select id="form-tipo" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs text-slate-200">
+                            <option value="PREVENTIVO">PREVENTIVO</option>
+                            <option value="CORRECTIVO">CORRECTIVO</option>
+                            <option value="INSPECCION">INSPECCIÓN TÉCNICA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Criticidad</label>
+                        <select id="form-prioridad" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs text-slate-200">
+                            <option value="ALTA">ALTA</option>
+                            <option value="MEDIA">MEDIA</option>
+                            <option value="BAJA">BAJA</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Responsable</label>
+                        <input type="text" id="form-operario" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs text-slate-200" placeholder="S. Rivera">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">RUT Operario</label>
+                        <input type="text" id="form-rut" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200" placeholder="18.421.903-K">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[9px] font-mono text-slate-400 uppercase mb-1">Alcance Técnico</label>
+                    <textarea id="form-descripcion" rows="2" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs text-slate-200" placeholder="Protocolo de intervención..."></textarea>
+                </div>
+                <div class="pt-2 border-t border-theme-dim flex justify-end gap-2">
+                    <button type="button" onclick="cerrarModalOT()" class="px-3 py-1.5 border border-theme-dim text-slate-400 text-xs rounded hover:bg-surface-2 transition">Cancelar</button>
+                    <button type="submit" id="btn-guardar-ot" class="btn-primary font-mono font-bold text-xs px-3.5 py-1.5 rounded transition">Despachar OT</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Dossier / Acta Oficial de Ingeniería (Apto para Impresión Ctrl+P) -->
+    <div id="modal-dossier" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4 overflow-y-auto">
+        <div class="bg-white text-zinc-900 rounded-sm max-w-2xl w-full p-8 shadow-2xl border border-zinc-400 font-sans text-xs">
+            
+            <!-- Membrete Formal Industrial -->
+            <div class="border-b-2 border-zinc-900 pb-3 flex justify-between items-start">
+                <div>
+                    <span class="font-bold text-sm tracking-wider uppercase block">TASKNODE INDUSTRIAL SYSTEMS</span>
+                    <span class="text-[10px] text-zinc-600 block">DEPARTAMENTO DE GESTIÓN Y CONFIABILIDAD DE ACTIVOS FÍSICOS</span>
+                    <span class="text-[9px] text-zinc-500 font-mono">REGISTRO AUDITABLE BAJO NORMAS ISO 55000 / EN 13306</span>
+                </div>
+                <div class="text-right border border-zinc-900 p-2 font-mono">
+                    <span class="text-[9px] text-zinc-500 uppercase block">EXPEDIENTE TÉCNICO</span>
+                    <span class="font-bold text-xs" id="dossier-folio">OT-XXXX</span>
+                </div>
+            </div>
+
+            <!-- Cuerpo del Acta -->
+            <div class="py-4 space-y-4">
+                <div class="grid grid-cols-2 gap-4 border border-zinc-300 p-3 bg-zinc-50">
+                    <div>
+                        <span class="text-[9px] text-zinc-500 uppercase block font-semibold">Activo Físico Intervenido:</span>
+                        <span class="font-bold font-mono text-zinc-800" id="dossier-activo">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-zinc-500 uppercase block font-semibold">Ubicación Técnica:</span>
+                        <span class="text-zinc-700" id="dossier-ubicacion">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-zinc-500 uppercase block font-semibold">Técnico Responsable:</span>
+                        <span class="font-bold text-zinc-800" id="dossier-operario">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-zinc-500 uppercase block font-semibold">RUT / Identificación:</span>
+                        <span class="font-mono text-zinc-700" id="dossier-rut">-</span>
+                    </div>
+                </div>
+
+                <!-- Protocolo de Seguridad Laboral D.S. 594 -->
+                <div class="border border-zinc-300 p-3">
+                    <span class="text-[9px] font-bold uppercase block text-zinc-800 mb-1.5 border-b pb-1">Verificación de Permiso de Trabajo Seguro (PTS / D.S. 594 Art. 53)</span>
+                    <div class="grid grid-cols-3 gap-2 text-[10px] text-zinc-700">
+                        <div>[X] Bloqueo LOTO Verificado</div>
+                        <div>[X] EPP Completo D.S. 44</div>
+                        <div>[X] Geocerca WGS84 Validada</div>
+                    </div>
+                </div>
+
+                <!-- Detalle Técnico de la Intervención -->
+                <div class="border border-zinc-300 p-3">
+                    <span class="text-[9px] font-bold uppercase block text-zinc-800 mb-1 border-b pb-1">Alcance y Novedad Operacional Registrada</span>
+                    <p class="text-zinc-700 font-mono text-[11px] leading-relaxed" id="dossier-descripcion">-</p>
+                </div>
+
+                <!-- Huella Criptográfica Forense -->
+                <div class="border border-zinc-300 p-2.5 bg-zinc-50 font-mono text-[9px]">
+                    <span class="text-zinc-500 uppercase block font-bold">Firma Criptográfica SHA-256 (Garantía de No Repudio ISO 55001):</span>
+                    <span class="text-zinc-800 break-all" id="dossier-hash">-</span>
+                </div>
+
+                <!-- Recuadros de Firma Formal -->
+                <div class="grid grid-cols-2 gap-8 pt-8 text-center text-[10px] font-mono">
+                    <div class="border-t border-zinc-800 pt-1">
+                        <span class="block font-bold">FIRMA TÉCNICO EJECUTOR</span>
+                        <span class="text-zinc-500 text-[9px]">Cédula de Identidad Verificada</span>
+                    </div>
+                    <div class="border-t border-zinc-800 pt-1">
+                        <span class="block font-bold">SUPERVISIÓN Y CONTROL DE PLANTA</span>
+                        <span class="text-zinc-500 text-[9px]">Recepción Conforme EN 13306</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t pt-3 flex justify-end gap-2 print:hidden">
+                <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="px-3 py-1.5 border border-zinc-400 text-zinc-700 hover:bg-zinc-100 font-mono text-xs">Cerrar</button>
+                <button onclick="window.print()" class="px-4 py-1.5 bg-zinc-900 text-white font-mono text-xs font-bold hover:bg-zinc-800">Imprimir Expediente (Ctrl + P)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="static/js/config.js"></script>
+    <script src="static/js/dashboard.js"></script>
+</body>
+</html>

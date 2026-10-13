@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ==========================================================================
+   CONFIGURACIÓN CROMÁTICA INDUSTRIAL
+   ========================================================================== */
+
+/* --- TEMA PRINCIPAL ACTIVO: HEAVY INDUSTRY AMBER (Despacho Minero / Maquinaria) --- */
+:root {
+  --bg-core: #131417;
+  --bg-surface-1: #1a1c21;
+  --bg-surface-2: #22252c;
+  --bg-surface-3: #2c3038;
+
+  --border-dim: #323640;
+  --border-bright: #474d5a;
+
+  --accent-primary: #d97706;          /* Ámbar de seguridad industrial */
+  --accent-primary-hover: #b45309;
+  --accent-primary-glow: rgba(217, 119, 6, 0.18);
+
+  --status-ok: #10b981;
+  --status-warning: #f59e0b;
+  --status-critical: #ef4444;
+
+  --text-main: #f4f4f6;
+  --text-muted: #9ea3ae;
+  --text-dim: #656a75;
+}
+
+/* --- OPCIÓN ALTERNATIVA DISPONIBLE: COOL STEEL & COBALT (SCADA / Control Room) ---
+   (Para activar: comenta el bloque :root de arriba y descomenta este bloque)
+:root {
+  --bg-core: #0f141c;
+  --bg-surface-1: #161d28;
+  --bg-surface-2: #1e2736;
+  --bg-surface-3: #273244;
+
+  --border-dim: #263344;
+  --border-bright: #3a4b63;
+
+  --accent-primary: #0284c7;
+  --accent-primary-hover: #0369a1;
+  --accent-primary-glow: rgba(2, 132, 199, 0.18);
+
+  --status-ok: #10b981;
+  --status-warning: #f59e0b;
+  --status-critical: #ef4444;
+
+  --text-main: #f1f5f9;
+  --text-muted: #8fa0b5;
+  --text-dim: #5c6c80;
+}
+*/
+
+/* ==========================================================================
+   APLICACIÓN DE SUPERFICIES Y BORDES (Control Total sobre Tailwind)
+   ========================================================================== */
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-core) !important;
+  color: var(--text-main) !important;
+  letter-spacing: -0.015em;
+  overflow: hidden;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Superficie 1: Barras laterales, cabeceras y cinta de estado */
+aside,
+header,
+.bg-surface-1 {
+  background-color: var(--bg-surface-1) !important;
+  border-color: var(--border-dim) !important;
+}
+
+/* Superficie 2: Paneles, tarjetas y modales */
+.bg-surface-2,
+#modal-ot > div {
+  background-color: var(--bg-surface-2) !important;
+  border-color: var(--border-dim) !important;
+}
+
+/* Superficie 3 / Base: Inputs, selects, textareas y fondos anidados */
+input,
+select,
+textarea,
+.bg-surface-base {
+  background-color: var(--bg-core) !important;
+  border-color: var(--border-dim) !important;
+  color: var(--text-main) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent-primary) !important;
+  outline: none;
+}
+
+/* Bordes universales */
+.border-theme-dim {
+  border-color: var(--border-dim) !important;
+}
+.border-theme-bright {
+  border-color: var(--border-bright) !important;
+}
+
+/* Botones de acción primaria */
+.btn-primary {
+  background-color: var(--accent-primary) !important;
+  color: #ffffff !important;
+  transition: background-color 0.15s ease, transform 0.08s ease;
+}
+.btn-primary:hover {
+  background-color: var(--accent-primary-hover) !important;
+}
+.btn-primary:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* Efecto hover en tablas */
+tbody tr {
+  transition: background-color 0.12s ease;
+}
+tbody tr:hover {
+  background-color: var(--bg-surface-3) !important;
+}
+
+/* Scrollbars industriales */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-core);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #606878;
+}
+
+/* Retícula técnica de fondo */
+.tech-grid {
+  background-image: 
+    linear-gradient(to right, rgba(50, 54, 64, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(50, 54, 64, 0.4) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.tactile-btn {
+  transition: transform 0.08s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+.tactile-btn:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+#hud-toast {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
