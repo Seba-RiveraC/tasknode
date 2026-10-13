@@ -1,43 +1,59 @@
-
-# Caché de Python
+# =====================================================================
+# PYTHON & ENTORNO
+# =====================================================================
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
 
-Entornos virtuales
-
+# Entornos virtuales
 venv/
-env/
 .venv/
+env/
+ENV/
 
-Caché de Python
-
-pycache/
-*.pyc
-*.pyo
-*.pyd
-
-Variables de entorno y secretos (¡Crítico!)
-
+# =====================================================================
+# SECRETOS Y VARIABLES DE ENTORNO
+# =====================================================================
 .env
 .env.*
 *.pem
+*.key
+*.cert
 
-Bases de datos locales (por si haces pruebas sin Docker)
-
-*.sqlite3
+# =====================================================================
+# BASES DE DATOS LOCALES Y TEMPORALES SQLITE
+# =====================================================================
 *.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
 
-Archivos del Sistema Operativo
+# =====================================================================
+# ALMACENAMIENTO DE EVIDENCIAS LOCALES / SUBIDAS
+# =====================================================================
+uploads/
+storage/evidencias/
+static/uploads/
 
-.DS_Store
-Thumbs.db
-
-Configuraciones de Editores de Código (VS Code, Zed, Cursor)
-
+# =====================================================================
+# EDITORES DE CÓDIGO Y SISTEMA OPERATIVO
+# =====================================================================
 .vscode/
 .idea/
 .zed/
+*.swp
+*.swo
 
-Archivos de logs y testing
+# Sistema Operativo
+.DS_Store
+Thumbs.db
+desktop.ini
 
+# Logs
 *.log
-.pytest_cache/
