@@ -1,13 +1,10 @@
-import hashlib
 from datetime import datetime, timedelta
 from app.core.database import SessionLocal, engine, Base
 from app.models.operational import ActivoIndustrial, OrdenTrabajo, BitacoraTransicion
-
-def hash_sha256(texto: str) -> str:
-    return hashlib.sha256(texto.encode("utf-8")).hexdigest()
+from app.api.v1.endpoints.transitions import construir_payload_canonico, sha256_cadena, GENESIS_HASH
 
 def poblar_sistema():
-    print("-> Regenerando esquema relacional...")
+    print("-> Regenerando esquema relacional e instalando Triggers ISO 55001 Append-Only...")
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
@@ -84,11 +81,13 @@ def poblar_sistema():
         db.add_all([ot_completada, ot_emitida, ot_ejecucion, ot_detenida])
         db.flush()
 
-        # 3. Bitácora de Transiciones con Encadenamiento SHA-256
-        h0 = "GENESIS_HASH_TASKNODE_0000000000000000000000000000000000000000"
-
+        # 3. Bitácora con Vector Canónico Verificable
         t1_time = ahora - timedelta(hours=3)
-        h1 = hash_sha256(f"{h0}|{ot_completada.codigo_ot}|OT COMPLETADA|45|{t1_time.isoformat()}")
+        gps_1 = "-41.4693, -72.9424"
+        h1 = sha256_cadena(construir_payload_canonico(
+            GENESIS_HASH, ot_completada.codigo_ot, "EN VALIDACIÓN", "OT COMPLETADA",
+            ot_completada.rut_responsable, gps_1, t1_time.isoformat()
+        ))
         t1 = BitacoraTransicion(
             orden_id=ot_completada.id,
             codigo_ot=ot_completada.codigo_ot,
@@ -96,15 +95,19 @@ def poblar_sistema():
             rut_responsable=ot_completada.rut_responsable,
             estado_anterior="EN VALIDACIÓN",
             estado_nuevo="OT COMPLETADA",
-            coordenadas_gps="-41.4693, -72.9424",
+            coordenadas_gps=gps_1,
             observacion="Intervención finalizada y auditada conforme a norma.",
-            hash_previo=h0,
+            hash_previo=GENESIS_HASH,
             hash_cadena=h1,
             timestamp=t1_time
         )
 
         t2_time = ahora - timedelta(minutes=45)
-        h2 = hash_sha256(f"{h1}|{ot_ejecucion.codigo_ot}|EN EJECUCIÓN|45|{t2_time.isoformat()}")
+        gps_2 = "-41.4693, -72.9424"
+        h2 = sha256_cadena(construir_payload_canonico(
+            h1, ot_ejecucion.codigo_ot, "EMITIDA", "EN EJECUCIÓN",
+            ot_ejecucion.rut_responsable, gps_2, t2_time.isoformat()
+        ))
         t2 = BitacoraTransicion(
             orden_id=ot_ejecucion.id,
             codigo_ot=ot_ejecucion.codigo_ot,
@@ -112,7 +115,7 @@ def poblar_sistema():
             rut_responsable=ot_ejecucion.rut_responsable,
             estado_anterior="EMITIDA",
             estado_nuevo="EN EJECUCIÓN",
-            coordenadas_gps="-41.4693, -72.9424",
+            coordenadas_gps=gps_2,
             observacion="Despliegue inicial de cuadrilla con EPP verificado.",
             hash_previo=h1,
             hash_cadena=h2,
@@ -120,7 +123,11 @@ def poblar_sistema():
         )
 
         t3_time = ahora - timedelta(minutes=20)
-        h3 = hash_sha256(f"{h2}|{ot_detenida.codigo_ot}|DETENIDA POR ANOMALÍA|46|{t3_time.isoformat()}")
+        gps_3 = "-41.4710, -72.9510"
+        h3 = sha256_cadena(construir_payload_canonico(
+            h2, ot_detenida.codigo_ot, "EN EJECUCIÓN", "DETENIDA POR ANOMALÍA",
+            ot_detenida.rut_responsable, gps_3, t3_time.isoformat()
+        ))
         t3 = BitacoraTransicion(
             orden_id=ot_detenida.id,
             codigo_ot=ot_detenida.codigo_ot,
@@ -128,7 +135,7 @@ def poblar_sistema():
             rut_responsable=ot_detenida.rut_responsable,
             estado_anterior="EN EJECUCIÓN",
             estado_nuevo="DETENIDA POR ANOMALÍA",
-            coordenadas_gps="-41.4710, -72.9510",
+            coordenadas_gps=gps_3,
             observacion="Detención por riesgo técnico bajo D.S. 594. Fuga activa detectada.",
             hash_previo=h2,
             hash_cadena=h3,
@@ -137,12 +144,7 @@ def poblar_sistema():
 
         db.add_all([t1, t2, t3])
         db.commit()
-
-        total_act = db.query(ActivoIndustrial).count()
-        total_ots = db.query(OrdenTrabajo).count()
-        total_trs = db.query(BitacoraTransicion).count()
-        print(f"[OK] Datos cargados con éxito: {total_act} Activos | {total_ots} Órdenes de Trabajo | {total_trs} Registros en Bitácora.")
-
+        print("[OK] Base de datos regenerada con Triggers Append-Only y Cadena Criptográfica Canónica.")
     except Exception as e:
         db.rollback()
         print(f"[ERROR]: {e}")

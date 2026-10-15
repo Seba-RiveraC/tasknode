@@ -1,309 +1,274 @@
 const API = window.TaskNodeConfig.API_URL;
-let ordenesEnMemoria = [];
+let ordenesGlobal = [];
 let ordenSeleccionada = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    actualizarMonitorCompleto();
-    iniciarReloj();
+    iniciarRelojScada();
+    cargarTodoDashboard();
+    setInterval(cargarTodoDashboard, 8000);
 });
 
-function iniciarReloj() {
-    const el = document.getElementById('clock-telemetry');
+function iniciarRelojScada() {
+    const el = document.getElementById('reloj-scada');
     if (!el) return;
-    setInterval(() => {
+    const tick = () => {
         const ahora = new Date();
-        el.innerText = `${ahora.toISOString().slice(0, 10)} · ${ahora.toLocaleTimeString('es-CL')}`;
-    }, 1000);
+        const fecha = ahora.toISOString().slice(0, 10);
+        const hora = ahora.toLocaleTimeString('es-CL');
+        el.innerText = `${fecha} · ${hora}`;
+    };
+    tick();
+    setInterval(tick, 1000);
 }
 
-function mostrarToast(mensaje, esError = false) {
-    const toast = document.getElementById('hud-toast');
-    const msg = document.getElementById('toast-msg');
-    const led = document.getElementById('toast-led');
-    if (!toast || !msg) return;
-
-    msg.innerText = mensaje;
-    led.className = esError ? "w-2 h-2 rounded-full bg-red-500" : "w-2 h-2 rounded-full bg-amber-500";
-    
-    toast.classList.remove('opacity-0', 'translate-y-[-8px]');
-    toast.classList.add('opacity-100', 'translate-y-0');
-
-    setTimeout(() => {
-        toast.classList.remove('opacity-100', 'translate-y-0');
-        toast.classList.add('opacity-0', 'translate-y-[-8px]');
-    }, 3000);
+/**
+ * Enmascara parcialmente el RUT en vistas generales de monitoreo (Ley 21.719 - Privacy by Design).
+ * Ejemplo: "18.421.903-K" -> "18.421.***-K"
+ */
+function ofuscarRUTLey21719(rut) {
+    if (!rut || typeof rut !== 'string') return 'RUT RESERVADO';
+    const limpio = rut.trim();
+    const partes = limpio.split('-');
+    if (partes.length !== 2 || partes[0].length < 4) return limpio;
+    return `${partes[0].slice(0, -3)}***-${partes[1]}`;
 }
 
-/* ==========================================================================
-   CONTROL DE PANTALLA DIVIDIDA / CAJÓN RESPONSIVO
-   ========================================================================== */
-
-function toggleInspector() {
-    const panel = document.getElementById('panel-inspeccion');
-    if (!panel) return;
-    panel.classList.contains('translate-x-full') ? abrirInspector() : cerrarInspector();
-}
-
-function abrirInspector() {
-    const panel = document.getElementById('panel-inspeccion');
-    const backdrop = document.getElementById('drawer-backdrop');
-    if (panel) panel.classList.remove('translate-x-full');
-    if (backdrop) backdrop.classList.remove('hidden');
-}
-
-function cerrarInspector() {
-    const panel = document.getElementById('panel-inspeccion');
-    const backdrop = document.getElementById('drawer-backdrop');
-    if (panel) panel.classList.add('translate-x-full');
-    if (backdrop) backdrop.classList.add('hidden');
-}
-
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar-panel');
-    if (!sidebar) return;
-
-    if (sidebar.classList.contains('lg:w-56')) {
-        sidebar.classList.replace('lg:w-56', 'lg:w-14');
-        sidebar.querySelectorAll('aside nav span, aside header div.truncate, aside div span.uppercase').forEach(el => el.classList.add('lg:hidden'));
-    } else {
-        sidebar.classList.replace('lg:w-14', 'lg:w-56');
-        sidebar.querySelectorAll('aside nav span, aside header div.truncate, aside div span.uppercase').forEach(el => el.classList.remove('lg:hidden'));
+function resolverUrlEvidencia(url) {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url; // URL directa desde Azure Blob Storage
     }
+    const baseServer = API.replace('/api/v1', '');
+    return `${baseServer}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-/* ==========================================================================
-   CARGA DE DATOS Y RENDERIZADO MAESTRO
-   ========================================================================== */
-
-function actualizarMonitorCompleto() {
-    cargarKpisSuperiores();
-    cargarTablaBitacora();
+async function cargarTodoDashboard() {
+    await Promise.all([
+        cargarKPIs(),
+        cargarTablaBitacora(),
+        cargarActivosEnSelectorModal()
+    ]);
 }
 
-async function cargarKpisSuperiores() {
+async function cargarKPIs() {
     try {
         const res = await fetch(`${API}/metricas/`);
         if (!res.ok) return;
-        const d = await res.json();
-        document.getElementById('kpi-volumen').innerText = d.volumen_total;
-        document.getElementById('kpi-ejecucion').innerText = d.ejecucion_normal;
-        document.getElementById('kpi-detenciones').innerText = d.detenciones_alertas;
-        document.getElementById('kpi-resolucion').innerText = `${d.tasa_resolucion_pct}%`;
-        document.getElementById('kpi-disp').innerText = `${d.disponibilidad_operacional_pct}%`;
+        const m = await res.json();
+
+        const setTxt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = val;
+        };
+
+        setTxt('kpi-total', m.volumen_total);
+        setTxt('kpi-ejecucion', m.ejecucion_normal);
+        setTxt('kpi-alertas', m.detenciones_alertas);
+        setTxt('kpi-tasa', `${m.tasa_resolucion_pct}%`);
+        setTxt('kpi-ao', `${m.disponibilidad_operacional_pct}%`);
     } catch (e) {
-        console.error("Fallo al consultar indicadores:", e);
+        console.error("Error cargando KPIs:", e);
     }
 }
 
 async function cargarTablaBitacora() {
-    const icon = document.getElementById('icon-refresh');
-    const tbody = document.getElementById('tabla-body');
-    if (icon) icon.classList.add('animate-spin');
+    const tbody = document.getElementById('tabla-bitacora');
+    if (!tbody) return;
 
     try {
         const res = await fetch(`${API}/ordenes/`);
-        if (!res.ok) throw new Error("Fallo en GET /ordenes/");
-        ordenesEnMemoria = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        ordenesGlobal = await res.json();
         tbody.innerHTML = '';
 
-        if (ordenesEnMemoria.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500 font-mono text-xs">Sin órdenes de trabajo emitidas.</td></tr>`;
+        if (ordenesGlobal.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500 font-mono text-xs">Sin órdenes activas registradas.</td></tr>`;
             return;
         }
 
-        ordenesEnMemoria.forEach((r, idx) => {
-            const estadoActual = r.estado_actual || r.estado_nuevo || r.estado || 'EMITIDA';
-            
-            let gpsDisplay = r.coordenadas_gps || '';
-            if (!gpsDisplay && r.activo && r.activo.latitud_referencia) {
-                gpsDisplay = `${r.activo.latitud_referencia.toFixed(4)}, ${r.activo.longitud_referencia.toFixed(4)}`;
-            }
-            if (!gpsDisplay) gpsDisplay = '-41.4693, -72.9424';
+        ordenesGlobal.forEach((r) => {
+            const estado = r.estado_actual || r.estado || 'EMITIDA';
+            let badgeClass = "text-amber-300 border-amber-800/80 bg-amber-950/40";
+            if (estado === "EN EJECUCIÓN") badgeClass = "text-emerald-400 border-emerald-800/80 bg-emerald-950/40";
+            if (estado === "DETENIDA POR ANOMALÍA") badgeClass = "text-red-400 border-red-800/80 bg-red-950/50 animate-pulse";
+            if (estado === "OT COMPLETADA") badgeClass = "text-slate-300 border-slate-700 bg-slate-800/60";
+            if (estado === "EN VALIDACIÓN") badgeClass = "text-sky-400 border-sky-800 bg-sky-950/40";
 
-            const rawFecha = r.timestamp || r.created_at || r.fecha_creacion;
-            let horaDisplay = '--:--';
-            if (rawFecha) {
+            const lat = (r.activo && r.activo.latitud_referencia) ? r.activo.latitud_referencia.toFixed(4) : '-41.4693';
+            const lon = (r.activo && r.activo.longitud_referencia) ? r.activo.longitud_referencia.toFixed(4) : '-72.9424';
+            const coords = `${lat}, ${lon}`;
+
+            let horaStr = "--:--";
+            if (r.created_at) {
                 try {
-                    horaDisplay = new Date(rawFecha).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                } catch(e) {}
+                    horaStr = new Date(r.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+                } catch (e) {}
             }
 
-            let estadoBadge = "bg-slate-800 text-slate-300 border-slate-700";
-            if (estadoActual === "EN EJECUCIÓN") estadoBadge = "bg-emerald-950/80 text-emerald-400 border-emerald-800/80";
-            if (estadoActual === "DETENIDA POR ANOMALÍA") estadoBadge = "bg-red-950/80 text-red-400 border-red-800/80";
-            if (estadoActual === "OT COMPLETADA") estadoBadge = "bg-zinc-800 text-zinc-400 border-zinc-700";
-            if (estadoActual === "EN VALIDACIÓN" || estadoActual === "EMITIDA") estadoBadge = "bg-amber-950/80 text-amber-400 border-amber-800/80";
+            const tieneFotoBadge = r.evidencia_url
+                ? `<span class="ml-1.5 px-1 py-0.2 text-[8px] font-mono bg-sky-950 text-sky-400 border border-sky-800 rounded" title="Evidencia en Azure Blob">BLOB</span>`
+                : '';
 
             const tr = document.createElement('tr');
-            tr.className = "hover:bg-surface-2 cursor-pointer transition border-b border-theme-dim";
+            const isSelected = ordenSeleccionada && ordenSeleccionada.codigo_ot === r.codigo_ot;
+            tr.className = `cursor-pointer transition border-b border-theme-dim ${isSelected ? 'bg-amber-500/10' : 'hover:bg-surface-2'}`;
             tr.onclick = () => {
-                seleccionarFilaInspeccion(r, tr);
+                seleccionarFilaInspeccion(r);
                 if (window.innerWidth < 1280) abrirInspector();
             };
 
             tr.innerHTML = `
-                <td class="px-3.5 py-2.5 font-bold text-slate-100 flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full ${estadoActual === 'DETENIDA POR ANOMALÍA' ? 'bg-red-500 animate-ping' : 'bg-amber-500'}"></span>
-                    <span class="truncate">${r.codigo_ot}</span>
+                <td class="px-3.5 py-2.5 font-mono text-xs font-bold text-amber-400 whitespace-nowrap">
+                    ${r.codigo_ot}${tieneFotoBadge}
                 </td>
                 <td class="px-3.5 py-2.5">
-                    <span class="text-slate-200 block truncate">${r.operario_responsable}</span>
-                    <span class="text-slate-500 text-[10px] hidden sm:block">${r.rut_responsable || 'RUT N/D'}</span>
+                    <div class="text-xs font-medium text-slate-200 leading-tight">${r.operario_responsable}</div>
+                    <div class="text-[10px] font-mono text-slate-500" title="RUT Protegido por Ley 21.719 (Minimización de PII)">${ofuscarRUTLey21719(r.rut_responsable)}</div>
                 </td>
                 <td class="px-3.5 py-2.5 whitespace-nowrap">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${estadoBadge}">
-                        ${estadoActual}
+                    <span class="px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${badgeClass}">
+                        ${estado}
                     </span>
                 </td>
-                <td class="px-3.5 py-2.5 text-slate-400 text-[10px] hidden md:table-cell font-mono">${gpsDisplay}</td>
-                <td class="px-3.5 py-2.5 text-right text-slate-500 text-[10px] font-mono">${horaDisplay}</td>
+                <td class="px-3.5 py-2.5 font-mono text-[11px] text-slate-400 hidden sm:table-cell whitespace-nowrap">
+                    ${coords}
+                </td>
+                <td class="px-3.5 py-2.5 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
+                    ${horaStr}
+                </td>
             `;
             tbody.appendChild(tr);
-
-            if (idx === 0 && !ordenSeleccionada) {
-                seleccionarFilaInspeccion(r, tr);
-            }
         });
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400 font-mono text-xs">Error al sincronizar con el catálogo de órdenes.</td></tr>`;
-    } finally {
-        if (icon) icon.classList.remove('animate-spin');
+
+        if (ordenSeleccionada) {
+            const actualizada = ordenesGlobal.find(o => o.codigo_ot === ordenSeleccionada.codigo_ot);
+            if (actualizada) seleccionarFilaInspeccion(actualizada);
+        } else if (ordenesGlobal.length > 0) {
+            seleccionarFilaInspeccion(ordenesGlobal[0]);
+        }
+    } catch (e) {
+        console.error("Error cargando tabla de órdenes:", e);
     }
 }
 
-function seleccionarFilaInspeccion(orden, filaElem) {
+function seleccionarFilaInspeccion(orden) {
     ordenSeleccionada = orden;
-    document.querySelectorAll('#tabla-body tr').forEach(r => r.classList.remove('bg-surface-2', 'border-l-2', 'border-l-amber-500'));
-    if (filaElem) filaElem.classList.add('bg-surface-2', 'border-l-2', 'border-l-amber-500');
+    const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
 
-    const estado = orden.estado_actual || orden.estado_nuevo || orden.estado || 'EMITIDA';
-    document.getElementById('inspect-ot-code').innerText = orden.codigo_ot;
-    document.getElementById('inspect-fsm-pill').innerText = estado;
-    document.getElementById('inspect-ot-desc').innerText = orden.descripcion || orden.observacion || "Sin alcance especificado.";
-    document.getElementById('inspect-ot-crew').innerText = `Operario: ${orden.operario_responsable} (${orden.rut_responsable || 'N/D'})`;
-    document.getElementById('inspect-hash-val').innerText = orden.hash_cadena || "Firma generada al transicionar";
-    
-    let gps = orden.coordenadas_gps || '';
-    if (!gps && orden.activo) gps = `${orden.activo.latitud_referencia}, ${orden.activo.longitud_referencia}`;
-    document.getElementById('inspect-gps-val').innerText = gps || '-41.4693, -72.9424';
+    const estado = orden.estado_actual || orden.estado || 'EMITIDA';
+    setTxt('inspeccion-codigo', orden.codigo_ot);
+    setTxt('inspeccion-estado-badge', estado);
+    setTxt('inspeccion-operario', `${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
+    setTxt('inspeccion-activo', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Activo ID #${orden.activo_id}`);
+    setTxt('inspeccion-desc', orden.descripcion || 'Sin descripción técnica.');
+    setTxt('inspeccion-hash', orden.hash_cadena || 'GENESIS_PENDING_TRANSITION_SHA256');
 
-    const imgView = document.getElementById('inspect-img-view');
-    const imgPlaceholder = document.getElementById('inspect-img-placeholder');
-    const laplacianLabel = document.getElementById('inspect-laplacian-score');
+    const cajaFoto = document.getElementById('inspeccion-foto');
+    if (cajaFoto) {
+        const urlFinal = resolverUrlEvidencia(orden.evidencia_url);
+        if (urlFinal) {
+            const esAzure = urlFinal.includes('blob.core.windows.net');
+            const origenTag = esAzure ? '☁ AZURE BLOB STORAGE' : '✓ ALMACENAMIENTO LOCAL';
+            const scoreVal = orden.laplacian_score ? `Laplace: ${orden.laplacian_score}` : 'Nitidez Verificada';
 
-    if (orden.evidencia_url) {
-        imgView.src = orden.evidencia_url;
-        imgView.classList.remove('hidden');
-        imgPlaceholder.classList.add('hidden');
-        laplacianLabel.innerText = `Laplacian: ${orden.laplacian_score || 'N/A'}`;
-    } else {
-        imgView.classList.add('hidden');
-        imgPlaceholder.classList.remove('hidden');
-        laplacianLabel.innerText = "Laplacian: --";
+            cajaFoto.innerHTML = `
+                <div class="relative w-full h-40 rounded overflow-hidden border border-amber-500/40 bg-black group">
+                    <img src="${urlFinal}" alt="Evidencia de Terreno" class="w-full h-full object-cover" />
+                    <div class="absolute top-1.5 right-1.5 bg-black/80 border border-slate-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-sky-400">
+                        ${origenTag}
+                    </div>
+                    <div class="absolute bottom-0 inset-x-0 bg-black/85 px-2.5 py-1 flex justify-between items-center text-[9px] font-mono border-t border-slate-800">
+                        <span class="text-emerald-400 font-bold">✓ ÓPTICA APROBADA</span>
+                        <span class="text-amber-400 font-bold">${scoreVal}</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            cajaFoto.innerHTML = `
+                <div class="text-center py-6 px-3">
+                    <span class="text-[11px] font-mono text-slate-500 block">Sin captura fotográfica adjunta</span>
+                    <span class="text-[9px] font-mono text-slate-600 block mt-0.5">Suba una foto desde el Terminal de Terreno para verla desde Azure Blob</span>
+                </div>
+            `;
+        }
     }
-
-    const btnAprobar = document.getElementById('btn-aprobar-fsm');
-    const btnRechazar = document.getElementById('btn-rechazar-fsm');
-    const esValidable = (estado === "EN VALIDACIÓN");
-    btnAprobar.disabled = !esValidable;
-    btnRechazar.disabled = !esValidable;
 }
 
-/* ==========================================================================
-   DOSSIER TÉCNICO FOLIADO (ACTA OFICIAL DE INGENIERÍA)
-   ========================================================================== */
+function abrirInspector() {
+    const panel = document.getElementById('panel-inspeccion');
+    if (panel) panel.classList.remove('translate-x-full');
+}
 
-function generarDossierOficial() {
-    if (!ordenSeleccionada) {
-        mostrarToast("Seleccione una orden para emitir el dossier.", true);
-        return;
+function cerrarInspector() {
+    const panel = document.getElementById('panel-inspeccion');
+    if (panel) panel.classList.add('translate-x-full');
+}
+
+async function transicionarOrdenDesdeConsola(nuevoEstado) {
+    if (!ordenSeleccionada) return;
+    const fd = new FormData();
+    fd.append('codigo_ot', ordenSeleccionada.codigo_ot);
+    fd.append('operario_id', '1');
+    fd.append('estado_nuevo', nuevoEstado);
+    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4693;
+    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9424;
+    fd.append('coordenadas_gps', `${lat}, ${lon}`);
+    fd.append('observacion', `Cambio de estado ejecutado por Supervisión Central hacia ${nuevoEstado}.`);
+
+    try {
+        const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert(`Rechazo Normativo: ${data.detail || 'Transición no autorizada'}`);
+            return;
+        }
+        await cargarTodoDashboard();
+    } catch (e) {
+        alert(`Error de red al transicionar orden: ${e.message}`);
     }
+}
 
-    document.getElementById('dossier-folio').innerText = ordenSeleccionada.codigo_ot;
-    
-    const activoInfo = (ordenSeleccionada.activo && ordenSeleccionada.activo.codigo_activo)
-        ? `${ordenSeleccionada.activo.codigo_activo} - ${ordenSeleccionada.activo.nombre}`
-        : "PMP-ISO-2610-01 - Bomba de Alimentación Principal";
-    document.getElementById('dossier-activo').innerText = activoInfo;
+async function cargarActivosEnSelectorModal() {
+    const select = document.getElementById('ot-activo-id');
+    if (!select || select.options.length > 1) return;
+    try {
+        const res = await fetch(`${API}/activos/`);
+        if (!res.ok) return;
+        const activos = await res.json();
+        select.innerHTML = activos.map(a => `<option value="${a.id}">${a.codigo_activo} — ${a.nombre}</option>`).join('');
+    } catch (e) {}
+}
 
-    const ubicacionInfo = (ordenSeleccionada.activo && ordenSeleccionada.activo.ubicacion_tecnica)
-        ? ordenSeleccionada.activo.ubicacion_tecnica
-        : "Sala de Máquinas - Circuito Secundario";
-    document.getElementById('dossier-ubicacion').innerText = ubicacionInfo;
-
-    document.getElementById('dossier-operario').innerText = ordenSeleccionada.operario_responsable;
-    document.getElementById('dossier-rut').innerText = ordenSeleccionada.rut_responsable || "18.421.903-K";
-    document.getElementById('dossier-descripcion').innerText = ordenSeleccionada.descripcion || ordenSeleccionada.observacion || "Protocolo de mantenimiento programado.";
-    document.getElementById('dossier-hash').innerText = ordenSeleccionada.hash_cadena || "CADENA_SHA256_VERIFICADA_ISO55001_TASKNODE_NODO_CENTRAL";
-
-    const modal = document.getElementById('modal-dossier');
+function abrirModalNuevaOT() {
+    const modal = document.getElementById('modal-nueva-ot');
+    if (!modal) return;
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const inputCod = document.getElementById('ot-codigo');
+    if (inputCod) inputCod.value = `OT-2610-PMT-PRV-${rand}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
-/* ==========================================================================
-   AUDITORÍA FSM Y EMISIÓN DE OTs
-   ========================================================================== */
-
-async function auditarOrdenActiva(accion) {
-    if (!ordenSeleccionada) return;
-    const nuevoEstado = (accion === 'COMPLETAR') ? 'OT COMPLETADA' : 'EN EJECUCIÓN';
-
-    try {
-        const formData = new FormData();
-        formData.append('codigo_ot', ordenSeleccionada.codigo_ot);
-        formData.append('operario_id', 1);
-        formData.append('estado_nuevo', nuevoEstado);
-        formData.append('coordenadas_gps', document.getElementById('inspect-gps-val').innerText);
-        formData.append('observacion', (accion === 'COMPLETAR') ? 'Cierre de auditoría técnica conforme a norma.' : 'Devuelto a terreno por observación.');
-
-        const res = await fetch(`${API}/estados/`, { method: 'POST', body: formData });
-        if (!res.ok) throw new Error("Transición no autorizada por FSM.");
-
-        mostrarToast(`Transición registrada: ${nuevoEstado}`);
-        actualizarMonitorCompleto();
-        if (window.innerWidth < 1280) cerrarInspector();
-    } catch (e) {
-        mostrarToast("No se pudo completar la auditoría.", true);
-    }
+function cerrarModalNuevaOT() {
+    const modal = document.getElementById('modal-nueva-ot');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
 }
 
-async function abrirModalOT() {
-    const select = document.getElementById('form-activo');
-    select.innerHTML = '<option value="">Consultando catálogo ISO 55000...</option>';
-    document.getElementById('modal-ot').classList.remove('hidden');
-    document.getElementById('modal-ot').classList.add('flex');
-
-    const correlativo = Math.floor(1000 + Math.random() * 9000);
-    document.getElementById('form-codigo').value = `OT-2610-PMT-PRV-${correlativo}`;
-
-    try {
-        const res = await fetch(`${API}/activos/`);
-        const activos = await res.json();
-        select.innerHTML = activos.map(a => `<option value="${a.id}">${a.codigo_activo} — ${a.nombre} [${a.criticidad}]</option>`).join('');
-    } catch (e) {
-        select.innerHTML = '<option value="">Error al cargar activos</option>';
-    }
-}
-
-function cerrarModalOT() {
-    document.getElementById('modal-ot').classList.add('hidden');
-    document.getElementById('modal-ot').classList.remove('flex');
-}
-
-async function enviarNuevaOT(e) {
+async function emitirNuevaOT(e) {
     e.preventDefault();
-    const btn = document.getElementById('btn-guardar-ot');
-    btn.disabled = true;
-
     const payload = {
-        codigo_ot: document.getElementById('form-codigo').value,
-        activo_id: parseInt(document.getElementById('form-activo').value),
-        tipo_mantenimiento: document.getElementById('form-tipo').value,
-        prioridad: document.getElementById('form-prioridad').value,
-        operario_responsable: document.getElementById('form-operario').value,
-        rut_responsable: document.getElementById('form-rut').value,
-        descripcion: document.getElementById('form-descripcion').value
+        codigo_ot: document.getElementById('ot-codigo').value.trim(),
+        activo_id: parseInt(document.getElementById('ot-activo-id').value, 10),
+        tipo_mantenimiento: document.getElementById('ot-tipo').value,
+        prioridad: document.getElementById('ot-prioridad').value,
+        operario_responsable: document.getElementById('ot-operario').value.trim(),
+        rut_responsable: document.getElementById('ot-rut').value.trim(),
+        descripcion: document.getElementById('ot-descripcion').value.trim()
     };
 
     try {
@@ -312,39 +277,83 @@ async function enviarNuevaOT(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error("Fallo de emisión.");
-
-        cerrarModalOT();
-        actualizarMonitorCompleto();
-        mostrarToast(`OT ${payload.codigo_ot} emitida.`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert(`Error al emitir OT: ${data.detail || 'Verifique los campos'}`);
+            return;
+        }
+        cerrarModalNuevaOT();
+        await cargarTodoDashboard();
     } catch (err) {
-        mostrarToast("Error al emitir orden.", true);
-    } finally {
-        btn.disabled = false;
+        alert(`Fallo de red: ${err.message}`);
     }
 }
 
-const PLANTILLAS_TECNICAS = [
-    {
-        codigo: "OT-2610-PMT-PRV-0045", tipo: "PREVENTIVO", prioridad: "ALTA",
-        operario: "S. Rivera", rut: "18.421.903-K",
-        desc: "Inspección de 500h: reemplazo de sello mecánico doble, alineación láser y balanceo dinámico."
-    },
-    {
-        codigo: "OT-2610-SUR-COR-0089", tipo: "CORRECTIVO", prioridad: "ALTA",
-        operario: "M. Soto", rut: "16.892.110-3",
-        desc: "Atención correctiva por disparo térmico. Fuga en circuito de refrigeración secundario."
+function generarDossierOficial() {
+    if (!ordenSeleccionada) {
+        alert("Seleccione primero una Orden de Trabajo en la tabla.");
+        return;
     }
-];
-let idxPlantilla = 0;
+    const o = ordenSeleccionada;
+    const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
 
-function autocompletarModalOT() {
-    const p = PLANTILLAS_TECNICAS[idxPlantilla % PLANTILLAS_TECNICAS.length];
-    idxPlantilla++;
-    document.getElementById('form-codigo').value = p.codigo;
-    document.getElementById('form-tipo').value = p.tipo;
-    document.getElementById('form-prioridad').value = p.prioridad;
-    document.getElementById('form-operario').value = p.operario;
-    document.getElementById('form-rut').value = p.rut;
-    document.getElementById('form-descripcion').value = p.desc;
+    setTxt('dossier-folio', o.codigo_ot);
+    setTxt('dossier-fecha', new Date().toLocaleString('es-CL'));
+    setTxt('dossier-estado', o.estado_actual || o.estado || 'EMITIDA');
+    setTxt('dossier-tipo', `${o.tipo_mantenimiento} (Prioridad ${o.prioridad || 'MEDIA'})`);
+    setTxt('dossier-activo', o.activo ? `${o.activo.codigo_activo} - ${o.activo.nombre}` : `ID #${o.activo_id}`);
+    setTxt('dossier-ubicacion', o.activo ? o.activo.ubicacion_tecnica : 'Planta Industrial');
+    // En el Dossier Legal se revela el RUT completo por obligación normativa D.S. 594
+    setTxt('dossier-operario', `${o.operario_responsable} — RUT: ${o.rut_responsable} (Acceso Autorizado Ley 21.719)`);
+    setTxt('dossier-descripcion', o.descripcion);
+    setTxt('dossier-hash', o.hash_cadena || 'GENESIS_HASH_TASKNODE_0000000000000000000000000000000000000000');
+
+    // Inyectar imagen de Azure Blob y leyenda de Ley 21.719 dinámicamente en el acta
+    let contenedorExtra = document.getElementById('dossier-bloque-cloud-ley');
+    if (!contenedorExtra) {
+        const hashElem = document.getElementById('dossier-hash');
+        if (hashElem && hashElem.parentElement) {
+            contenedorExtra = document.createElement('div');
+            contenedorExtra.id = 'dossier-bloque-cloud-ley';
+            contenedorExtra.className = 'mt-3 pt-3 border-t border-slate-300';
+            hashElem.parentElement.appendChild(contenedorExtra);
+        }
+    }
+
+    if (contenedorExtra) {
+        const urlEvidencia = resolverUrlEvidencia(o.evidencia_url);
+        const htmlImagen = urlEvidencia
+            ? `<div class="mb-2 p-2 border border-slate-300 bg-white text-center">
+                   <p class="text-[9px] font-mono font-bold uppercase text-slate-700 mb-1">
+                       Evidencia Fotográfica Certificada (Varianza Laplaciana: ${o.laplacian_score || 'Aprobada'}) · Origen: ${urlEvidencia}
+                   </p>
+                   <img src="${urlEvidencia}" alt="Evidencia Dossier" class="max-h-40 mx-auto object-contain border border-slate-200" />
+               </div>`
+            : `<p class="text-[9px] font-mono text-slate-600 mb-2">EVIDENCIA MULTIMEDIA: Sin archivo fotográfico adjunto en la última transición.</p>`;
+
+        contenedorExtra.innerHTML = `
+            ${htmlImagen}
+            <div class="bg-slate-100 p-2 border border-slate-300 text-[8.5px] font-mono text-slate-700 leading-relaxed">
+                <strong>CLÁUSULA DE PRIVACIDAD Y PROTECCIÓN DE DATOS (LEY N° 21.719 CHILE):</strong>
+                Los datos personales identificatorios (RUT) y la georreferenciación puntual (WGS84) contenidos en este expediente técnico han sido recolectados bajo los principios de licitud, finalidad y proporcionalidad, sin rastreo continuo en segundo plano, con el único propósito de acreditar cumplimiento de seguridad industrial (D.S. 594 Art. 53) y trazabilidad de activos (ISO 55001). Los metadatos EXIF secundarios de captura han sido purgados en tránsito.
+            </div>
+        `;
+    }
+
+    const modal = document.getElementById('modal-dossier');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function cerrarDossierOficial() {
+    const modal = document.getElementById('modal-dossier');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
 }

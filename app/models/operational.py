@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, event, DDL
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -36,6 +36,11 @@ class OrdenTrabajo(Base):
 
 
 class BitacoraTransicion(Base):
+    """
+    Implementa el patrón Append-Only Audit Log (Event Sourcing Snapshot).
+    Persiste instantáneas inmutables de codigo_ot, operario_responsable y rut_responsable
+    para garantizar No Repudio histórico bajo ISO 55001 aunque la OT maestra sea reasignada.
+    """
     __tablename__ = "bitacora_transiciones"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -68,3 +73,29 @@ class EvidenciaMultimedia(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     transicion = relationship("BitacoraTransicion", back_populates="evidencias")
+
+
+# =====================================================================
+# CANDADOS DE INMUTABILIDAD FORENSE (HALLAZGO 4 - ISO 55001)
+# Bloquea UPDATE y DELETE a nivel de motor SQLite y capa ORM
+# =====================================================================
+
+trigger_no_delete = DDL("""
+CREATE TRIGGER IF NOT EXISTS tr_bitacora_no_delete
+BEFORE DELETE ON bitacora_transiciones
+BEGIN
+    SELECT RAISE(ABORT, 'VIOLACION ISO 55001: La bitacora criptografica es estrictamente Append-Only. Eliminacion bloqueada.');
+END;
+""")
+
+trigger_no_update = DDL("""
+CREATE TRIGGER IF NOT EXISTS tr_bitacora_no_update
+BEFORE UPDATE OF codigo_ot, operario_responsable, rut_responsable, estado_anterior, estado_nuevo, coordenadas_gps, hash_previo, hash_cadena, timestamp
+ON bitacora_transiciones
+BEGIN
+    SELECT RAISE(ABORT, 'VIOLACION ISO 55001: Prohibido alterar campos firmados criptograficamente en bitacora_transiciones.');
+END;
+""")
+
+event.listen(BitacoraTransicion.__table__, "after_create", trigger_no_delete)
+event.listen(BitacoraTransicion.__table__, "after_create", trigger_no_update)

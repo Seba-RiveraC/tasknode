@@ -1,21 +1,19 @@
-import os
-os.environ["DISABLE_SQLALCHEMY_CEXT"] = "1"
-
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
-from app.core.config import settings
 from app.core.database import engine, Base
 from app.api.v1.router import api_router
 
-# Inicializar tablas
+# Garantiza que las tablas y Triggers ISO 55001 existan al iniciar
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version="1.0.0",
-    description="Plataforma SaaS B2B de Coordinación y Control Operativo para Faenas y Mantenimiento Industrial."
+    title="TaskNode CMMS & FSM Core",
+    description="Plataforma Industrial de Confiabilidad, Auditoría SHA-256 y Cumplimiento Normativo (ISO 55000 / EN 13306 / D.S. 594 / Ley 21.719).",
+    version="2.5.0"
 )
 
 app.add_middleware(
@@ -26,22 +24,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Montar API
-app.include_router(api_router, prefix=settings.API_V1_STR)
+# Enrutador principal de la API v1
+app.include_router(api_router, prefix="/api/v1")
 
-# Montar carpeta de subidas de archivos locales si no se usa Azure Blob
-os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# Asegurar directorios estáticos
+Path("frontend/static/uploads").mkdir(parents=True, exist_ok=True)
 
-# Montar frontend para servir desde el mismo origen en Azure
-if os.path.exists("frontend"):
-    app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+# Montar archivos estáticos y vistas de aplicación
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+app.mount("/app", StaticFiles(directory="frontend", html=True), name="frontend")
 
-@app.get("/")
+
+@app.get("/", include_in_schema=False)
+def redireccion_raiz():
+    return RedirectResponse(url="/app/monitor.html")
+
+
+@app.get("/health", tags=["Telemetría"])
 def health_check():
     return {
         "status": "ONLINE",
-        "system": settings.PROJECT_NAME,
-        "docs_url": "/docs",
-        "api_v1": settings.API_V1_STR
+        "engine": "TaskNode FSM Core v2.5",
+        "normativa": ["ISO 55000", "UNE-EN 13306", "UNE-EN 15341", "D.S. 594", "Ley 21.719"]
     }

@@ -15,6 +15,8 @@ function inicializarTerminal() {
 
     const btnNet = document.getElementById('btn-toggle-net');
     if (btnNet) btnNet.addEventListener('click', conmutarModoRed);
+
+    actualizarContadorOutbox();
 }
 
 function mostrarToastTerminal(mensaje, esError = false) {
@@ -32,7 +34,7 @@ function mostrarToastTerminal(mensaje, esError = false) {
     setTimeout(() => {
         toast.classList.remove('opacity-100', 'translate-y-0');
         toast.classList.add('opacity-0', 'translate-y-[-6px]');
-    }, 3200);
+    }, 3400);
 }
 
 async function desbloquearTerminal() {
@@ -62,7 +64,7 @@ async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
         if (cached.length > 0) {
             listaOTsCache = cached;
             poblarDropdown(cached, codigoPreseleccionado);
-            mostrarToastTerminal('Modo local: órdenes cargadas desde almacenamiento.');
+            mostrarToastTerminal('Modo local: órdenes cargadas desde caché.');
         } else {
             select.innerHTML = '<option value="">Sin OTs disponibles</option>';
         }
@@ -112,32 +114,48 @@ async function procesarTransicionTerreno(e) {
     btn.disabled = true;
 
     const codigoOT = document.getElementById('codigo_ot').value;
+    const operarioId = document.getElementById('operario_id').value || '45';
     const estadoNuevo = document.getElementById('estado_nuevo').value;
+    const gpsVal = document.getElementById('gps').value || '-41.4693, -72.9424';
+    const obsVal = document.getElementById('obs').value || '';
 
-    const formData = new FormData();
-    formData.append('codigo_ot', codigoOT);
-    formData.append('operario_id', document.getElementById('operario_id').value || '45');
-    formData.append('estado_nuevo', estadoNuevo);
-    formData.append('coordenadas_gps', document.getElementById('gps').value || '-41.4693, -72.9424');
-    formData.append('observacion', document.getElementById('obs').value || '');
-
-    const inputFoto = document.getElementById('foto');
-    if (inputFoto && inputFoto.files && inputFoto.files.length > 0) {
-        formData.append('foto', inputFoto.files[0]);
-    }
-
+    // Encolamiento Offline completo (Hallazgo 2)
     if (modoOfflineSimulado || !navigator.onLine) {
         const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
         cola.push({
             codigo_ot: codigoOT,
+            operario_id: operarioId,
             estado_nuevo: estadoNuevo,
+            coordenadas_gps: gpsVal,
+            observacion: obsVal || 'Transición registrada en operación desconectada (Outbox).',
             timestamp: new Date().toISOString()
         });
         localStorage.setItem('tasknode_outbox', JSON.stringify(cola));
+        
+        // Actualizar también el estado en la caché local para feedback visual inmediato
+        const otLocal = listaOTsCache.find(o => o.codigo_ot === codigoOT);
+        if (otLocal) {
+            otLocal.estado_actual = estadoNuevo;
+            actualizarInfoOTSeleccionada();
+        }
+
         actualizarContadorOutbox();
-        mostrarToastTerminal('Sin red: transición encolada en Outbox local.');
+        document.getElementById('obs').value = '';
+        mostrarToastTerminal(`Encolado en Outbox (${cola.length}): ${codigoOT} -> ${estadoNuevo}`);
         btn.disabled = false;
         return;
+    }
+
+    const formData = new FormData();
+    formData.append('codigo_ot', codigoOT);
+    formData.append('operario_id', operarioId);
+    formData.append('estado_nuevo', estadoNuevo);
+    formData.append('coordenadas_gps', gpsVal);
+    formData.append('observacion', obsVal);
+
+    const inputFoto = document.getElementById('foto');
+    if (inputFoto && inputFoto.files && inputFoto.files.length > 0) {
+        formData.append('foto', inputFoto.files[0]);
     }
 
     try {
@@ -153,8 +171,8 @@ async function procesarTransicionTerreno(e) {
         }
 
         if (res.status === 422) {
-            const detalle = typeof data.detail === 'string' ? data.detail : 'Transición no permitida por FSM (EN 13306)';
-            mostrarToastTerminal(`Rechazo FSM: ${detalle}`, true);
+            const detalle = typeof data.detail === 'string' ? data.detail : 'Transición rechazada por regla normativa';
+            mostrarToastTerminal(detalle, true);
         } else if (!res.ok) {
             mostrarToastTerminal(`Error ${res.status}: ${data.detail || 'Fallo del servidor'}`, true);
         } else {
@@ -175,7 +193,7 @@ async function procesarTransicionTerreno(e) {
     }
 }
 
-function conmutarModoRed() {
+async function conmutarModoRed() {
     modoOfflineSimulado = !modoOfflineSimulado;
     const dot = document.getElementById('dot-red');
     const label = document.getElementById('txt-red');
@@ -185,11 +203,12 @@ function conmutarModoRed() {
         dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
         label.innerText = 'OFFLINE';
         btn.innerText = 'Reconectar';
+        mostrarToastTerminal('Modo Offline activado. Eventos se guardarán en Outbox.');
     } else {
         dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse';
         label.innerText = 'ONLINE';
         btn.innerText = 'Simular Offline';
-        sincronizarColaOutbox();
+        await sincronizarColaOutbox();
     }
 }
 
@@ -199,13 +218,46 @@ function actualizarContadorOutbox() {
     if (contador) contador.innerText = `Outbox: ${cola.length}`;
 }
 
-function sincronizarColaOutbox() {
+async function sincronizarColaOutbox() {
     const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
-    if (cola.length > 0) {
-        mostrarToastTerminal(`Sincronizados ${cola.length} eventos retenidos.`);
-        localStorage.removeItem('tasknode_outbox');
-        actualizarContadorOutbox();
-        cargarOrdenesEnTerminal();
+    if (cola.length === 0) {
+        mostrarToastTerminal('Enlace restablecido. Cola Outbox vacía.');
+        return;
+    }
+
+    let sincronizados = 0;
+    let ultimoError = null;
+    const codigoActual = document.getElementById('codigo_ot').value;
+
+    for (const item of cola) {
+        const fd = new FormData();
+        fd.append('codigo_ot', item.codigo_ot);
+        fd.append('operario_id', item.operario_id || '45');
+        fd.append('estado_nuevo', item.estado_nuevo);
+        fd.append('coordenadas_gps', item.coordenadas_gps || '-41.4693, -72.9424');
+        fd.append('observacion', item.observacion || 'Sincronización diferida desde Outbox.');
+
+        try {
+            const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
+            if (res.ok) {
+                sincronizados++;
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                ultimoError = errData.detail || `HTTP ${res.status}`;
+            }
+        } catch (err) {
+            ultimoError = err.message;
+        }
+    }
+
+    localStorage.removeItem('tasknode_outbox');
+    actualizarContadorOutbox();
+    await cargarOrdenesEnTerminal(codigoActual);
+
+    if (sincronizados === cola.length) {
+        mostrarToastTerminal(`Outbox sincronizado: ${sincronizados}/${cola.length} transiciones registradas.`);
+    } else {
+        mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length}. Rechazo: ${ultimoError}`, true);
     }
 }
 

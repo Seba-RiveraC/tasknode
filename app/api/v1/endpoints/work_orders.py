@@ -1,36 +1,60 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from app.api.deps import get_db
-from app import models, schemas
+from typing import List
+from datetime import datetime
+
+from app.core.database import get_db
+from app.models import operational as models
+from app.schemas import operational as schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=list[schemas.OrdenTrabajoResponse])
+@router.get("/", response_model=List[schemas.OrdenTrabajoOut])
 def listar_ordenes(db: Session = Depends(get_db)):
-    """Lista las OTs ordenadas desde la más reciente."""
-    return db.query(models.OrdenTrabajo).order_by(desc(models.OrdenTrabajo.id)).all()
+    ordenes = db.query(models.OrdenTrabajo).order_by(models.OrdenTrabajo.id.desc()).all()
+    
+    for o in ordenes:
+        if o.transiciones:
+            # Obtener la transición más reciente por ID para poblar el visor forense
+            ultima = max(o.transiciones, key=lambda t: t.id)
+            o.hash_cadena = ultima.hash_cadena
+            o.evidencia_url = ultima.evidencia_url
+            o.laplacian_score = ultima.laplacian_score
+            
+    return ordenes
 
-@router.post("/", response_model=schemas.OrdenTrabajoResponse, status_code=status.HTTP_201_CREATED)
-def emitir_orden_trabajo(orden_in: schemas.OrdenTrabajoCreate, db: Session = Depends(get_db)):
-    """Emisión formal de OT vinculada a un activo físico."""
-    activo = db.query(models.ActivoIndustrial).filter(models.ActivoIndustrial.id == orden_in.activo_id).first()
+@router.post("/", response_model=schemas.OrdenTrabajoOut, status_code=status.HTTP_201_CREATED)
+def crear_orden(payload: schemas.OrdenTrabajoCreate, db: Session = Depends(get_db)):
+    existente = db.query(models.OrdenTrabajo).filter(
+        models.OrdenTrabajo.codigo_ot == payload.codigo_ot.strip()
+    ).first()
+    if existente:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El folio '{payload.codigo_ot}' ya se encuentra registrado en el sistema."
+        )
+
+    activo = db.query(models.ActivoIndustrial).filter(
+        models.ActivoIndustrial.id == payload.activo_id
+    ).first()
     if not activo:
-        raise HTTPException(status_code=404, detail="El Activo Industrial indicado no existe en el catálogo.")
-
-    if db.query(models.OrdenTrabajo).filter(models.OrdenTrabajo.codigo_ot == orden_in.codigo_ot).first():
-        raise HTTPException(status_code=400, detail=f"El código {orden_in.codigo_ot} ya está registrado.")
+        raise HTTPException(
+            status_code=404,
+            detail="El activo físico especificado no existe en el catálogo ISO 55000."
+        )
 
     nueva_ot = models.OrdenTrabajo(
-        codigo_ot=orden_in.codigo_ot,
-        descripcion=orden_in.descripcion,
-        tipo_mantenimiento=orden_in.tipo_mantenimiento,
-        prioridad=orden_in.prioridad,
-        operario_responsable=orden_in.operario_responsable,
-        rut_responsable=orden_in.rut_responsable,
-        activo_id=orden_in.activo_id,
-        estado_actual="EMITIDA"
+        codigo_ot=payload.codigo_ot.strip(),
+        activo_id=payload.activo_id,
+        tipo_mantenimiento=payload.tipo_mantenimiento,
+        prioridad=payload.prioridad,
+        estado_actual="EMITIDA",
+        operario_responsable=payload.operario_responsable.strip(),
+        rut_responsable=payload.rut_responsable.strip(),
+        descripcion=payload.descripcion.strip(),
+        created_at=datetime.utcnow()
     )
+
     db.add(nueva_ot)
     db.commit()
     db.refresh(nueva_ot)

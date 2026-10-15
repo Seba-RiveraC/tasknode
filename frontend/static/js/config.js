@@ -1,10 +1,15 @@
-// Detección automática del host de la API
-const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "";
-const API_BASE_URL = isLocalhost 
-    ? "http://127.0.0.1:8000/api/v1" 
-    : `${window.location.origin}/api/v1`;
+(function () {
+    const origin = window.location.origin;
+    let apiUrl = "http://127.0.0.1:8000/api/v1";
 
-window.TaskNodeConfig = {
-    API_URL: API_BASE_URL,
-    GEOCERCA_RADIO_MAX: 150.0
-};
+    // Si corre servido desde el mismo FastAPI (local o desplegado en Cloud/Azure/Render)
+    if (origin && origin.startsWith("http") && !origin.includes(":5500")) {
+        apiUrl = `${origin}/api/v1`;
+    }
+
+    window.TaskNodeConfig = {
+        API_URL: apiUrl,
+        VERSION: "2.5.0-CLOUD",
+        LEY_PRIVACIDAD: "Ley 21.719 (Chile)"
+    };
+})();

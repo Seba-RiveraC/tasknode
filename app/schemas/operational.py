@@ -2,10 +2,6 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
-# =====================================================================
-# ACTIVOS (ISO 55000)
-# =====================================================================
-
 class ActivoBase(BaseModel):
     codigo_activo: str
     nombre: str
@@ -24,10 +20,6 @@ class ActivoOut(ActivoBase):
 Activo = ActivoOut
 ActivoResponse = ActivoOut
 
-# =====================================================================
-# ÓRDENES DE TRABAJO (EN 13306)
-# =====================================================================
-
 class OrdenTrabajoBase(BaseModel):
     codigo_ot: str
     activo_id: int
@@ -45,14 +37,15 @@ class OrdenTrabajoOut(OrdenTrabajoBase):
     estado_actual: str = "EMITIDA"
     created_at: Optional[datetime] = None
     activo: Optional[ActivoOut] = None
+    # Campos inyectados desde la última transición para el Visor Forense (Hallazgo 1)
+    hash_cadena: Optional[str] = None
+    evidencia_url: Optional[str] = None
+    laplacian_score: Optional[float] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 OrdenTrabajoResponse = OrdenTrabajoOut
 OrdenTrabajo = OrdenTrabajoOut
-
-# =====================================================================
-# TRANSICIONES & AUDITORÍA SHA-256
-# =====================================================================
 
 class TransicionCreate(BaseModel):
     codigo_ot: str
@@ -64,7 +57,7 @@ class TransicionCreate(BaseModel):
 class TransicionOut(BaseModel):
     id: int
     orden_id: int
-    codigo_ot: str  # Campo obligatorio garantizado
+    codigo_ot: str
     operario_responsable: str
     rut_responsable: str
     estado_anterior: str
@@ -82,10 +75,6 @@ BitacoraTransicionOut = TransicionOut
 BitacoraOut = TransicionOut
 TransicionResponse = TransicionOut
 BitacoraResponse = TransicionOut
-
-# =====================================================================
-# MÉTRICAS UNE-EN 15341
-# =====================================================================
 
 class MetricasOut(BaseModel):
     volumen_total: int
