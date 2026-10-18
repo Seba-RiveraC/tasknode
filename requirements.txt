@@ -1,9 +1,13 @@
+@"
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 sqlalchemy>=2.0.29
 pydantic>=2.7.0
+pydantic-settings>=2.0.0
 python-multipart>=0.0.9
 opencv-python-headless>=4.9.0.80
 numpy>=1.26.4
 azure-storage-blob>=12.19.0
 python-dotenv>=1.0.1
+pillow>=10.0.0
+"@ | Out-File -FilePath requirements.txt -Encoding utf8

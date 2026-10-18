@@ -1,131 +1,143 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-[#131417] text-slate-100">
+<html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TaskNode | Terminal Terreno</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | Terminal de Terreno (Técnico)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link rel="stylesheet" href="static/css/styles.css?v=2.6">
 </head>
-<body class="h-full flex flex-col font-sans bg-surface-base selection:bg-amber-500 selection:text-black">
+<body class="h-full flex flex-col font-sans bg-surface-base top-accent-line">
 
-    <!-- Notificación HUD Flotante -->
+    <!-- Notificación Superior -->
     <div id="hud-toast" class="fixed top-3 left-3 right-3 z-50 pointer-events-none opacity-0 translate-y-[-6px] transition-all duration-200">
-        <div class="bg-surface-2 border border-theme-bright shadow-2xl px-3 py-2 rounded flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span id="toast-led" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                <span id="toast-msg" class="font-mono text-[10px] text-slate-200">Evento registrado</span>
-            </div>
-            <span class="text-[9px] font-mono text-slate-500">DISPATCH HUD</span>
+        <div class="bg-surface-1 border-2 border-theme-bright shadow-2xl px-3.5 py-2.5 rounded flex items-center gap-2.5 max-w-md mx-auto">
+            <span id="toast-led" class="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0"></span>
+            <span id="toast-msg" class="text-xs font-semibold text-theme-main">Aviso</span>
         </div>
     </div>
 
-    <!-- Pantalla de Bloqueo de Turno -->
-    <div id="pantalla-bloqueo" class="fixed inset-0 bg-surface-base flex flex-col items-center justify-center z-40 transition-opacity duration-300">
-        <div class="w-full max-w-xs px-6 text-center space-y-5">
-            <div class="space-y-1">
-                <div class="w-10 h-10 mx-auto rounded border border-amber-500/40 bg-surface-1 flex items-center justify-center font-mono font-bold text-amber-400">TN</div>
-                <h2 class="text-sm font-mono font-bold tracking-wider text-slate-200 uppercase">Terminal de Cuadrilla</h2>
-                <p class="text-slate-500 text-[10px] font-mono">D.S. 594 Art. 53 · Verificación de Turno</p>
-            </div>
-
-            <!-- Identificación Técnica -->
-            <div class="bg-surface-1 border border-theme-dim rounded p-3 text-left font-mono">
-                <div class="text-[9px] text-slate-500 uppercase">Técnico Asignado</div>
-                <div class="font-bold text-xs text-slate-200">S. Rivera</div>
-                <div class="text-[10px] text-slate-400">18.421.903-K</div>
-                <div class="text-[9px] text-amber-400 mt-1">EPP Verificado · Certificación Vigente</div>
-            </div>
-
-            <button id="btn-autenticar" class="w-full py-3 btn-primary font-mono font-bold text-xs uppercase tracking-wider rounded tactile-btn transition">
-                Validar Acceso
+    <!-- Cabecera -->
+    <header class="h-12 bg-surface-1 border-b border-theme-dim px-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs">TN</div>
+            <span class="font-bold text-xs sm:text-sm text-theme-main">Terminal del Técnico en Planta</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="dot-red" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="txt-red" class="font-mono text-[11px] font-bold text-theme-muted">EN LÍNEA</span>
+            <button id="btn-theme-toggle" onclick="toggleTheme()" class="ml-1 bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-[11px] px-2.5 py-1 rounded transition flex items-center gap-1">
+                <span>🌙</span>
             </button>
         </div>
-    </div>
+    </header>
 
-    <!-- Interfaz de Terreno Activa -->
-    <div id="app-principal" class="hidden opacity-0 flex-1 flex flex-col transition-opacity duration-200 overflow-hidden">
-        
-        <!-- Barra de Estado de Terreno -->
-        <header class="h-10 bg-surface-1 border-b border-theme-dim px-3 flex items-center justify-between shrink-0 font-mono text-[10px]">
-            <div class="flex items-center gap-2">
-                <span id="dot-red" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                <span id="txt-red" class="text-slate-300 font-bold">ONLINE</span>
-                <span id="outbox-count" class="text-amber-400 ml-1">Outbox: 0</span>
+    <!-- Formulario Principal -->
+    <main class="flex-1 overflow-y-auto p-3.5 space-y-3 max-w-md mx-auto w-full">
+
+        <!-- 1. Credencial de Cuadrilla -->
+        <div class="bg-surface-1 border border-theme-dim rounded p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded bg-surface-2 border border-theme-bright flex items-center justify-center text-accent font-mono font-bold text-xs" id="perfil-iniciales">
+                        SR
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-theme-main" id="perfil-nombre">Sebastián Rivera</div>
+                        <div class="text-[11px] text-theme-dim font-mono" id="perfil-rut-cargo">RUT: 18.421.903-K · Técnico Responsable</div>
+                    </div>
+                </div>
+                <span class="px-2 py-0.5 rounded badge-completada text-[10px] font-bold">
+                    ✓ D.S. 594 OK
+                </span>
             </div>
-            <div class="flex items-center gap-2">
-                <button id="btn-toggle-net" class="px-2 py-0.5 rounded border border-theme-dim bg-surface-2 text-slate-400 hover:text-slate-200">Simular Offline</button>
-                <a href="monitor.html" class="text-slate-400 hover:text-slate-200 ml-1">Salir</a>
-            </div>
-        </header>
+        </div>
 
-        <!-- Formulario Operacional Compacto -->
-        <main class="flex-1 overflow-y-auto p-3 space-y-2.5 max-w-sm mx-auto w-full">
-            <form id="formularioEstado" class="space-y-2.5">
-                <input type="hidden" id="operario_id" value="45">
+        <!-- 2. Ejecución de Orden -->
+        <form id="formularioEstado" class="space-y-3">
+            <input type="hidden" id="operario_id" value="45">
+            <input type="hidden" id="gps" value="-41.4693, -72.9424">
 
-                <!-- Selector de OT -->
-                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
-                    <label class="block text-[9px] font-mono text-slate-400 uppercase tracking-wider">Orden de Trabajo Asignada</label>
-                    <select id="codigo_ot" required onchange="actualizarInfoOTSeleccionada()" class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 focus:outline-none"></select>
-                    <div id="info-ot-estado" class="text-[9px] font-mono text-slate-500"></div>
+            <div class="bg-surface-1 border border-theme-dim rounded p-3.5 space-y-2.5 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold text-theme-main uppercase">1. Orden de Trabajo Asignada</label>
+                    <span id="info-ot-estado" class="text-[11px] font-mono font-bold text-accent"></span>
                 </div>
 
-                <!-- Selector de Transición FSM -->
-                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
-                    <label class="block text-[9px] font-mono text-slate-400 uppercase tracking-wider">Transición de Estado (EN 13306)</label>
-                    <select id="estado_nuevo" required class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 focus:outline-none">
-                        <option value="EN EJECUCIÓN">EN EJECUCIÓN (Inicio / En curso)</option>
-                        <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Incidente)</option>
-                        <option value="EN VALIDACIÓN">EN VALIDACIÓN (Fin de labor)</option>
-                        <option value="OT COMPLETADA">OT COMPLETADA (Cierre formal)</option>
+                <select id="codigo_ot" required onchange="actualizarInfoOTSeleccionada()" class="w-full border rounded p-2 text-xs font-mono font-bold"></select>
+
+                <div id="info-ot-descripcion" class="text-xs text-theme-main bg-surface-2 border border-theme-dim rounded p-2.5 leading-relaxed">
+                    Cargando instrucciones...
+                </div>
+
+                <button type="button" onclick="abrirPliegoPDFDesdeTerminal()" class="w-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs py-2 px-3 rounded flex items-center justify-center gap-1.5 transition">
+                    <span>📄 Abrir Pliego Técnico de la Orden (Hoja A4 / PDF)</span>
+                </button>
+            </div>
+
+            <div class="bg-surface-1 border border-theme-dim rounded p-3.5 space-y-3 shadow-sm">
+                <div>
+                    <label class="block text-xs font-bold text-theme-main uppercase mb-1">2. Reportar Estado de Avance</label>
+                    <select id="estado_nuevo" required onchange="autocompletarNovedad()" class="w-full border rounded p-2 text-xs font-bold">
+                        <option value="EN EJECUCIÓN">EN EJECUCIÓN (Iniciando tareas en máquina)</option>
+                        <option value="EN VALIDACIÓN">EN VALIDACIÓN (Trabajo terminado para revisión)</option>
+                        <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Falta repuesto / Problema)</option>
+                        <option value="OT COMPLETADA">OT COMPLETADA (Cierre directo)</option>
                     </select>
                 </div>
 
-                <!-- Telemetría GPS -->
-                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 flex items-center justify-between font-mono text-[9px]">
-                    <div>
-                        <span class="text-slate-500 uppercase block">Posición WGS84</span>
-                        <span class="text-slate-300 font-bold" id="gps-display">-41.4693, -72.9424</span>
-                        <input type="hidden" id="gps" value="-41.4693, -72.9424">
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-theme-main uppercase">3. Detalle Técnico Realizado</label>
+                        <button type="button" onclick="autocompletarNovedad()" class="text-[11px] text-accent hover:underline font-bold">
+                            + Insertar texto tipo
+                        </button>
                     </div>
-                    <span class="px-1.5 py-0.5 rounded border border-emerald-900 bg-emerald-950/60 text-emerald-400">ST_DWithin OK</span>
+                    <textarea id="obs" rows="3" class="w-full border rounded p-2 text-xs" placeholder="Describa las tareas ejecutadas, bloqueo LOTO y lecturas..."></textarea>
                 </div>
 
-                <!-- Viewfinder de Cámara para Evidencia -->
-                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1.5">
-                    <div class="flex justify-between items-center text-[9px] font-mono">
-                        <span class="text-slate-400 uppercase">Captura de Evidencia</span>
-                        <span class="text-slate-500">Laplacian &gt;= 100</span>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-theme-main uppercase">4. Fotografía de Respaldo</label>
+                        <span class="text-[10px] font-mono text-theme-dim">Filtro Laplaciano &ge; 100</span>
                     </div>
-                    <label class="relative block border border-dashed border-theme-bright rounded p-3 text-center bg-surface-base cursor-pointer hover:border-slate-400 transition">
-                        <input type="file" id="foto" accept="image/*" capture="environment" class="hidden" onchange="actualizarNombreFoto(this)">
-                        <div id="camera-label" class="space-y-1">
-                            <svg class="w-5 h-5 text-slate-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                            <span class="text-[10px] font-mono text-slate-400 block">Abrir sensor de cámara</span>
+                    <label class="block border border-dashed border-theme-bright rounded p-3 text-center bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
+                        <input type="file" id="foto" accept="image/*" class="hidden" onchange="actualizarNombreFoto(this)">
+                        <div id="camera-label" class="text-xs text-theme-muted font-semibold">
+                            📷 Adjuntar fotografía de inspección
                         </div>
                     </label>
                 </div>
+            </div>
 
-                <!-- Libro de Terreno -->
-                <div class="bg-surface-1 border border-theme-dim rounded p-2.5 space-y-1">
-                    <div class="flex justify-between items-center">
-                        <label class="text-[9px] font-mono text-slate-400 uppercase tracking-wider">Minuta Técnica</label>
-                        <button type="button" onclick="autocompletarNovedad()" class="text-[9px] font-mono text-amber-400 hover:underline">Plantilla</button>
-                    </div>
-                    <textarea id="obs" rows="2" class="w-full bg-surface-base border border-theme-dim rounded p-2 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none" placeholder="Observaciones de la maniobra..."></textarea>
+            <button type="submit" id="btnEnviar" class="w-full py-3 btn-primary font-bold text-xs uppercase tracking-wide rounded shadow-md transition">
+                Firmar y Enviar Avance (SHA-256)
+            </button>
+        </form>
+
+        <!-- Barra Discreta de Pruebas de Ingeniería -->
+        <div class="bg-surface-2 border border-theme-dim rounded p-3 text-[11px] space-y-1.5">
+            <div class="flex items-center justify-between">
+                <span class="font-bold text-theme-muted">Posición GPS respecto al Equipo:</span>
+                <span id="badge-geocerca" class="font-mono font-bold text-emerald-600">✓ En Planta (-41.4693, -72.9424)</span>
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-theme-dim text-[10px] text-theme-dim">
+                <span>Simulación para defensa:</span>
+                <div class="flex gap-2 font-semibold">
+                    <button type="button" id="btn-sim-gps" onclick="alternarSimulacionGPS()" class="underline hover:text-theme-main">
+                        Simular GPS lejos (&gt;4km)
+                    </button>
+                    <span>·</span>
+                    <button type="button" id="btn-toggle-net" onclick="conmutarModoRed()" class="underline hover:text-theme-main">
+                        Modo sin red (Cola: <span id="outbox-count">0</span>)
+                    </button>
                 </div>
+            </div>
+        </div>
 
-                <button type="submit" id="btnEnviar" class="w-full py-3 btn-primary font-mono font-bold text-xs uppercase tracking-wider rounded tactile-btn transition">
-                    Sincronizar con Servidor
-                </button>
-            </form>
+    </main>
 
-            <div id="banner-terminal" class="hidden"></div>
-        </main>
-    </div>
-
-    <script src="static/js/config.js"></script>
-    <script src="static/js/terminal.js"></script>
+    <script src="static/js/config.js?v=2.6"></script>
+    <script src="static/js/terminal.js?v=2.6"></script>
 </body>
 </html>

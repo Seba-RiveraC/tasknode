@@ -1,74 +1,76 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ==========================================================================
-   CONFIGURACIÓN CROMÁTICA INDUSTRIAL
+   SISTEMA DE DISEÑO INDUSTRIAL: PIEDRA/COBRE (CLARO) Y OBSIDIANA/ÁMBAR (OSCURO)
    ========================================================================== */
 
-/* --- TEMA PRINCIPAL ACTIVO: HEAVY INDUSTRY AMBER (Despacho Minero / Maquinaria) --- */
-:root {
-  --bg-core: #131417;
-  --bg-surface-1: #1a1c21;
-  --bg-surface-2: #22252c;
-  --bg-surface-3: #2c3038;
+:root,
+html[data-theme="light"] {
+  --bg-core: #eeede8;            /* Piedra técnica / Papel de ingeniería */
+  --bg-surface-1: #faf9f5;       /* Superficie principal marfil técnico */
+  --bg-surface-2: #e4e2dd;       /* Cabeceras de tabla y bloques secundarios */
+  --bg-surface-3: #d6d3cd;       /* Selección / Hover */
 
-  --border-dim: #323640;
-  --border-bright: #474d5a;
+  --border-dim: #c2bfb6;         /* Línea de grilla definida */
+  --border-bright: #8c887e;      /* Borde acentuado */
 
-  --accent-primary: #d97706;          /* Ámbar de seguridad industrial */
-  --accent-primary-hover: #b45309;
-  --accent-primary-glow: rgba(217, 119, 6, 0.18);
+  --accent-primary: #c2410c;     /* Cobre / Terracota industrial */
+  --accent-primary-hover: #9a3412;
+  --accent-secondary: #18181b;   /* Grafito estructural */
 
-  --status-ok: #10b981;
-  --status-warning: #f59e0b;
-  --status-critical: #ef4444;
+  --text-main: #111315;          /* Carbón casi negro (máximo contraste) */
+  --text-muted: #374151;         /* Gris pizarra oscuro */
+  --text-dim: #57534e;           /* Etiquetas técnicas */
 
-  --text-main: #f4f4f6;
-  --text-muted: #9ea3ae;
-  --text-dim: #656a75;
+  --code-bg: #e6e4df;
+  --code-text: #9a3412;
+  --row-selected: rgba(194, 65, 12, 0.12);
 }
 
-/* --- OPCIÓN ALTERNATIVA DISPONIBLE: COOL STEEL & COBALT (SCADA / Control Room) ---
-   (Para activar: comenta el bloque :root de arriba y descomenta este bloque)
-:root {
-  --bg-core: #0f141c;
-  --bg-surface-1: #161d28;
-  --bg-surface-2: #1e2736;
-  --bg-surface-3: #273244;
+html[data-theme="dark"] {
+  --bg-core: #08090c;            /* Obsidiana profunda (Alto Contraste) */
+  --bg-surface-1: #12151c;       /* Carbono elevado */
+  --bg-surface-2: #1a1f29;       /* Cabeceras y tarjetas anidadas */
+  --bg-surface-3: #252b39;       /* Hover nítido */
 
-  --border-dim: #263344;
-  --border-bright: #3a4b63;
+  --border-dim: #2e3646;         /* Borde de acero visible */
+  --border-bright: #4f5d75;      /* Borde resaltado */
 
-  --accent-primary: #0284c7;
-  --accent-primary-hover: #0369a1;
-  --accent-primary-glow: rgba(2, 132, 199, 0.18);
+  --accent-primary: #ea580c;     /* Naranja / Ámbar de alta visibilidad */
+  --accent-primary-hover: #d97706;
+  --accent-secondary: #f8fafc;
 
-  --status-ok: #10b981;
-  --status-warning: #f59e0b;
-  --status-critical: #ef4444;
+  --text-main: #f8fafc;          /* Blanco puro para lectura sin fatiga */
+  --text-muted: #cbd5e1;         /* Plata claro */
+  --text-dim: #94a3b8;           /* Acero medio */
 
-  --text-main: #f1f5f9;
-  --text-muted: #8fa0b5;
-  --text-dim: #5c6c80;
+  --code-bg: #0b0d12;
+  --code-text: #fbbf24;
+  --row-selected: rgba(234, 88, 12, 0.18);
 }
-*/
 
 /* ==========================================================================
-   APLICACIÓN DE SUPERFICIES Y BORDES (Control Total sobre Tailwind)
+   ESTRUCTURA Y COMPONENTES BASE
    ========================================================================== */
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background-color: var(--bg-core) !important;
   color: var(--text-main) !important;
-  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
   overflow: hidden;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
 }
 
-/* Superficie 1: Barras laterales, cabeceras y cinta de estado */
+/* Barra superior distintiva de ingeniería */
+.top-accent-line {
+  border-top: 3px solid var(--accent-primary) !important;
+}
+
 aside,
 header,
 .bg-surface-1 {
@@ -76,20 +78,21 @@ header,
   border-color: var(--border-dim) !important;
 }
 
-/* Superficie 2: Paneles, tarjetas y modales */
-.bg-surface-2,
-#modal-ot > div {
+.bg-surface-2 {
   background-color: var(--bg-surface-2) !important;
   border-color: var(--border-dim) !important;
 }
 
-/* Superficie 3 / Base: Inputs, selects, textareas y fondos anidados */
-input,
-select,
-textarea,
 .bg-surface-base {
   background-color: var(--bg-core) !important;
   border-color: var(--border-dim) !important;
+}
+
+input,
+select,
+textarea {
+  background-color: var(--bg-surface-1) !important;
+  border-color: var(--border-bright) !important;
   color: var(--text-main) !important;
 }
 
@@ -98,9 +101,9 @@ select:focus,
 textarea:focus {
   border-color: var(--accent-primary) !important;
   outline: none;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
 }
 
-/* Bordes universales */
 .border-theme-dim {
   border-color: var(--border-dim) !important;
 }
@@ -108,31 +111,115 @@ textarea:focus {
   border-color: var(--border-bright) !important;
 }
 
-/* Botones de acción primaria */
+.text-theme-main {
+  color: var(--text-main) !important;
+}
+.text-theme-muted {
+  color: var(--text-muted) !important;
+}
+.text-theme-dim {
+  color: var(--text-dim) !important;
+}
+.text-accent {
+  color: var(--accent-primary) !important;
+}
+
+/* Item activo del menú lateral */
+.nav-active {
+  background-color: var(--bg-surface-2) !important;
+  color: var(--accent-primary) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+  font-weight: 700 !important;
+}
+
+/* Botón primario con carácter industrial */
 .btn-primary {
   background-color: var(--accent-primary) !important;
   color: #ffffff !important;
   transition: background-color 0.15s ease, transform 0.08s ease;
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background-color: var(--accent-primary-hover) !important;
 }
-.btn-primary:active {
-  transform: translateY(1px) scale(0.985);
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-/* Efecto hover en tablas */
+/* Pastillas de código y Hashes SHA-256 */
+.code-pill {
+  background-color: var(--code-bg) !important;
+  color: var(--code-text) !important;
+  border: 1px solid var(--border-dim) !important;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Filas de tabla y selección */
 tbody tr {
-  transition: background-color 0.12s ease;
+  transition: background-color 0.1s ease;
 }
 tbody tr:hover {
   background-color: var(--bg-surface-3) !important;
 }
+.row-active {
+  background-color: var(--row-selected) !important;
+  border-left: 3px solid var(--accent-primary) !important;
+}
 
-/* Scrollbars industriales */
+/* Estados semánticos de alto contraste */
+.badge-emitida {
+  background-color: rgba(217, 119, 6, 0.16);
+  color: #92400e;
+  border: 1px solid rgba(217, 119, 6, 0.5);
+}
+html[data-theme="dark"] .badge-emitida {
+  color: #fbbf24;
+}
+
+.badge-ejecucion {
+  background-color: rgba(194, 65, 12, 0.16);
+  color: #9a3412;
+  border: 1px solid rgba(194, 65, 12, 0.5);
+}
+html[data-theme="dark"] .badge-ejecucion {
+  background-color: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.55);
+}
+
+.badge-validacion {
+  background-color: rgba(67, 56, 202, 0.15);
+  color: #3730a3;
+  border: 1px solid rgba(67, 56, 202, 0.45);
+}
+html[data-theme="dark"] .badge-validacion {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.badge-completada {
+  background-color: rgba(4, 120, 87, 0.16);
+  color: #065f46;
+  border: 1px solid rgba(4, 120, 87, 0.5);
+}
+html[data-theme="dark"] .badge-completada {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.badge-detenida {
+  background-color: rgba(185, 28, 28, 0.16);
+  color: #991b1b;
+  border: 1px solid rgba(185, 28, 28, 0.55);
+}
+html[data-theme="dark"] .badge-detenida {
+  background-color: rgba(239, 68, 68, 0.22);
+  color: #f87171;
+}
+
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-core);
@@ -140,26 +227,4 @@ tbody tr:hover {
 ::-webkit-scrollbar-thumb {
   background: var(--border-bright);
   border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #606878;
-}
-
-/* Retícula técnica de fondo */
-.tech-grid {
-  background-image: 
-    linear-gradient(to right, rgba(50, 54, 64, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(50, 54, 64, 0.4) 1px, transparent 1px);
-  background-size: 24px 24px;
-}
-
-.tactile-btn {
-  transition: transform 0.08s ease, background-color 0.15s ease, border-color 0.15s ease;
-}
-.tactile-btn:active {
-  transform: translateY(1px) scale(0.985);
-}
-
-#hud-toast {
-  transition: opacity 0.25s ease, transform 0.25s ease;
 }

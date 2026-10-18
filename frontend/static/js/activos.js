@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     cargarCatalogoActivos();
     const input = document.getElementById('input-busqueda-activos');
-    if (input) {
-        input.addEventListener('input', filtrarActivosLocal);
-    }
+    if (input) input.addEventListener('input', filtrarActivosLocal);
 });
 
 let cacheActivos = [];
@@ -15,13 +13,13 @@ async function cargarCatalogoActivos() {
 
     try {
         const res = await fetch(`${window.TaskNodeConfig.API_URL}/activos/`);
-        if (!res.ok) throw new Error("Fallo de red");
+        if (!res.ok) throw new Error("Error de red");
         cacheActivos = await res.json();
 
-        if (badge) badge.innerText = `${cacheActivos.length} UNIDADES ACTIVAS`;
+        if (badge) badge.innerText = `${cacheActivos.length} EQUIPOS REGISTRADOS`;
         renderizarActivos(cacheActivos);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400 font-mono">No se pudo consultar el catálogo de activos.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-600 font-semibold">No se pudo cargar el catálogo de equipos.</td></tr>`;
     }
 }
 
@@ -30,26 +28,30 @@ function renderizarActivos(lista) {
     tbody.innerHTML = '';
 
     if (lista.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Sin coincidencias.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-theme-dim">Sin coincidencias para el filtro aplicado.</td></tr>`;
         return;
     }
 
     lista.forEach(a => {
-        let criticidadBadge = "bg-surface-base text-slate-400 border-theme-dim";
-        if (a.criticidad === "ALTA") criticidadBadge = "bg-red-950/80 text-red-400 border-red-800/80";
-        if (a.criticidad === "MEDIA") criticidadBadge = "bg-amber-950/80 text-amber-400 border-amber-800/80";
-        if (a.criticidad === "BAJA") criticidadBadge = "bg-surface-2 text-slate-300 border-theme-dim";
+        let badge = "badge-completada";
+        if (a.criticidad === "ALTA") badge = "badge-detenida";
+        if (a.criticidad === "MEDIA") badge = "badge-emitida";
 
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-surface-2 transition border-b border-theme-dim";
+        tr.className = "border-b border-theme-dim";
         tr.innerHTML = `
-            <td class="px-4 py-2.5 font-bold text-slate-200">${a.codigo_activo}</td>
-            <td class="px-4 py-2.5 text-slate-300 font-sans text-xs">${a.nombre}</td>
-            <td class="px-4 py-2.5 text-slate-400 text-[10px]">${a.ubicacion_tecnica}</td>
-            <td class="px-4 py-2.5 whitespace-nowrap">
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${criticidadBadge}">${a.criticidad}</span>
+            <td class="px-4 py-3">
+                <span class="code-pill px-2 py-0.5 rounded font-bold text-xs">${a.codigo_activo}</span>
             </td>
-            <td class="px-4 py-2.5 text-slate-500 text-[10px]">${a.latitud_referencia.toFixed(4)}, ${a.longitud_referencia.toFixed(4)}</td>
+            <td class="px-4 py-3 font-bold text-theme-main">${a.nombre}</td>
+            <td class="px-4 py-3 text-theme-muted font-medium">${a.ubicacion_tecnica}</td>
+            <td class="px-4 py-3">
+                <span class="px-2.5 py-0.5 rounded text-[10px] font-bold ${badge}">CRITICIDAD ${a.criticidad}</span>
+            </td>
+            <td class="px-4 py-3 font-mono text-[11px] text-theme-muted">
+                ${a.latitud_referencia.toFixed(4)}, ${a.longitud_referencia.toFixed(4)}
+                <span class="text-[10px] text-emerald-600 font-bold ml-1">(R &le; 500m)</span>
+            </td>
         `;
         tbody.appendChild(tr);
     });

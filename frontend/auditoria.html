@@ -1,98 +1,108 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-[#131417] text-slate-100">
+<html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Auditoría SHA-256</title>
+    <title>TaskNode | Registro Inalterable de Auditoría (SHA-256)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link rel="stylesheet" href="static/css/styles.css?v=2.6">
 </head>
-<body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base">
+<body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
-    <!-- Sidebar SCADA -->
-    <aside class="w-60 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0">
+    <!-- Barra Lateral -->
+    <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0">
         <div>
-            <div class="h-14 flex items-center px-4 border-b border-theme-dim justify-between">
+            <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-7 h-7 rounded bg-amber-600 flex items-center justify-center text-white font-black font-mono text-xs">TN</div>
-                    <div>
-                        <span class="font-bold tracking-wider text-slate-100 text-xs">TASKNODE</span>
-                        <span class="text-[9px] text-slate-500 font-mono block -mt-0.5">CMMS CORE v2.4</span>
+                    <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
+                    <div class="hidden lg:block">
+                        <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
+                        <span class="text-[10px] font-mono text-theme-dim">CMMS INDUSTRIAL</span>
                     </div>
                 </div>
             </div>
-            <div class="p-2.5 space-y-4">
-                <div>
-                    <span class="text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 block mb-1.5">Centro de Despacho</span>
-                    <nav class="space-y-0.5">
-                        <a href="monitor.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                            Consola de OTs
-                        </a>
-                        <a href="activos.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                            Activos (ISO 55000)
-                        </a>
-                    </nav>
-                </div>
-                <div>
-                    <span class="text-[9px] font-mono text-slate-500 uppercase tracking-widest px-2.5 block mb-1.5">Gobernanza & Auditoría</span>
-                    <nav class="space-y-0.5">
-                        <a href="auditoria.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded bg-surface-2 text-amber-400 font-medium border border-amber-500/30">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                            Cadena SHA-256
-                        </a>
-                        <a href="metricas.html" class="flex items-center gap-2.5 px-2.5 py-2 rounded text-slate-400 hover:text-slate-200 hover:bg-surface-2 transition">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Métricas EN 15341
-                        </a>
-                    </nav>
-                </div>
-            </div>
+            <nav class="p-2.5 space-y-1">
+                <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
+                </a>
+                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <span class="hidden lg:inline">Equipos (ISO 55000)</span>
+                </a>
+                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span class="hidden lg:inline">Auditoría SHA-256</span>
+                </a>
+                <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <span class="hidden lg:inline">Indicadores (KPIs)</span>
+                </a>
+            </nav>
         </div>
-        <div class="p-3 border-t border-theme-dim bg-surface-base text-[9px] font-mono text-slate-500">
-            <span>HASH CHAINING VERIFIER</span>
+        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block font-mono text-[10px]">
+            <div class="font-bold text-theme-main">LIBRO FOLIADO</div>
+            <div class="text-theme-dim mt-0.5">SHA-256 · Append-Only</div>
         </div>
     </aside>
 
+    <!-- Contenido Principal -->
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0">
+        <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
-                <h1 class="font-mono text-xs font-bold text-slate-200 uppercase tracking-wider">Bitácora Criptográfica Inmutable</h1>
-                <p class="text-[9px] text-slate-500 font-mono">Trazabilidad y No Repudio (ISO 55001 / ISO 25010)</p>
+                <h1 class="font-bold text-sm sm:text-base text-theme-main tracking-tight">Bitácora de Auditoría e Integridad Criptográfica (ISO 55001)</h1>
+                <p class="text-[11px] text-theme-dim hidden sm:block">Cada cambio de estado incluye la firma del evento anterior (SHA-256) e impide borrados en base de datos</p>
             </div>
-            <button onclick="cargarBitacoraAuditoria()" class="bg-surface-2 hover:bg-surface-3 border border-theme-dim text-slate-300 font-mono text-[10px] px-3 py-1 rounded transition">Verificar Ledger</button>
+            <div class="flex items-center gap-2 shrink-0">
+                <button onclick="ejecutarAuditoriaCriptografica()" class="btn-primary font-bold text-xs px-3.5 py-2 rounded transition shadow-sm">
+                    ✓ Verificar Integridad de la Cadena
+                </button>
+                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-3 py-1.5 rounded transition flex items-center gap-1.5">
+                    <span>🌙</span> <span class="hidden sm:inline">Modo Oscuro</span>
+                </button>
+            </div>
         </header>
 
-        <div class="flex-1 overflow-auto p-4 space-y-3">
-            <div class="bg-surface-1 border border-theme-dim rounded p-3 flex justify-between items-center font-mono text-[10px]">
-                <div class="flex items-center gap-2" id="estado-cadena-audit">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span class="text-slate-300">ESTADO DEL LEDGER: ÍNTEGRO · SECUENCIA DE HASHES VÁLIDA</span>
+        <div class="flex-1 overflow-auto p-5 space-y-4">
+            
+            <!-- Panel de Estado de la Verificación -->
+            <div class="bg-surface-1 border border-theme-dim rounded p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
+                <div class="flex items-center gap-2.5" id="estado-cadena-audit">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                    <span class="text-theme-main font-bold text-xs">ESTADO DEL LIBRO DE AUDITORÍA: ÍNTEGRO Y SIN ALTERACIONES</span>
                 </div>
-                <span class="text-slate-500 text-[9px]">ALGORITMO: SHA-256 (256-BIT)</span>
+                <div class="flex items-center gap-2 text-[11px] font-mono text-theme-dim">
+                    <span class="code-pill px-2 py-0.5 rounded font-bold">Candados SQL: tr_bitacora_no_delete / tr_bitacora_no_update</span>
+                </div>
             </div>
 
-            <div class="bg-surface-1 border border-theme-dim rounded overflow-hidden">
-                <table class="w-full text-left border-collapse font-mono text-[11px]">
-                    <thead>
-                        <tr class="border-b border-theme-dim bg-surface-base text-[9px] text-slate-500 uppercase">
-                            <th class="px-4 py-2.5">ID / OT</th>
-                            <th class="px-4 py-2.5">Responsable</th>
-                            <th class="px-4 py-2.5">Transición</th>
-                            <th class="px-4 py-2.5">Firma SHA-256 (Hash_k)</th>
-                            <th class="px-4 py-2.5 text-right">Timestamp UTC</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-auditoria" class="divide-y divide-theme-dim">
-                        <tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">Comprobando cadena transaccional...</td></tr>
-                    </tbody>
-                </table>
+            <!-- Tabla de Eslabones Criptográficos -->
+            <div class="bg-surface-1 border border-theme-dim rounded overflow-hidden shadow-sm">
+                <div class="px-4 py-2.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center text-xs">
+                    <span class="font-bold text-theme-main uppercase">Secuencia Cronológica de Eslabones (Libro Mayor)</span>
+                    <span class="font-mono text-[11px] text-theme-dim" id="conteo-bloques-audit">Cargando...</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
+                                <th class="px-4 py-2.5">Eslabón / Folio OT</th>
+                                <th class="px-4 py-2.5">Responsable</th>
+                                <th class="px-4 py-2.5">Transición de Estado</th>
+                                <th class="px-4 py-2.5">Encadenamiento SHA-256 (Previo &rarr; Actual)</th>
+                                <th class="px-4 py-2.5 text-right">Fecha y Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-auditoria" class="divide-y divide-theme-dim">
+                            <tr><td colspan="5" class="px-4 py-8 text-center text-theme-dim">Verificando bloques criptográficos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
 
-    <script src="static/js/config.js"></script>
-    <script src="static/js/auditoria.js"></script>
+    <script src="static/js/config.js?v=2.6"></script>
+    <script src="static/js/auditoria.js?v=2.6"></script>
 </body>
 </html>

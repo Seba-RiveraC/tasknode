@@ -3,28 +3,29 @@ let ordenesGlobal = [];
 let ordenSeleccionada = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    iniciarRelojScada();
-    cargarTodoDashboard();
-    setInterval(cargarTodoDashboard, 8000);
+    actualizarMonitorCompleto();
+    setInterval(actualizarMonitorCompleto, 4000);
 });
 
-function iniciarRelojScada() {
-    const el = document.getElementById('reloj-scada');
-    if (!el) return;
-    const tick = () => {
-        const ahora = new Date();
-        const fecha = ahora.toISOString().slice(0, 10);
-        const hora = ahora.toLocaleTimeString('es-CL');
-        el.innerText = `${fecha} · ${hora}`;
-    };
-    tick();
-    setInterval(tick, 1000);
+function mostrarToastScada(mensaje, esError = false) {
+    const toast = document.getElementById('hud-toast');
+    const msg = document.getElementById('toast-msg');
+    const led = document.getElementById('toast-led');
+    if (!toast || !msg) return;
+
+    msg.innerText = mensaje;
+    if (led) {
+        led.className = esError ? 'w-2.5 h-2.5 rounded-full bg-red-500' : 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+    }
+    toast.classList.remove('opacity-0', 'translate-y-[-8px]');
+    toast.classList.add('opacity-100', 'translate-y-0');
+
+    setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-[-8px]');
+    }, 3500);
 }
 
-/**
- * Enmascara parcialmente el RUT en vistas generales de monitoreo (Ley 21.719 - Privacy by Design).
- * Ejemplo: "18.421.903-K" -> "18.421.***-K"
- */
 function ofuscarRUTLey21719(rut) {
     if (!rut || typeof rut !== 'string') return 'RUT RESERVADO';
     const limpio = rut.trim();
@@ -35,14 +36,29 @@ function ofuscarRUTLey21719(rut) {
 
 function resolverUrlEvidencia(url) {
     if (!url) return null;
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url; // URL directa desde Azure Blob Storage
-    }
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
     const baseServer = API.replace('/api/v1', '');
     return `${baseServer}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-async function cargarTodoDashboard() {
+function obtenerInfoEstado(estado) {
+    switch (estado) {
+        case "EMITIDA":
+            return { pct: 25, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+        case "EN EJECUCIÓN":
+            return { pct: 50, badge: "badge-ejecucion", colorBarra: "bg-orange-600" };
+        case "EN VALIDACIÓN":
+            return { pct: 75, badge: "badge-validacion", colorBarra: "bg-indigo-600" };
+        case "OT COMPLETADA":
+            return { pct: 100, badge: "badge-completada", colorBarra: "bg-emerald-600" };
+        case "DETENIDA POR ANOMALÍA":
+            return { pct: 50, badge: "badge-detenida", colorBarra: "bg-red-600" };
+        default:
+            return { pct: 25, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+    }
+}
+
+async function actualizarMonitorCompleto() {
     await Promise.all([
         cargarKPIs(),
         cargarTablaBitacora(),
@@ -61,18 +77,15 @@ async function cargarKPIs() {
             if (el) el.innerText = val;
         };
 
-        setTxt('kpi-total', m.volumen_total);
+        setTxt('kpi-volumen', m.volumen_total);
         setTxt('kpi-ejecucion', m.ejecucion_normal);
-        setTxt('kpi-alertas', m.detenciones_alertas);
-        setTxt('kpi-tasa', `${m.tasa_resolucion_pct}%`);
-        setTxt('kpi-ao', `${m.disponibilidad_operacional_pct}%`);
-    } catch (e) {
-        console.error("Error cargando KPIs:", e);
-    }
+        setTxt('kpi-detenciones', m.detenciones_alertas);
+        setTxt('kpi-resolucion', `${m.tasa_resolucion_pct}%`);
+    } catch (e) {}
 }
 
 async function cargarTablaBitacora() {
-    const tbody = document.getElementById('tabla-bitacora');
+    const tbody = document.getElementById('tabla-body');
     if (!tbody) return;
 
     try {
@@ -82,59 +95,41 @@ async function cargarTablaBitacora() {
         tbody.innerHTML = '';
 
         if (ordenesGlobal.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500 font-mono text-xs">Sin órdenes activas registradas.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-theme-dim">No hay órdenes registradas.</td></tr>`;
             return;
         }
 
         ordenesGlobal.forEach((r) => {
-            const estado = r.estado_actual || r.estado || 'EMITIDA';
-            let badgeClass = "text-amber-300 border-amber-800/80 bg-amber-950/40";
-            if (estado === "EN EJECUCIÓN") badgeClass = "text-emerald-400 border-emerald-800/80 bg-emerald-950/40";
-            if (estado === "DETENIDA POR ANOMALÍA") badgeClass = "text-red-400 border-red-800/80 bg-red-950/50 animate-pulse";
-            if (estado === "OT COMPLETADA") badgeClass = "text-slate-300 border-slate-700 bg-slate-800/60";
-            if (estado === "EN VALIDACIÓN") badgeClass = "text-sky-400 border-sky-800 bg-sky-950/40";
-
-            const lat = (r.activo && r.activo.latitud_referencia) ? r.activo.latitud_referencia.toFixed(4) : '-41.4693';
-            const lon = (r.activo && r.activo.longitud_referencia) ? r.activo.longitud_referencia.toFixed(4) : '-72.9424';
-            const coords = `${lat}, ${lon}`;
-
-            let horaStr = "--:--";
-            if (r.created_at) {
-                try {
-                    horaStr = new Date(r.created_at).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
-                } catch (e) {}
-            }
-
-            const tieneFotoBadge = r.evidencia_url
-                ? `<span class="ml-1.5 px-1 py-0.2 text-[8px] font-mono bg-sky-950 text-sky-400 border border-sky-800 rounded" title="Evidencia en Azure Blob">BLOB</span>`
-                : '';
+            const estado = r.estado_actual || 'EMITIDA';
+            const info = obtenerInfoEstado(estado);
+            const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Equipo #${r.activo_id}`;
 
             const tr = document.createElement('tr');
             const isSelected = ordenSeleccionada && ordenSeleccionada.codigo_ot === r.codigo_ot;
-            tr.className = `cursor-pointer transition border-b border-theme-dim ${isSelected ? 'bg-amber-500/10' : 'hover:bg-surface-2'}`;
-            tr.onclick = () => {
-                seleccionarFilaInspeccion(r);
-                if (window.innerWidth < 1280) abrirInspector();
-            };
+            tr.className = `cursor-pointer border-b border-theme-dim ${isSelected ? 'row-active' : ''}`;
+            tr.onclick = () => seleccionarFilaInspeccion(r);
 
             tr.innerHTML = `
-                <td class="px-3.5 py-2.5 font-mono text-xs font-bold text-amber-400 whitespace-nowrap">
-                    ${r.codigo_ot}${tieneFotoBadge}
+                <td class="px-4 py-3">
+                    <div class="font-mono font-bold text-theme-main">${r.codigo_ot}</div>
+                    <div class="text-[11px] text-theme-dim truncate max-w-[230px]">${nombreEquipo}</div>
                 </td>
-                <td class="px-3.5 py-2.5">
-                    <div class="text-xs font-medium text-slate-200 leading-tight">${r.operario_responsable}</div>
-                    <div class="text-[10px] font-mono text-slate-500" title="RUT Protegido por Ley 21.719 (Minimización de PII)">${ofuscarRUTLey21719(r.rut_responsable)}</div>
+                <td class="px-4 py-3">
+                    <div class="font-semibold text-theme-main">${r.operario_responsable}</div>
+                    <div class="text-[10px] font-mono text-theme-dim">${ofuscarRUTLey21719(r.rut_responsable)}</div>
                 </td>
-                <td class="px-3.5 py-2.5 whitespace-nowrap">
-                    <span class="px-2 py-0.5 text-[10px] font-mono font-semibold rounded border ${badgeClass}">
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="px-2.5 py-0.5 text-[10px] font-bold rounded ${info.badge}">
                         ${estado}
                     </span>
                 </td>
-                <td class="px-3.5 py-2.5 font-mono text-[11px] text-slate-400 hidden sm:table-cell whitespace-nowrap">
-                    ${coords}
-                </td>
-                <td class="px-3.5 py-2.5 text-right font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                    ${horaStr}
+                <td class="px-4 py-3 hidden md:table-cell w-36">
+                    <div class="flex items-center gap-2">
+                        <div class="flex-1 h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
+                            <div class="h-full ${info.colorBarra}" style="width: ${info.pct}%"></div>
+                        </div>
+                        <span class="font-mono text-[10px] font-bold text-theme-muted w-8 text-right">${info.pct}%</span>
+                    </div>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -144,96 +139,114 @@ async function cargarTablaBitacora() {
             const actualizada = ordenesGlobal.find(o => o.codigo_ot === ordenSeleccionada.codigo_ot);
             if (actualizada) seleccionarFilaInspeccion(actualizada);
         } else if (ordenesGlobal.length > 0) {
-            seleccionarFilaInspeccion(ordenesGlobal[0]);
+            const inicial = ordenesGlobal.find(o => o.codigo_ot === 'OT-2610-PMT-PRV-0001') || ordenesGlobal[0];
+            seleccionarFilaInspeccion(inicial);
         }
-    } catch (e) {
-        console.error("Error cargando tabla de órdenes:", e);
-    }
+    } catch (e) {}
 }
 
 function seleccionarFilaInspeccion(orden) {
     ordenSeleccionada = orden;
+    const estado = orden.estado_actual || 'EMITIDA';
+    const info = obtenerInfoEstado(estado);
+    const lat = (orden.activo && orden.activo.latitud_referencia) ? orden.activo.latitud_referencia.toFixed(4) : '-41.4693';
+    const lon = (orden.activo && orden.activo.longitud_referencia) ? orden.activo.longitud_referencia.toFixed(4) : '-72.9424';
+
     const setTxt = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.innerText = val;
     };
 
-    const estado = orden.estado_actual || orden.estado || 'EMITIDA';
-    setTxt('inspeccion-codigo', orden.codigo_ot);
-    setTxt('inspeccion-estado-badge', estado);
-    setTxt('inspeccion-operario', `${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
-    setTxt('inspeccion-activo', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Activo ID #${orden.activo_id}`);
-    setTxt('inspeccion-desc', orden.descripcion || 'Sin descripción técnica.');
-    setTxt('inspeccion-hash', orden.hash_cadena || 'GENESIS_PENDING_TRANSITION_SHA256');
+    const pill = document.getElementById('inspect-fsm-pill');
+    if (pill) {
+        pill.className = `text-[10px] font-bold px-2.5 py-0.5 rounded ${info.badge}`;
+        pill.innerText = estado;
+    }
 
-    const cajaFoto = document.getElementById('inspeccion-foto');
-    if (cajaFoto) {
-        const urlFinal = resolverUrlEvidencia(orden.evidencia_url);
+    setTxt('inspect-ot-code', orden.codigo_ot);
+    setTxt('inspect-asset-tag', orden.activo ? orden.activo.codigo_activo : `Equipo #${orden.activo_id}`);
+    setTxt('inspect-ot-crew', `Técnico Responsable: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
+    setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
+    setTxt('inspect-progress-txt', `${info.pct}%`);
+
+    const bar = document.getElementById('inspect-progress-bar');
+    if (bar) {
+        bar.className = `h-full transition-all duration-300 ${info.colorBarra}`;
+        bar.style.width = `${info.pct}%`;
+    }
+
+    setTxt('inspect-laplacian-score', orden.laplacian_score ? `✓ Nitidez OK (Score: ${orden.laplacian_score})` : 'Pendiente de captura');
+    setTxt('inspect-gps-val', `${lat}, ${lon} (≤ 500m OK)`);
+    setTxt('inspect-hash-val', orden.hash_cadena || 'Pendiente de primera transición en terreno');
+
+    const imgView = document.getElementById('inspect-img-view');
+    const imgPlaceholder = document.getElementById('inspect-img-placeholder');
+    const urlFinal = resolverUrlEvidencia(orden.evidencia_url);
+
+    if (imgView && imgPlaceholder) {
         if (urlFinal) {
-            const esAzure = urlFinal.includes('blob.core.windows.net');
-            const origenTag = esAzure ? '☁ AZURE BLOB STORAGE' : '✓ ALMACENAMIENTO LOCAL';
-            const scoreVal = orden.laplacian_score ? `Laplace: ${orden.laplacian_score}` : 'Nitidez Verificada';
-
-            cajaFoto.innerHTML = `
-                <div class="relative w-full h-40 rounded overflow-hidden border border-amber-500/40 bg-black group">
-                    <img src="${urlFinal}" alt="Evidencia de Terreno" class="w-full h-full object-cover" />
-                    <div class="absolute top-1.5 right-1.5 bg-black/80 border border-slate-700 px-1.5 py-0.5 rounded text-[8px] font-mono text-sky-400">
-                        ${origenTag}
-                    </div>
-                    <div class="absolute bottom-0 inset-x-0 bg-black/85 px-2.5 py-1 flex justify-between items-center text-[9px] font-mono border-t border-slate-800">
-                        <span class="text-emerald-400 font-bold">✓ ÓPTICA APROBADA</span>
-                        <span class="text-amber-400 font-bold">${scoreVal}</span>
-                    </div>
-                </div>
-            `;
+            imgView.src = urlFinal;
+            imgView.classList.remove('hidden');
+            imgPlaceholder.classList.add('hidden');
         } else {
-            cajaFoto.innerHTML = `
-                <div class="text-center py-6 px-3">
-                    <span class="text-[11px] font-mono text-slate-500 block">Sin captura fotográfica adjunta</span>
-                    <span class="text-[9px] font-mono text-slate-600 block mt-0.5">Suba una foto desde el Terminal de Terreno para verla desde Azure Blob</span>
-                </div>
-            `;
+            imgView.src = '';
+            imgView.classList.add('hidden');
+            imgPlaceholder.classList.remove('hidden');
         }
     }
+
+    const btnAprobar = document.getElementById('btn-aprobar-fsm');
+    if (btnAprobar) {
+        const puedeCompletar = (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN');
+        btnAprobar.disabled = !puedeCompletar;
+        btnAprobar.innerText = (estado === 'OT COMPLETADA')
+            ? '✓ Orden Cerrada y Auditada'
+            : '✓ Aprobar Trabajo y Cerrar Orden';
+    }
+
+    // Refrescar resaltado visual de la fila seleccionada
+    const filas = document.querySelectorAll('#tabla-body tr');
+    filas.forEach((tr, idx) => {
+        if (ordenesGlobal[idx] && ordenesGlobal[idx].codigo_ot === orden.codigo_ot) {
+            tr.classList.add('row-active');
+        } else {
+            tr.classList.remove('row-active');
+        }
+    });
 }
 
-function abrirInspector() {
-    const panel = document.getElementById('panel-inspeccion');
-    if (panel) panel.classList.remove('translate-x-full');
-}
-
-function cerrarInspector() {
-    const panel = document.getElementById('panel-inspeccion');
-    if (panel) panel.classList.add('translate-x-full');
-}
-
-async function transicionarOrdenDesdeConsola(nuevoEstado) {
+async function auditarOrdenActiva(accion) {
     if (!ordenSeleccionada) return;
+    const nuevoEstado = (accion === 'COMPLETAR') ? 'OT COMPLETADA' : 'EN EJECUCIÓN';
+    const obs = 'Trabajo revisado y aprobado conforme por Supervisión de Planta. Orden cerrada.';
+
+    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4693;
+    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9424;
+
     const fd = new FormData();
     fd.append('codigo_ot', ordenSeleccionada.codigo_ot);
     fd.append('operario_id', '1');
     fd.append('estado_nuevo', nuevoEstado);
-    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4693;
-    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9424;
     fd.append('coordenadas_gps', `${lat}, ${lon}`);
-    fd.append('observacion', `Cambio de estado ejecutado por Supervisión Central hacia ${nuevoEstado}.`);
+    fd.append('observacion', obs);
 
     try {
         const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            alert(`Rechazo Normativo: ${data.detail || 'Transición no autorizada'}`);
+            mostrarToastScada(data.detail || 'No se pudo cambiar el estado', true);
             return;
         }
-        await cargarTodoDashboard();
+        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} cerrada satisfactoriamente.`);
+        await actualizarMonitorCompleto();
     } catch (e) {
-        alert(`Error de red al transicionar orden: ${e.message}`);
+        mostrarToastScada(`Error de red: ${e.message}`, true);
     }
 }
 
 async function cargarActivosEnSelectorModal() {
-    const select = document.getElementById('ot-activo-id');
-    if (!select || select.options.length > 1) return;
+    const select = document.getElementById('form-activo');
+    if (!select || select.options.length > 0) return;
     try {
         const res = await fetch(`${API}/activos/`);
         if (!res.ok) return;
@@ -242,33 +255,45 @@ async function cargarActivosEnSelectorModal() {
     } catch (e) {}
 }
 
-function abrirModalNuevaOT() {
-    const modal = document.getElementById('modal-nueva-ot');
+function abrirModalOT() {
+    const modal = document.getElementById('modal-ot');
     if (!modal) return;
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const inputCod = document.getElementById('ot-codigo');
-    if (inputCod) inputCod.value = `OT-2610-PMT-PRV-${rand}`;
+    const rand = Math.floor(100 + Math.random() * 899);
+    document.getElementById('form-codigo').value = `OT-2610-PMT-PRV-0${rand}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 
-function cerrarModalNuevaOT() {
-    const modal = document.getElementById('modal-nueva-ot');
+function cerrarModalOT() {
+    const modal = document.getElementById('modal-ot');
     if (!modal) return;
     modal.classList.add('hidden');
     modal.classList.remove('flex');
 }
 
-async function emitirNuevaOT(e) {
+function autocompletarModalOT() {
+    const rand = Math.floor(100 + Math.random() * 899);
+    document.getElementById('form-codigo').value = `OT-2610-PMT-PRV-0${rand}`;
+    document.getElementById('form-tipo').value = 'PREVENTIVO';
+    document.getElementById('form-prioridad').value = 'ALTA';
+    document.getElementById('form-operario').value = 'Sebastián Rivera';
+    document.getElementById('form-rut').value = '18.421.903-K';
+    document.getElementById('form-descripcion').value =
+        'Mantenimiento preventivo programado: 1) Aplicar bloqueo eléctrico LOTO (D.S. 594). ' +
+        '2) Inspección de rodamientos y ajuste de sello mecánico. ' +
+        '3) Adjuntar fotografía nítida de respaldo para cierre.';
+}
+
+async function enviarNuevaOT(e) {
     e.preventDefault();
     const payload = {
-        codigo_ot: document.getElementById('ot-codigo').value.trim(),
-        activo_id: parseInt(document.getElementById('ot-activo-id').value, 10),
-        tipo_mantenimiento: document.getElementById('ot-tipo').value,
-        prioridad: document.getElementById('ot-prioridad').value,
-        operario_responsable: document.getElementById('ot-operario').value.trim(),
-        rut_responsable: document.getElementById('ot-rut').value.trim(),
-        descripcion: document.getElementById('ot-descripcion').value.trim()
+        codigo_ot: document.getElementById('form-codigo').value.trim(),
+        activo_id: parseInt(document.getElementById('form-activo').value, 10),
+        tipo_mantenimiento: document.getElementById('form-tipo').value,
+        prioridad: document.getElementById('form-prioridad').value,
+        operario_responsable: document.getElementById('form-operario').value.trim(),
+        rut_responsable: document.getElementById('form-rut').value.trim(),
+        descripcion: document.getElementById('form-descripcion').value.trim()
     };
 
     try {
@@ -279,81 +304,22 @@ async function emitirNuevaOT(e) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            alert(`Error al emitir OT: ${data.detail || 'Verifique los campos'}`);
+            mostrarToastScada(data.detail || 'Error al crear la orden', true);
             return;
         }
-        cerrarModalNuevaOT();
-        await cargarTodoDashboard();
+        cerrarModalOT();
+        mostrarToastScada(`Orden ${payload.codigo_ot} emitida correctamente.`);
+        await actualizarMonitorCompleto();
     } catch (err) {
-        alert(`Fallo de red: ${err.message}`);
+        mostrarToastScada(`Error de red: ${err.message}`, true);
     }
 }
 
-function generarDossierOficial() {
+function abrirPliegoDesdeConsola() {
     if (!ordenSeleccionada) {
-        alert("Seleccione primero una Orden de Trabajo en la tabla.");
+        mostrarToastScada("Seleccione primero una Orden de Trabajo.", true);
         return;
     }
-    const o = ordenSeleccionada;
-    const setTxt = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.innerText = val;
-    };
-
-    setTxt('dossier-folio', o.codigo_ot);
-    setTxt('dossier-fecha', new Date().toLocaleString('es-CL'));
-    setTxt('dossier-estado', o.estado_actual || o.estado || 'EMITIDA');
-    setTxt('dossier-tipo', `${o.tipo_mantenimiento} (Prioridad ${o.prioridad || 'MEDIA'})`);
-    setTxt('dossier-activo', o.activo ? `${o.activo.codigo_activo} - ${o.activo.nombre}` : `ID #${o.activo_id}`);
-    setTxt('dossier-ubicacion', o.activo ? o.activo.ubicacion_tecnica : 'Planta Industrial');
-    // En el Dossier Legal se revela el RUT completo por obligación normativa D.S. 594
-    setTxt('dossier-operario', `${o.operario_responsable} — RUT: ${o.rut_responsable} (Acceso Autorizado Ley 21.719)`);
-    setTxt('dossier-descripcion', o.descripcion);
-    setTxt('dossier-hash', o.hash_cadena || 'GENESIS_HASH_TASKNODE_0000000000000000000000000000000000000000');
-
-    // Inyectar imagen de Azure Blob y leyenda de Ley 21.719 dinámicamente en el acta
-    let contenedorExtra = document.getElementById('dossier-bloque-cloud-ley');
-    if (!contenedorExtra) {
-        const hashElem = document.getElementById('dossier-hash');
-        if (hashElem && hashElem.parentElement) {
-            contenedorExtra = document.createElement('div');
-            contenedorExtra.id = 'dossier-bloque-cloud-ley';
-            contenedorExtra.className = 'mt-3 pt-3 border-t border-slate-300';
-            hashElem.parentElement.appendChild(contenedorExtra);
-        }
-    }
-
-    if (contenedorExtra) {
-        const urlEvidencia = resolverUrlEvidencia(o.evidencia_url);
-        const htmlImagen = urlEvidencia
-            ? `<div class="mb-2 p-2 border border-slate-300 bg-white text-center">
-                   <p class="text-[9px] font-mono font-bold uppercase text-slate-700 mb-1">
-                       Evidencia Fotográfica Certificada (Varianza Laplaciana: ${o.laplacian_score || 'Aprobada'}) · Origen: ${urlEvidencia}
-                   </p>
-                   <img src="${urlEvidencia}" alt="Evidencia Dossier" class="max-h-40 mx-auto object-contain border border-slate-200" />
-               </div>`
-            : `<p class="text-[9px] font-mono text-slate-600 mb-2">EVIDENCIA MULTIMEDIA: Sin archivo fotográfico adjunto en la última transición.</p>`;
-
-        contenedorExtra.innerHTML = `
-            ${htmlImagen}
-            <div class="bg-slate-100 p-2 border border-slate-300 text-[8.5px] font-mono text-slate-700 leading-relaxed">
-                <strong>CLÁUSULA DE PRIVACIDAD Y PROTECCIÓN DE DATOS (LEY N° 21.719 CHILE):</strong>
-                Los datos personales identificatorios (RUT) y la georreferenciación puntual (WGS84) contenidos en este expediente técnico han sido recolectados bajo los principios de licitud, finalidad y proporcionalidad, sin rastreo continuo en segundo plano, con el único propósito de acreditar cumplimiento de seguridad industrial (D.S. 594 Art. 53) y trazabilidad de activos (ISO 55001). Los metadatos EXIF secundarios de captura han sido purgados en tránsito.
-            </div>
-        `;
-    }
-
-    const modal = document.getElementById('modal-dossier');
-    if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-    }
-}
-
-function cerrarDossierOficial() {
-    const modal = document.getElementById('modal-dossier');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
+    const modo = (ordenSeleccionada.estado_actual === 'EMITIDA') ? 'ORIGINAL' : 'COMPLETA';
+    window.open(`orden_pdf.html?codigo=${encodeURIComponent(ordenSeleccionada.codigo_ot)}&modo=${modo}`, '_blank');
 }
