@@ -37,9 +37,9 @@
         }
         .table-tech th, .table-tech td {
             border: 1px solid #27272a;
-            padding: 4.5px 6px;
+            padding: 4px 6px;
             font-size: 9.5px;
-            line-height: 1.3;
+            line-height: 1.25;
         }
         .table-tech th {
             background-color: #f4f4f5;
@@ -56,7 +56,7 @@
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            padding: 4px 8px;
+            padding: 3.5px 8px;
             border-left: 4px solid #c2410c;
             display: flex;
             justify-content: space-between;
@@ -100,28 +100,28 @@
 </head>
 <body>
 
-    <!-- Barra Superior de Control (Oculta al imprimir) -->
+    <!-- Barra Superior (Oculta al imprimir) -->
     <div class="no-print sticky top-0 z-50 bg-[#12151c] border-b border-zinc-700 border-t-4 border-t-[#c2410c] px-4 py-2.5 text-slate-100 shadow-2xl">
         <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2.5">
                 <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center font-mono font-bold text-xs text-amber-400">TN</div>
                 <div>
-                    <span class="font-bold text-xs tracking-wide text-white uppercase block">Documento Oficial de Orden de Trabajo (Formato A4)</span>
-                    <span class="font-mono text-[10px] text-zinc-400">ISO 55001 · UNE-EN 13306 · D.S. 594 Art. 53 · Ley 19.799 · Ley 21.719</span>
+                    <span class="font-bold text-xs tracking-wide text-white uppercase block">Documento Oficial de Orden de Trabajo (A4)</span>
+                    <span class="font-mono text-[10px] text-zinc-400">ISO 55001 · UNE-EN 13306 · D.S. 594 · Ley 19.799 (Firma Encargado)</span>
                 </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
                 <select id="selector-ot-pdf" onchange="cambiarOTDesdeBarra(this.value)" class="bg-zinc-900 border border-zinc-600 rounded px-2.5 py-1.5 text-xs font-mono font-bold text-white">
-                    <option value="">Cargando OTs...</option>
+                    <option value="">Cargando órdenes...</option>
                 </select>
 
                 <div class="inline-flex rounded border border-zinc-600 bg-zinc-900 p-0.5 font-mono text-[10px]">
                     <button id="btn-modo-original" onclick="conmutarModoDocumento('ORIGINAL')" class="px-2.5 py-1 rounded transition font-bold">
-                        1. Pliego Inicial (Emisión)
+                        Modo A: Pliego Inicial
                     </button>
                     <button id="btn-modo-completa" onclick="conmutarModoDocumento('COMPLETA')" class="px-2.5 py-1 rounded transition font-bold">
-                        2. Acta de Cierre (Completa)
+                        Modo B: Acta de Cierre Firmada
                     </button>
                 </div>
 
@@ -135,15 +135,15 @@
     <!-- HOJA TÉCNICA A4 -->
     <main class="a4-sheet">
         
-        <!-- 1. MEMBRETE -->
-        <header class="border-2 border-zinc-900 p-2.5 mb-3">
+        <!-- 1. MEMBRETE INDUSTRIAL -->
+        <header class="border-2 border-zinc-900 p-2.5 mb-2.5">
             <div class="grid grid-cols-12 gap-2 items-center">
                 <div class="col-span-3 border-r border-zinc-400 pr-2">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 bg-zinc-900 text-white font-mono font-black text-sm flex items-center justify-center">TN</div>
                         <div>
                             <div class="font-black text-xs tracking-tight text-zinc-900">TASKNODE CMMS</div>
-                            <div class="font-mono text-[8px] text-zinc-600">GESTIÓN DE MANTENIMIENTO</div>
+                            <div class="font-mono text-[8px] text-zinc-600">GESTIÓN DE ACTIVOS FÍSICOS</div>
                         </div>
                     </div>
                     <div class="mt-1.5 font-mono text-[7.5px] text-zinc-600 leading-tight">
@@ -160,7 +160,7 @@
                         EXPEDIENTE TÉCNICO
                     </div>
                     <div class="font-mono text-[7.5px] text-zinc-500 mt-1">
-                        ESTÁNDAR ISO 55001:2024 · UNE-EN 13306 · SEGURIDAD D.S. N° 594 ART. 53
+                        ESTÁNDAR ISO 55001:2024 · UNE-EN 13306 · D.S. N° 594 ART. 53 · LEY 19.799
                     </div>
                 </div>
 
@@ -178,29 +178,29 @@
                         <span id="pdf-fecha-emision" class="text-zinc-800">--/--/----</span>
                     </div>
                     <div class="flex justify-between pt-0.5">
-                        <span class="text-zinc-500">VERSIÓN:</span>
-                        <span class="text-zinc-800">v2.7 · Hoja 1/1</span>
+                        <span class="text-zinc-500">FORMATO:</span>
+                        <span class="text-zinc-800">A4 Oficial · 1/1</span>
                     </div>
                 </div>
             </div>
         </header>
 
         <!-- 2. IDENTIFICACIÓN DEL EQUIPO -->
-        <section class="mb-3">
+        <section class="mb-2.5">
             <div class="section-header">
-                <span>1. Identificación del Equipo e Información de Planificación (ISO 55000)</span>
+                <span>1. Identificación del Equipo y Datos de Planificación (ISO 55000)</span>
                 <span>SECCIÓN A</span>
             </div>
             <table class="table-tech">
                 <tbody>
                     <tr>
-                        <th style="width: 18%;">Código Equipo (TAG)</th>
+                        <th style="width: 18%;">Código TAG</th>
                         <td style="width: 32%;" class="font-mono font-bold" id="pdf-activo-codigo">-</td>
                         <th style="width: 18%;">Tipo Mantenimiento</th>
                         <td style="width: 32%;" class="font-mono font-bold" id="pdf-tipo-mant">-</td>
                     </tr>
                     <tr>
-                        <th>Nombre de Máquina</th>
+                        <th>Denominación Máquina</th>
                         <td id="pdf-activo-nombre" class="font-bold">-</td>
                         <th>Prioridad / Criticidad</th>
                         <td class="font-mono font-semibold" id="pdf-prioridad">-</td>
@@ -208,107 +208,114 @@
                     <tr>
                         <th>Ubicación en Planta</th>
                         <td id="pdf-activo-ubicacion">-</td>
-                        <th>Coordenada GPS Base</th>
+                        <th>Coordenadas GPS Base</th>
                         <td class="font-mono" id="pdf-activo-gps">-</td>
                     </tr>
                     <tr>
                         <th>Normativa Técnica</th>
                         <td class="font-mono">ISO 55001 / UNE-EN 13306</td>
-                        <th>Radio de Validación GPS</th>
-                        <td class="font-mono">Fórmula Haversine &le; 500.0 m</td>
+                        <th>Tolerancia Geodésica</th>
+                        <td class="font-mono">Fórmula Haversine &le; 500.0 m (WGS84)</td>
                     </tr>
                 </tbody>
             </table>
         </section>
 
-        <!-- 3. FICHA DEL TÉCNICO -->
-        <section class="mb-3">
+        <!-- 3. CUADRILLA ASIGNADA Y ENCARGADO DE TERRENO -->
+        <section class="mb-2.5">
             <div class="section-header">
-                <span>2. Técnico Responsable y Habilitación de Seguridad (D.S. N° 594)</span>
+                <span>2. Cuadrilla Ejecutora y Encargado de Terreno Responsable (D.S. N° 594)</span>
                 <span>SECCIÓN B</span>
             </div>
             <table class="table-tech">
                 <thead>
                     <tr>
-                        <th style="width: 24%;">Técnico Asignado</th>
-                        <th style="width: 16%;">RUT</th>
-                        <th style="width: 24%;">Especialidad Técnica</th>
-                        <th style="width: 18%;">Acreditación LOTO</th>
-                        <th style="width: 18%;">Estado</th>
+                        <th style="width: 25%;">Rol Operacional</th>
+                        <th style="width: 28%;">Nombre del Profesional</th>
+                        <th style="width: 17%;">RUT</th>
+                        <th style="width: 15%;">Acreditación</th>
+                        <th style="width: 15%;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td class="font-bold" id="pdf-operario-nombre">-</td>
-                        <td class="font-mono" id="pdf-operario-rut">-</td>
-                        <td id="pdf-operario-cargo">Electromecánico de Planta</td>
-                        <td class="font-mono" id="pdf-operario-credencial">LOTO-CL-2610-45</td>
+                        <td class="font-bold">Técnico Ejecutor</td>
+                        <td id="pdf-operario-nombre">Sebastián Rivera</td>
+                        <td class="font-mono" id="pdf-operario-rut">18.421.903-K</td>
+                        <td class="font-mono" id="pdf-operario-credencial">LOTO-CL-2610</td>
                         <td class="font-mono font-bold text-emerald-800">&#10003; HABILITADO</td>
+                    </tr>
+                    <tr>
+                        <td class="font-bold text-accent">Encargado de Terreno</td>
+                        <td class="font-bold" id="pdf-encargado-nombre-sec2">Carlos Valenzuela M.</td>
+                        <td class="font-mono" id="pdf-encargado-rut-sec2">14.285.631-8</td>
+                        <td class="font-mono">SUPERV-TERRENO</td>
+                        <td class="font-mono font-bold text-emerald-800">&#10003; AUTORIZADO</td>
                     </tr>
                 </tbody>
             </table>
         </section>
 
-        <!-- 4. CHECKLIST DE SEGURIDAD LOTO -->
-        <section class="mb-3">
+        <!-- 4. CHECKLIST SEGURIDAD LOTO -->
+        <section class="mb-2.5">
             <div class="section-header">
-                <span>3. Verificación de Seguridad y Bloqueo de Energías Peligrosas (D.S. N° 594 Art. 53)</span>
+                <span>3. Procedimiento de Bloqueo LOTO y Energía Cero (D.S. N° 594 Art. 53)</span>
                 <span>SECCIÓN C</span>
             </div>
             <table class="table-tech">
                 <thead>
                     <tr>
                         <th style="width: 8%;">Ítem</th>
-                        <th style="width: 48%;">Medida de Seguridad Obligatoria en Terreno</th>
-                        <th style="width: 26%;">Método de Control</th>
-                        <th style="width: 18%;">Verificación</th>
+                        <th style="width: 48%;">Medida de Seguridad Crítica en Faena</th>
+                        <th style="width: 26%;">Método de Verificación</th>
+                        <th style="width: 18%;">Conformidad</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
                         <td class="font-mono text-center font-bold">C.01</td>
-                        <td>Corte y bloqueo físico de fuente de energía principal (Procedimiento LOTO)</td>
-                        <td class="font-mono">Candado Personal + Pinza</td>
-                        <td class="font-mono text-center font-bold">[ &#10003; ] VERIFICADO</td>
+                        <td>Seccionamiento y bloqueo físico de fuente eléctrica principal</td>
+                        <td class="font-mono">Candado Personal + Pinza LOTO</td>
+                        <td class="font-mono text-center font-bold text-emerald-800">[ &#10003; ] VERIFICADO</td>
                     </tr>
                     <tr>
                         <td class="font-mono text-center font-bold">C.02</td>
-                        <td>Comprobación de energía residual cero (0.0 V eléctricos / 0.0 bar presión)</td>
-                        <td class="font-mono">Multímetro / Manómetro</td>
-                        <td class="font-mono text-center font-bold">[ &#10003; ] VERIFICADO</td>
+                        <td>Comprobación de energía residual cero (0.0 V / 0.0 bar)</td>
+                        <td class="font-mono">Multímetro Fluke / Manómetro</td>
+                        <td class="font-mono text-center font-bold text-emerald-800">[ &#10003; ] VERIFICADO</td>
                     </tr>
                     <tr>
                         <td class="font-mono text-center font-bold">C.03</td>
-                        <td>Revisión de Elementos de Protección Personal (EPP según D.S. N° 44)</td>
-                        <td class="font-mono">Casco, Guantes, Antiparras</td>
-                        <td class="font-mono text-center font-bold">[ &#10003; ] VERIFICADO</td>
+                        <td>Inspección de Elementos de Protección Personal (D.S. N° 44)</td>
+                        <td class="font-mono">Casco, Dieléctricos, Lentes</td>
+                        <td class="font-mono text-center font-bold text-emerald-800">[ &#10003; ] VERIFICADO</td>
                     </tr>
                     <tr>
                         <td class="font-mono text-center font-bold">C.04</td>
-                        <td>Validación de presencia física del técnico junto a la máquina intervenida</td>
-                        <td class="font-mono">GPS Haversine &le; 500 m</td>
-                        <td class="font-mono text-center font-bold">[ &#10003; ] VERIFICADO</td>
+                        <td>Verificación de presencia física del técnico junto a la máquina</td>
+                        <td class="font-mono">Geocerca GPS Haversine &le; 500m</td>
+                        <td class="font-mono text-center font-bold text-emerald-800">[ &#10003; ] VERIFICADO</td>
                     </tr>
                 </tbody>
             </table>
         </section>
 
         <!-- 5. PAUTA PASO A PASO -->
-        <section class="mb-3">
+        <section class="mb-2.5">
             <div class="section-header">
-                <span>4. Pauta de Actividades Técnicas y Criterios de Aceptación</span>
+                <span>4. Pauta de Actividades Técnicas Estandarizadas</span>
                 <span>SECCIÓN D</span>
             </div>
-            <div class="border border-zinc-800 border-t-0 p-2 bg-zinc-50 bg-print-gray text-[9.5px] mb-1.5">
-                <span class="font-bold uppercase text-zinc-900">Instrucción General: </span>
+            <div class="border border-zinc-800 border-t-0 p-2 bg-zinc-50 bg-print-gray text-[9.5px] mb-1">
+                <span class="font-bold uppercase text-zinc-900">Alcance de la Intervención: </span>
                 <span id="pdf-descripcion-general" class="font-mono text-zinc-800">-</span>
             </div>
             <table class="table-tech">
                 <thead>
                     <tr>
-                        <th style="width: 8%;">Paso</th>
-                        <th style="width: 50%;">Tarea Técnica a Ejecutar</th>
-                        <th style="width: 26%;">Parámetro de Control</th>
+                        <th style="width: 7%;">Paso</th>
+                        <th style="width: 51%;">Actividad Técnica Estandarizada</th>
+                        <th style="width: 26%;">Criterio de Aceptación</th>
                         <th style="width: 16%;">Estado</th>
                     </tr>
                 </thead>
@@ -316,10 +323,10 @@
             </table>
         </section>
 
-        <!-- 6. REPUESTOS Y HERRAMIENTAS -->
-        <section class="mb-3">
+        <!-- 6. REPUESTOS (BOM) -->
+        <section class="mb-2.5">
             <div class="section-header">
-                <span>5. Repuestos, Insumos y Herramientas Requeridas</span>
+                <span>5. Lista de Repuestos Críticos e Instrumentación Requerida (BOM)</span>
                 <span>SECCIÓN E</span>
             </div>
             <table class="table-tech">
@@ -335,19 +342,19 @@
             </table>
         </section>
 
-        <!-- 7. SECCIÓN DE CIERRE Y AUDITORÍA (MODO B) -->
-        <section id="seccion-forense-cierre" class="mb-3">
+        <!-- 7. SECCIÓN HISTORIAL Y AUDITORÍA SHA-256 -->
+        <section id="seccion-forense-cierre" class="mb-2.5">
             <div class="section-header">
-                <span>6. Historial de Ejecución, Evidencia Fotográfica y Sello SHA-256 (ISO 55001)</span>
+                <span>6. Historial de Terreno, Calidad Óptica y Auditoría SHA-256 (ISO 55001)</span>
                 <span>SECCIÓN F (CIERRE)</span>
             </div>
-            <table class="table-tech mb-2">
+            <table class="table-tech mb-1.5">
                 <thead>
                     <tr>
                         <th style="width: 14%;">Fecha y Hora</th>
-                        <th style="width: 20%;">Cambio de Estado</th>
-                        <th style="width: 15%;">Ubicación GPS</th>
-                        <th style="width: 31%;">Trabajo Reportado en Terreno</th>
+                        <th style="width: 18%;">Transición FSM</th>
+                        <th style="width: 15%;">Coordenada GPS</th>
+                        <th style="width: 33%;">Minuta Reportada en Terreno</th>
                         <th style="width: 20%;">Firma Digital SHA-256</th>
                     </tr>
                 </thead>
@@ -358,64 +365,86 @@
                 <div class="col-span-5 border-r border-zinc-300 pr-2 flex flex-col justify-between">
                     <div>
                         <div class="font-mono text-[8.5px] font-bold uppercase text-zinc-900 border-b border-zinc-300 pb-0.5 mb-1">
-                            Fotografía de Respaldo (Control Laplaciano)
+                            Fotografía de Respaldo (Filtro Laplaciano)
                         </div>
-                        <div id="pdf-contenedor-foto" class="w-full h-28 bg-white border border-zinc-300 flex items-center justify-center overflow-hidden">
-                            <span class="font-mono text-[8.5px] text-zinc-400">Sin captura adjunta</span>
+                        <div id="pdf-contenedor-foto" class="w-full h-24 bg-white border border-zinc-300 flex items-center justify-center overflow-hidden">
+                            <span class="font-mono text-[8.5px] text-zinc-400">Sin fotografía adjunta</span>
                         </div>
                     </div>
                     <div class="font-mono text-[8px] text-zinc-700 mt-1 flex justify-between">
-                        <span>Mínimo exigido: &sigma;&sup2; &ge; 100.0</span>
+                        <span>Umbral de Nitidez: &sigma;&sup2; &ge; 100.0</span>
                         <span id="pdf-score-laplace" class="font-bold">Score: N/A</span>
                     </div>
                 </div>
 
                 <div class="col-span-7 pl-1 font-mono text-[8.5px] flex flex-col justify-between">
-                    <div class="space-y-1">
+                    <div class="space-y-0.5">
                         <div class="font-bold uppercase text-zinc-900 border-b border-zinc-300 pb-0.5">
-                            Trazabilidad e Inmutabilidad de la Bitácora
+                            Trazabilidad Criptográfica Inmutable (Append-Only)
                         </div>
                         <div>
                             <span class="text-zinc-600">Atributos Firmados:</span>
-                            <span class="text-zinc-900">hash_previo | codigo_ot | est_ant | est_nuevo | rut | gps | fecha_iso</span>
+                            <span class="text-zinc-800">hash_previo | ot | est_ant | est_nuevo | rut | gps | fecha_iso</span>
                         </div>
                         <div>
-                            <span class="text-zinc-600 block">Sello Criptográfico Final de la Orden (SHA-256):</span>
-                            <span id="pdf-ultimo-hash" class="font-bold text-zinc-900 break-all bg-white border border-zinc-300 px-1.5 py-0.5 block mt-0.5">-</span>
+                            <span class="text-zinc-600 block">Sello Digital Consolidado (SHA-256):</span>
+                            <span id="pdf-ultimo-hash" class="font-bold text-zinc-900 break-all bg-white border border-zinc-300 px-1 py-0.5 block mt-0.5 text-[8px]">-</span>
                         </div>
                     </div>
 
-                    <div class="bg-white border border-zinc-300 p-1.5 text-[7.5px] text-zinc-700 leading-snug mt-1">
-                        <strong>CUMPLIMIENTO LEY N° 21.719 (PRIVACIDAD DE DATOS):</strong> La ubicación GPS se registra únicamente en el momento puntual de cambio de estado (sin rastreo continuo) y las fotografías se almacenan limpias de metadatos EXIF ocultos.
+                    <div class="bg-white border border-zinc-300 p-1 text-[7.5px] text-zinc-700 leading-tight mt-1">
+                        <strong>PROTECCIÓN DE DATOS (LEY N° 21.719):</strong> Georreferenciación puntual capturada solo al cambiar de estado (sin rastreo continuo) y purga de cabeceras EXIF en fotos.
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- 8. FIRMAS -->
-        <footer class="mt-3 pt-2 border-t-2 border-zinc-900">
-            <div class="grid grid-cols-3 gap-4 text-center font-mono text-[8.5px] pt-6">
-                <div class="border-t border-zinc-800 pt-1">
-                    <div class="font-bold text-zinc-900" id="pdf-firma-operario">FIRMA TÉCNICO EJECUTOR</div>
-                    <div class="text-zinc-600 text-[7.5px]" id="pdf-firma-rut">RUT: -</div>
-                    <div class="text-zinc-500 text-[7px]">Firma Electrónica Simple (Ley N° 19.799)</div>
+        <!-- 8. CUADRO DE FIRMAS: EL ENCARGADO DE TERRENO TIENE LA RÚBRICA ESTAMPADA -->
+        <footer class="mt-2 pt-2 border-t-2 border-zinc-900">
+            <div class="grid grid-cols-3 gap-3 text-center font-mono text-[8.5px]">
+                
+                <!-- CASILLA 1: TÉCNICO EJECUTOR -->
+                <div class="flex flex-col justify-end items-center">
+                    <div class="h-12 w-full flex items-center justify-center pb-0.5 text-[8px] font-mono text-zinc-600">
+                        <span class="border border-zinc-400 bg-zinc-50 px-2 py-1 rounded">✓ EJECUCIÓN CONFORME</span>
+                    </div>
+                    <div class="w-full border-t border-zinc-800 pt-1">
+                        <div class="font-bold text-zinc-900" id="pdf-firma-operario">SEBASTIÁN RIVERA</div>
+                        <div class="text-zinc-600 text-[7.5px]" id="pdf-firma-rut">RUT: 18.421.903-K</div>
+                        <div class="text-zinc-500 text-[7px]">Técnico Ejecutor (D.S. 594)</div>
+                    </div>
                 </div>
-                <div class="border-t border-zinc-800 pt-1">
-                    <div class="font-bold text-zinc-900">SUPERVISOR DE PLANTA</div>
-                    <div class="text-zinc-600 text-[7.5px]">Jefatura de Mantenimiento</div>
-                    <div class="text-zinc-500 text-[7px]">Verificación LOTO (D.S. N° 594)</div>
+
+                <!-- CASILLA 2: ENCARGADO DE TERRENO (AQUÍ SE ESTAMPA LA RÚBRICA DIGITAL TÁCTIL O QR) -->
+                <div class="flex flex-col justify-end items-center">
+                    <div id="pdf-contenedor-firma-grafica" class="h-12 w-full flex items-end justify-center pb-0.5">
+                        <!-- Rúbrica del Encargado -->
+                    </div>
+                    <div class="w-full border-t border-zinc-800 pt-1">
+                        <div class="font-bold text-zinc-900" id="pdf-firma-encargado-pie">CARLOS VALENZUELA M.</div>
+                        <div class="text-zinc-600 text-[7.5px]" id="pdf-firma-encargado-rut">RUT: 14.285.631-8</div>
+                        <div class="text-emerald-700 font-bold text-[7px]" id="pdf-firma-ley">Recepción Conforme en Faena (Ley N° 19.799)</div>
+                    </div>
                 </div>
-                <div class="border-t border-zinc-800 pt-1">
-                    <div class="font-bold text-zinc-900">CONTROL DE GESTIÓN</div>
-                    <div class="text-zinc-600 text-[7.5px]" id="pdf-sello-conformidad">PENDIENTE</div>
-                    <div class="text-zinc-500 text-[7px]">Recepción Conforme UNE-EN 13306</div>
+
+                <!-- CASILLA 3: INGENIERÍA DE CONFIABILIDAD / SCADA -->
+                <div class="flex flex-col justify-end items-center">
+                    <div id="pdf-contenedor-sello-cierre" class="h-12 w-full flex items-end justify-center pb-0.5">
+                        <!-- Timbre de cierre -->
+                    </div>
+                    <div class="w-full border-t border-zinc-800 pt-1">
+                        <div class="font-bold text-zinc-900">ING. A. MORALES</div>
+                        <div class="text-zinc-600 text-[7.5px]" id="pdf-sello-conformidad">JEFE DE MANTENIMIENTO</div>
+                        <div class="text-zinc-500 text-[7px]">Cierre Inmutable UNE-EN 13306</div>
+                    </div>
                 </div>
+
             </div>
         </footer>
 
     </main>
 
-    <script src="static/js/config.js?v=2.7"></script>
+    <script src="static/js/config.js?v=2.9"></script>
     <script>
         const API = window.TaskNodeConfig.API_URL;
         let modoActual = 'COMPLETA';
@@ -423,16 +452,30 @@
         let cacheOrdenes = [];
         let cacheTransiciones = [];
 
+        const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="260" height="70" viewBox="0 0 260 70">
+          <path d="M 20 52 Q 40 10 65 30 T 105 42 T 135 22 T 175 54 Q 195 62 240 36" fill="none" stroke="#0f172a" stroke-width="2.6" stroke-linecap="round"/>
+          <path d="M 75 36 Q 120 10 210 16" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+        </svg>`);
+
+        const TIMBRE_SUPERVISOR_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="130" height="44" viewBox="0 0 130 44">
+          <rect x="2" y="2" width="126" height="40" rx="3" fill="#ecfdf5" stroke="#047857" stroke-width="1.6" stroke-dasharray="3,2"/>
+          <text x="65" y="16" font-family="monospace" font-size="8" font-weight="bold" fill="#047857" text-anchor="middle">APROBADO CONFORME</text>
+          <text x="65" y="27" font-family="monospace" font-size="6.5" fill="#047857" text-anchor="middle">SUPERVISIÓN PLANTA</text>
+          <text x="65" y="37" font-family="monospace" font-size="6" fill="#065f46" text-anchor="middle">D.S. 594 VERIFICADO</text>
+        </svg>`);
+
         const ESPECIFICACIONES_OT = {
             "OT-2610-PMT-PRV-0001": {
-                cargo: "Técnico Electromecánico Senior",
+                cargo: "Técnico Electromecánico Senior · Nivel III",
                 credencial: "LOTO-CL-2610-45 (Vigente)",
                 pasos: [
-                    { n: "01", desc: "Bloquear alimentador eléctrico en Celda 04 (LOTO) y comprobar ausencia de tensión (0.0 V).", crit: "0.0 V (D.S. 594 Art. 53)", ok: true },
-                    { n: "02", desc: "Desmontar acople y extraer rodamientos desgastados en lado libre y lado acople.", crit: "Sin daño en asiento de eje", ok: true },
+                    { n: "01", desc: "Bloquear alimentador en Celda 04 (LOTO) y verificar energía residual cero (0.0 V).", crit: "0.0 V (D.S. 594)", ok: true },
+                    { n: "02", desc: "Desmontar acople y extraer rodamientos desgastados lado libre y lado acople.", crit: "Sin daño en eje", ok: true },
                     { n: "03", desc: "Montar rodamientos nuevos SKF 6312-2Z/C3 y sello mecánico secundario.", crit: "Juego axial <= 0.05 mm", ok: true },
                     { n: "04", desc: "Aplicar torque cruzado de 85 Nm en pernos de carcasa con llave dinamométrica.", crit: "Torque = 85 Nm (±2%)", ok: true },
-                    { n: "05", desc: "Retirar bloqueo, probar equipo en carga y medir vibración y temperatura final.", crit: "Vib <= 2.3 mm/s | Temp <= 65 °C", ok: true }
+                    { n: "05", desc: "Retirar bloqueo, probar equipo en carga nominal y medir vibraciones RMS y temperatura.", crit: "Vib <= 2.3 mm/s | Temp <= 65 °C", ok: true }
                 ],
                 repuestos: [
                     { sku: "SKF-6312-2ZC3", nombre: "Rodamiento Rígido de Bolas SKF 6312-2Z/C3", cant: "2 UN", lote: "CERT-SKF-99812" },
@@ -442,14 +485,14 @@
                 ]
             },
             "OT-2610-PMT-PRV-0045": {
-                cargo: "Técnico Electromecánico Senior",
+                cargo: "Técnico Electromecánico Senior · Nivel III",
                 credencial: "LOTO-CL-2610-45 (Vigente)",
                 pasos: [
-                    { n: "01", desc: "Aplicar bloqueo eléctrico e hidráulico LOTO, cerrar válvulas y drenar presión a 0.0 bar.", crit: "0.0 bar (D.S. 594 Art. 53)", ok: false },
-                    { n: "02", desc: "Retirar guarda de seguridad y desmontar cartucho de sello mecánico doble.", crit: "Camisa de eje sin rayaduras", ok: false },
-                    { n: "03", desc: "Instalar nuevo sello mecánico doble Tungsteno/Viton y ajustar prisioneros.", crit: "Excentricidad <= 0.03 mm", ok: false },
-                    { n: "04", desc: "Presurizar cámara a 6.2 bar durante 15 minutos y verificar ausencia de fugas.", crit: "Caída = 0.0 bar en 15 min", ok: false },
-                    { n: "05", desc: "Tomar fotografía nítida de respaldo (Laplace >= 100) y enviar orden a validación.", crit: "Nitidez >= 100.0", ok: false }
+                    { n: "01", desc: "Aplicar bloqueo eléctrico/hidráulico LOTO, cerrar válvulas y despresurizar a 0.0 bar.", crit: "0.0 bar (D.S. 594)", ok: false },
+                    { n: "02", desc: "Retirar guarda y desmontar cartucho de sello mecánico desgastado.", crit: "Eje sin rayaduras", ok: false },
+                    { n: "03", desc: "Instalar nuevo sello mecánico doble Tungsteno/Viton y torquear prisioneros.", crit: "Excentricidad <= 0.03 mm", ok: false },
+                    { n: "04", desc: "Presurizar cámara a 6.2 bar durante 15 minutos sin caída de presión.", crit: "Caída = 0.0 bar / 15 min", ok: false },
+                    { n: "05", desc: "Tomar fotografía nítida (Laplace >= 100), firmar en terminal y enviar a cierre.", crit: "Nitidez >= 100.0", ok: false }
                 ],
                 repuestos: [
                     { sku: "CART-DBL-2610", nombre: "Sello Mecánico Doble Cartucho Tungsteno/Viton", cant: "1 KIT", lote: "CERT-API682-09" },
@@ -520,7 +563,7 @@
             } else {
                 btnComp.className = "px-2.5 py-1 rounded transition font-bold bg-[#c2410c] text-white";
                 btnOrig.className = "px-2.5 py-1 rounded transition text-zinc-400 hover:text-white";
-                document.getElementById('doc-subtitulo-modo').innerText = "ACTA CONSOLIDADA DE EJECUCIÓN Y CIERRE DE ORDEN";
+                document.getElementById('doc-subtitulo-modo').innerText = "ACTA CONSOLIDADA DE EJECUCIÓN Y RECEPCIÓN EN TERRENO";
                 document.getElementById('seccion-forense-cierre').classList.remove('hidden');
             }
 
@@ -540,10 +583,19 @@
             document.getElementById('pdf-tipo-mant').innerText = orden.tipo_mantenimiento;
             document.getElementById('pdf-prioridad').innerText = `PRIORIDAD ${orden.prioridad} · CRITICIDAD ${act.criticidad || 'ALTA'}`;
 
+            // Técnico Ejecutor
             document.getElementById('pdf-operario-nombre').innerText = orden.operario_responsable;
             document.getElementById('pdf-operario-rut').innerText = orden.rut_responsable;
             document.getElementById('pdf-firma-operario').innerText = orden.operario_responsable.toUpperCase();
             document.getElementById('pdf-firma-rut').innerText = `RUT: ${orden.rut_responsable}`;
+
+            // Encargado de Terreno
+            const nomEncargado = localStorage.getItem(`tasknode_encargado_nombre_${orden.codigo_ot}`) || 'Carlos Valenzuela M.';
+            const rutEncargado = localStorage.getItem(`tasknode_encargado_rut_${orden.codigo_ot}`) || '14.285.631-8';
+            document.getElementById('pdf-encargado-nombre-sec2').innerText = nomEncargado;
+            document.getElementById('pdf-encargado-rut-sec2').innerText = rutEncargado;
+            document.getElementById('pdf-firma-encargado-pie').innerText = nomEncargado.toUpperCase();
+            document.getElementById('pdf-firma-encargado-rut').innerText = `RUT: ${rutEncargado}`;
 
             const spec = ESPECIFICACIONES_OT[orden.codigo_ot] || {
                 cargo: "Técnico Electromecánico de Planta",
@@ -551,7 +603,7 @@
                 pasos: [
                     { n: "01", desc: "Bloquear energías peligrosas (LOTO) y verificar energía residual cero (D.S. 594).", crit: "0.0 V / 0.0 bar", ok: orden.estado_actual === "OT COMPLETADA" },
                     { n: "02", desc: "Ejecutar pauta técnica descrita en las instrucciones generales de la orden.", crit: "Según manual OEM", ok: orden.estado_actual === "OT COMPLETADA" },
-                    { n: "03", desc: "Comprobar funcionamiento normal, adjuntar fotografía nítida y reportar término.", crit: "Laplace >= 100.0", ok: orden.estado_actual === "OT COMPLETADA" }
+                    { n: "03", desc: "Comprobar funcionamiento normal, adjuntar fotografía nítida y solicitar firma de recepción.", crit: "Laplace >= 100.0", ok: orden.estado_actual === "OT COMPLETADA" }
                 ],
                 repuestos: [
                     { sku: "KIT-MANT-STD", nombre: "Kit de Sellos e Insumos Estándar de Mantenimiento", cant: "1 KIT", lote: "ISO-9001-STD" },
@@ -559,8 +611,6 @@
                 ]
             };
 
-            document.getElementById('pdf-operario-cargo').innerText = spec.cargo;
-            document.getElementById('pdf-operario-credencial').innerText = spec.credencial;
             document.getElementById('pdf-descripcion-general').innerText = orden.descripcion;
 
             const esCerrada = (orden.estado_actual === 'OT COMPLETADA') && (modoActual === 'COMPLETA');
@@ -612,8 +662,42 @@
             }
 
             document.getElementById('pdf-ultimo-hash').innerText = orden.hash_cadena || 'PENDIENTE DE PRIMERA TRANSICIÓN EN TERRENO';
-            document.getElementById('pdf-sello-conformidad').innerText =
-                (orden.estado_actual === 'OT COMPLETADA') ? '✓ ORDEN CERRADA CONFORME' : `EN ESTADO: ${orden.estado_actual}`;
+
+            // =========================================================================
+            // ESTAMPADO DE LA FIRMA DIGITAL DEL ENCARGADO DE TERRENO
+            // =========================================================================
+            const contFirmaGrafica = document.getElementById('pdf-contenedor-firma-grafica');
+            const contSelloCierre = document.getElementById('pdf-contenedor-sello-cierre');
+
+            let firmaGuardada = localStorage.getItem(`tasknode_signature_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_signature_${orden.codigo_ot}`);
+            const tokenQR = localStorage.getItem(`tasknode_qr_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_qr_${orden.codigo_ot}`);
+
+            if (!firmaGuardada && !tokenQR && orden.codigo_ot === 'OT-2610-PMT-PRV-0001') {
+                firmaGuardada = FIRMA_ENCARGADO_PRECARGADA;
+            }
+
+            if (modoActual === 'COMPLETA') {
+                if (firmaGuardada) {
+                    contFirmaGrafica.innerHTML = `<img src="${firmaGuardada}" class="h-11 max-w-[210px] object-contain mx-auto" alt="Rúbrica Encargado de Terreno" />`;
+                } else if (tokenQR) {
+                    contFirmaGrafica.innerHTML = `
+                        <div class="border border-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[7.5px] font-mono text-emerald-900 font-bold text-center">
+                            <span>✓ CREDENCIAL QR ENCARGADO</span><br>
+                            <span class="text-[6.5px] text-emerald-700">${tokenQR.slice(0, 22)}...</span>
+                        </div>`;
+                } else {
+                    contFirmaGrafica.innerHTML = `<span class="text-[8px] font-mono text-zinc-400">Pendiente de firma de recepción</span>`;
+                }
+
+                if (orden.estado_actual === 'OT COMPLETADA' || orden.estado_actual === 'EN VALIDACIÓN') {
+                    contSelloCierre.innerHTML = `<img src="${TIMBRE_SUPERVISOR_SVG}" class="h-10 object-contain mx-auto" alt="Timbre Supervisor" />`;
+                } else {
+                    contSelloCierre.innerHTML = `<span class="text-[8px] font-mono text-zinc-400">Pendiente de cierre</span>`;
+                }
+            } else {
+                contFirmaGrafica.innerHTML = `<span class="text-[7.5px] font-mono text-zinc-400 italic">Espacio para firma de recepción</span>`;
+                contSelloCierre.innerHTML = `<span class="text-[7.5px] font-mono text-zinc-400 italic">Control de confiabilidad</span>`;
+            }
         }
     </script>
 </body>

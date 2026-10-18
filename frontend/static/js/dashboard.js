@@ -2,9 +2,25 @@ const API = window.TaskNodeConfig.API_URL;
 let ordenesGlobal = [];
 let ordenSeleccionada = null;
 
+// Rúbrica precargada para la orden cerrada OT-0001
+const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
+  <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M 85 45 Q 140 10 240 20" fill="none" stroke="#c2410c" stroke-width="2.2" stroke-linecap="round"/>
+  <text x="30" y="82" font-family="monospace" font-size="8.5" fill="#18181b" font-weight="bold">C. VALENZUELA · 14.285.631-8 (ENCARGADO TERRENO)</text>
+</svg>`);
+
 document.addEventListener('DOMContentLoaded', () => {
     actualizarMonitorCompleto();
     setInterval(actualizarMonitorCompleto, 4000);
+
+    window.addEventListener('storage', (e) => {
+        if (e.key && (e.key.includes('tasknode_signature') || e.key.includes('tasknode_encargado') || e.key.includes('tasknode_qr'))) {
+            if (ordenSeleccionada) {
+                seleccionarFilaInspeccion(ordenSeleccionada);
+            }
+        }
+    });
 });
 
 function mostrarToastScada(mensaje, esError = false) {
@@ -109,9 +125,17 @@ async function cargarTablaBitacora() {
             tr.className = `cursor-pointer border-b border-theme-dim ${isSelected ? 'row-active' : ''}`;
             tr.onclick = () => seleccionarFilaInspeccion(r);
 
+            const tieneFirma = Boolean(
+                localStorage.getItem(`tasknode_signature_encargado_${r.codigo_ot}`) ||
+                localStorage.getItem(`tasknode_signature_${r.codigo_ot}`) ||
+                localStorage.getItem(`tasknode_qr_encargado_${r.codigo_ot}`) ||
+                r.codigo_ot === 'OT-2610-PMT-PRV-0001'
+            );
+            const badgeFirma = tieneFirma ? `<span class="ml-1.5 px-1 py-0.2 rounded bg-emerald-950/40 text-emerald-500 border border-emerald-800 text-[8.5px] font-mono">✍ RECIBIDA</span>` : '';
+
             tr.innerHTML = `
                 <td class="px-4 py-3">
-                    <div class="font-mono font-bold text-theme-main">${r.codigo_ot}</div>
+                    <div class="font-mono font-bold text-theme-main">${r.codigo_ot}${badgeFirma}</div>
                     <div class="text-[11px] text-theme-dim truncate max-w-[230px]">${nombreEquipo}</div>
                 </td>
                 <td class="px-4 py-3">
@@ -165,7 +189,7 @@ function seleccionarFilaInspeccion(orden) {
 
     setTxt('inspect-ot-code', orden.codigo_ot);
     setTxt('inspect-asset-tag', orden.activo ? orden.activo.codigo_activo : `Equipo #${orden.activo_id}`);
-    setTxt('inspect-ot-crew', `Técnico Responsable: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
+    setTxt('inspect-ot-crew', `Técnico Ejecutor: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
     setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
     setTxt('inspect-progress-txt', `${info.pct}%`);
 
@@ -195,6 +219,49 @@ function seleccionarFilaInspeccion(orden) {
         }
     }
 
+    // =========================================================================
+    // VISUALIZACIÓN DE FIRMA DEL ENCARGADO DE TERRENO
+    // =========================================================================
+    const sigImg = document.getElementById('inspect-sig-img');
+    const sigPlaceholder = document.getElementById('inspect-sig-placeholder');
+    const sigStatus = document.getElementById('inspect-sig-status');
+    const elEncargadoNom = document.getElementById('inspect-encargado-nombre');
+    const elEncargadoRut = document.getElementById('inspect-encargado-rut');
+
+    let firmaGuardada = localStorage.getItem(`tasknode_signature_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_signature_${orden.codigo_ot}`);
+    const tokenQR = localStorage.getItem(`tasknode_qr_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_qr_${orden.codigo_ot}`);
+    const nomEncargado = localStorage.getItem(`tasknode_encargado_nombre_${orden.codigo_ot}`) || 'Carlos Valenzuela M.';
+    const rutEncargado = localStorage.getItem(`tasknode_encargado_rut_${orden.codigo_ot}`) || '14.285.631-8';
+
+    if (elEncargadoNom) elEncargadoNom.innerText = `Encargado: ${nomEncargado}`;
+    if (elEncargadoRut) elEncargadoRut.innerText = `RUT: ${rutEncargado}`;
+
+    if (!firmaGuardada && !tokenQR && orden.codigo_ot === 'OT-2610-PMT-PRV-0001') {
+        firmaGuardada = FIRMA_ENCARGADO_PRECARGADA;
+    }
+
+    if (sigImg && sigPlaceholder && sigStatus) {
+        if (firmaGuardada) {
+            sigImg.src = firmaGuardada;
+            sigImg.classList.remove('hidden');
+            sigPlaceholder.classList.add('hidden');
+            sigStatus.innerText = "✓ RÚBRICA ENCARGADO VALIDADA";
+            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
+        } else if (tokenQR) {
+            sigImg.classList.add('hidden');
+            sigPlaceholder.classList.remove('hidden');
+            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">✓ CREDENCIAL QR ENCARGADO ACREDITADA<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
+            sigStatus.innerText = "✓ TOKEN QR CERTIFICADO";
+            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
+        } else {
+            sigImg.classList.add('hidden');
+            sigPlaceholder.classList.remove('hidden');
+            sigPlaceholder.innerHTML = `<span>✍️ Pendiente de firma del Encargado de Terreno</span>`;
+            sigStatus.innerText = "PENDIENTE";
+            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-theme-dim font-mono";
+        }
+    }
+
     const btnAprobar = document.getElementById('btn-aprobar-fsm');
     if (btnAprobar) {
         const puedeCompletar = (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN');
@@ -204,7 +271,6 @@ function seleccionarFilaInspeccion(orden) {
             : '✓ Aprobar Trabajo y Cerrar Orden';
     }
 
-    // Refrescar resaltado visual de la fila seleccionada
     const filas = document.querySelectorAll('#tabla-body tr');
     filas.forEach((tr, idx) => {
         if (ordenesGlobal[idx] && ordenesGlobal[idx].codigo_ot === orden.codigo_ot) {
@@ -281,7 +347,7 @@ function autocompletarModalOT() {
     document.getElementById('form-descripcion').value =
         'Mantenimiento preventivo programado: 1) Aplicar bloqueo eléctrico LOTO (D.S. 594). ' +
         '2) Inspección de rodamientos y ajuste de sello mecánico. ' +
-        '3) Adjuntar fotografía nítida de respaldo para cierre.';
+        '3) Recepción conforme por Encargado de Terreno para cierre.';
 }
 
 async function enviarNuevaOT(e) {

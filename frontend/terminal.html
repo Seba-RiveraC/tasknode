@@ -2,10 +2,17 @@
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TaskNode | Terminal de Terreno (Técnico)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=2.6">
+    <link rel="stylesheet" href="static/css/styles.css?v=2.9">
+    <style>
+        .sig-canvas {
+            touch-action: none;
+            background-color: var(--bg-surface-2);
+            cursor: crosshair;
+        }
+    </style>
 </head>
 <body class="h-full flex flex-col font-sans bg-surface-base top-accent-line">
 
@@ -21,7 +28,7 @@
     <header class="h-12 bg-surface-1 border-b border-theme-dim px-4 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
             <div class="w-7 h-7 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs">TN</div>
-            <span class="font-bold text-xs sm:text-sm text-theme-main">Terminal del Técnico en Planta</span>
+            <span class="font-bold text-xs sm:text-sm text-theme-main">Terminal de Operación en Terreno</span>
         </div>
         <div class="flex items-center gap-2">
             <span id="dot-red" class="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -32,10 +39,9 @@
         </div>
     </header>
 
-    <!-- Formulario Principal -->
     <main class="flex-1 overflow-y-auto p-3.5 space-y-3 max-w-md mx-auto w-full">
 
-        <!-- 1. Credencial de Cuadrilla -->
+        <!-- Ficha del Técnico Ejecutor -->
         <div class="bg-surface-1 border border-theme-dim rounded p-3 shadow-sm">
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2.5">
@@ -44,7 +50,7 @@
                     </div>
                     <div>
                         <div class="font-bold text-xs text-theme-main" id="perfil-nombre">Sebastián Rivera</div>
-                        <div class="text-[11px] text-theme-dim font-mono" id="perfil-rut-cargo">RUT: 18.421.903-K · Técnico Responsable</div>
+                        <div class="text-[11px] text-theme-dim font-mono" id="perfil-rut-cargo">RUT: 18.421.903-K · Técnico Ejecutor</div>
                     </div>
                 </div>
                 <span class="px-2 py-0.5 rounded badge-completada text-[10px] font-bold">
@@ -53,11 +59,11 @@
             </div>
         </div>
 
-        <!-- 2. Ejecución de Orden -->
         <form id="formularioEstado" class="space-y-3">
             <input type="hidden" id="operario_id" value="45">
             <input type="hidden" id="gps" value="-41.4693, -72.9424">
 
+            <!-- 1. Orden de Trabajo Asignada -->
             <div class="bg-surface-1 border border-theme-dim rounded p-3.5 space-y-2.5 shadow-sm">
                 <div class="flex justify-between items-center">
                     <label class="text-xs font-bold text-theme-main uppercase">1. Orden de Trabajo Asignada</label>
@@ -71,18 +77,19 @@
                 </div>
 
                 <button type="button" onclick="abrirPliegoPDFDesdeTerminal()" class="w-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs py-2 px-3 rounded flex items-center justify-center gap-1.5 transition">
-                    <span>📄 Abrir Pliego Técnico de la Orden (Hoja A4 / PDF)</span>
+                    <span>📄 Ver Pliego Técnico Oficial (A4 / PDF)</span>
                 </button>
             </div>
 
+            <!-- 2. Estado de Avance y Trabajo Realizado -->
             <div class="bg-surface-1 border border-theme-dim rounded p-3.5 space-y-3 shadow-sm">
                 <div>
                     <label class="block text-xs font-bold text-theme-main uppercase mb-1">2. Reportar Estado de Avance</label>
-                    <select id="estado_nuevo" required onchange="autocompletarNovedad()" class="w-full border rounded p-2 text-xs font-bold">
+                    <select id="estado_nuevo" required onchange="manejarCambioEstado(this.value)" class="w-full border rounded p-2 text-xs font-bold">
                         <option value="EN EJECUCIÓN">EN EJECUCIÓN (Iniciando tareas en máquina)</option>
-                        <option value="EN VALIDACIÓN">EN VALIDACIÓN (Trabajo terminado para revisión)</option>
-                        <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Falta repuesto / Problema)</option>
-                        <option value="OT COMPLETADA">OT COMPLETADA (Cierre directo)</option>
+                        <option value="EN VALIDACIÓN">EN VALIDACIÓN (Trabajo terminado · Solicitar Cierre)</option>
+                        <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Problema / Falta repuesto)</option>
+                        <option value="OT COMPLETADA">OT COMPLETADA (Cierre directo en terreno)</option>
                     </select>
                 </div>
 
@@ -93,15 +100,16 @@
                             + Insertar texto tipo
                         </button>
                     </div>
-                    <textarea id="obs" rows="3" class="w-full border rounded p-2 text-xs" placeholder="Describa las tareas ejecutadas, bloqueo LOTO y lecturas..."></textarea>
+                    <textarea id="obs" rows="2" class="w-full border rounded p-2 text-xs" placeholder="Describa el trabajo realizado, mediciones y componentes..."></textarea>
                 </div>
 
+                <!-- Fotografía de Respaldo -->
                 <div>
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-xs font-bold text-theme-main uppercase">4. Fotografía de Respaldo</label>
                         <span class="text-[10px] font-mono text-theme-dim">Filtro Laplaciano &ge; 100</span>
                     </div>
-                    <label class="block border border-dashed border-theme-bright rounded p-3 text-center bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
+                    <label class="block border border-dashed border-theme-bright rounded p-2.5 text-center bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
                         <input type="file" id="foto" accept="image/*" class="hidden" onchange="actualizarNombreFoto(this)">
                         <div id="camera-label" class="text-xs text-theme-muted font-semibold">
                             📷 Adjuntar fotografía de inspección
@@ -110,26 +118,99 @@
                 </div>
             </div>
 
+            <!-- 3. MÓDULO DE RECEPCIÓN Y FIRMA DEL ENCARGADO DE TERRENO -->
+            <div class="bg-surface-1 border-2 border-theme-bright rounded p-3.5 space-y-2.5 shadow-sm">
+                <div class="flex justify-between items-center border-b border-theme-dim pb-2">
+                    <div>
+                        <span class="text-xs font-bold text-theme-main uppercase block">5. Recepción y Firma del Encargado de Terreno</span>
+                        <span class="text-[10px] text-theme-dim font-mono">Supervisor de Área / Faena · Ley N° 19.799</span>
+                    </div>
+                    <span id="badge-tipo-firma" class="code-pill text-[9px] font-bold px-2 py-0.5 rounded">PENDIENTE</span>
+                </div>
+
+                <!-- Identificación del Encargado de Terreno que recibe el trabajo -->
+                <div class="grid grid-cols-2 gap-2 bg-surface-2 p-2 rounded border border-theme-dim">
+                    <div>
+                        <label class="block text-[10px] font-bold text-theme-dim uppercase">Encargado de Terreno</label>
+                        <input type="text" id="nombre_encargado" value="Carlos Valenzuela M." class="w-full border rounded px-2 py-1 text-xs font-bold text-theme-main">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-theme-dim uppercase">RUT Encargado</label>
+                        <input type="text" id="rut_encargado" value="14.285.631-8" class="w-full border rounded px-2 py-1 text-xs font-mono font-bold text-theme-main">
+                    </div>
+                </div>
+
+                <!-- Selector de Modo de Firma del Encargado -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="btn-tab-tactil" onclick="seleccionarModoFirma('TACTIL')" class="py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2 transition">
+                        ✍️ Rúbrica del Encargado
+                    </button>
+                    <button type="button" id="btn-tab-qr" onclick="seleccionarModoFirma('QR')" class="py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2 transition">
+                        📱 Credencial QR Encargado
+                    </button>
+                </div>
+
+                <!-- Panel Modo A: Canvas táctil -->
+                <div id="panel-firma-tactil" class="space-y-1.5">
+                    <div class="flex justify-between items-center text-[10px] text-theme-dim font-mono">
+                        <span>El Encargado de Terreno firma en este recuadro:</span>
+                        <div class="space-x-2">
+                            <button type="button" onclick="cargarFirmaRapidaPrueba()" class="text-emerald-600 underline font-bold">
+                                ✍️ Firma Rápida
+                            </button>
+                            <span>·</span>
+                            <button type="button" onclick="limpiarCanvasFirma()" class="text-accent underline font-bold">
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="border border-theme-bright rounded overflow-hidden">
+                        <canvas id="signature-canvas" width="380" height="110" class="w-full h-28 sig-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Panel Modo B: Escaneo QR de la Credencial del Encargado -->
+                <div id="panel-firma-qr" class="hidden space-y-2">
+                    <div class="bg-surface-2 border border-theme-dim rounded p-2.5 text-center space-y-1.5">
+                        <div class="w-12 h-12 mx-auto rounded border-2 border-dashed border-accent flex items-center justify-center text-accent text-lg">
+                            ⛶
+                        </div>
+                        <div class="text-xs font-bold text-theme-main">Acreditación del Encargado de Faena</div>
+                        <div class="text-[10px] text-theme-dim font-mono">
+                            Escanee el código QR de la credencial del Encargado de Terreno para autorizar la recepción conforme.
+                        </div>
+                        <button type="button" id="btn-escanear-qr" onclick="simularEscaneoQR()" class="w-full py-2 bg-surface-1 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs rounded transition flex items-center justify-center gap-1.5">
+                            <span>📷 Validar Credencial QR del Encargado</span>
+                        </button>
+                        <div id="qr-resultado" class="hidden p-2 rounded bg-emerald-950/20 border border-emerald-800 text-emerald-400 font-mono text-[10px] text-left">
+                            <span class="font-bold block">✓ CREDENCIAL DE ENCARGADO VALIDADA</span>
+                            <span>ID: TN-SUPERVISOR-FAENA · CARLOS VALENZUELA (RUT 14.285.631-8)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón de Envío -->
             <button type="submit" id="btnEnviar" class="w-full py-3 btn-primary font-bold text-xs uppercase tracking-wide rounded shadow-md transition">
-                Firmar y Enviar Avance (SHA-256)
+                Firmar Recepción y Enviar Orden (SHA-256)
             </button>
         </form>
 
-        <!-- Barra Discreta de Pruebas de Ingeniería -->
+        <!-- Barra de Telemetría GPS -->
         <div class="bg-surface-2 border border-theme-dim rounded p-3 text-[11px] space-y-1.5">
             <div class="flex items-center justify-between">
-                <span class="font-bold text-theme-muted">Posición GPS respecto al Equipo:</span>
+                <span class="font-bold text-theme-muted">Geocerca GPS respecto al Equipo:</span>
                 <span id="badge-geocerca" class="font-mono font-bold text-emerald-600">✓ En Planta (-41.4693, -72.9424)</span>
             </div>
             <div class="flex items-center justify-between pt-1 border-t border-theme-dim text-[10px] text-theme-dim">
-                <span>Simulación para defensa:</span>
+                <span>Pruebas académicas:</span>
                 <div class="flex gap-2 font-semibold">
                     <button type="button" id="btn-sim-gps" onclick="alternarSimulacionGPS()" class="underline hover:text-theme-main">
-                        Simular GPS lejos (&gt;4km)
+                        Simular GPS lejos (>4km)
                     </button>
                     <span>·</span>
                     <button type="button" id="btn-toggle-net" onclick="conmutarModoRed()" class="underline hover:text-theme-main">
-                        Modo sin red (Cola: <span id="outbox-count">0</span>)
+                        Sin red (Cola: <span id="outbox-count">0</span>)
                     </button>
                 </div>
             </div>
@@ -137,7 +218,7 @@
 
     </main>
 
-    <script src="static/js/config.js?v=2.6"></script>
-    <script src="static/js/terminal.js?v=2.6"></script>
+    <script src="static/js/config.js?v=2.9"></script>
+    <script src="static/js/terminal.js?v=2.9"></script>
 </body>
 </html>
