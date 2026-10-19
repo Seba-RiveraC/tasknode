@@ -2,29 +2,52 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:16
-    container_name: tasknode_postgres
+    image: postgres:16-alpine
+    container_name: tasknode_db
     restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: superpassword
-      POSTGRES_DB: tasknode_db
+      POSTGRES_USER: ${POSTGRES_USER:-tasknode_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tasknode_secret_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-tasknode_db}
     ports:
-      - "5433:5432" 
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tasknode_user} -d ${POSTGRES_DB:-tasknode_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tasknode_net
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: tasknode_pgadmin
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tasknode_api
     restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@tasknode.com
-      PGADMIN_DEFAULT_PASSWORD: superpassword
-    ports:
-      - "5050:80"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tasknode_user}:${POSTGRES_PASSWORD:-tasknode_secret_2026}@db:5432/${POSTGRES_DB:-tasknode_db}
+      SECRET_KEY: ${SECRET_KEY:-tasknode_super_jwt_secret_capstone_2026}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app:ro
+      - uploads_data:/app/storage/evidencias
+    networks:
+      - tasknode_net
 
 volumes:
-  pgdata:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  tasknode_net:
+    driver: bridge
