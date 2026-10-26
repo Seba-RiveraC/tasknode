@@ -1,30 +1,37 @@
-version: '3.8'
-
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: tasknode_postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: superpassword
+      POSTGRES_USER: tasknode_user
+      POSTGRES_PASSWORD: tasknode_secret_2026
       POSTGRES_DB: tasknode_db
     ports:
-      - "5433:5432" 
+      - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tasknode_user -d tasknode_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: tasknode_pgadmin
-    restart: always
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@tasknode.com
-      PGADMIN_DEFAULT_PASSWORD: superpassword
+  web:
+    build: .
+    container_name: tasknode_saas_core
+    restart: unless-stopped
     ports:
-      - "5050:80"
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://tasknode_user:tasknode_secret_2026@db:5432/tasknode_db
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:-}
+      AZURE_CONTAINER_NAME: ${AZURE_CONTAINER_NAME:-evidencias-tasknode}
+    volumes:
+      - ./frontend/static/uploads:/app/frontend/static/uploads
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
-  pgdata:
+  postgres_data:

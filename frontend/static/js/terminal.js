@@ -1,9 +1,9 @@
 const API = window.TaskNodeConfig.API_URL;
 let listaOTsCache = [];
+let hitosActivosTerminal = [];
 let modoOfflineSimulado = false;
 let gpsFueraDePlanta = false;
 
-// Estado de Firma del Encargado de Terreno
 let modoFirmaActivo = 'TACTIL';
 let canvasFirma = null;
 let ctxFirma = null;
@@ -11,7 +11,6 @@ let dibujando = false;
 let firmaTactilRealizada = false;
 let credencialQRValidada = false;
 
-// Rúbrica de muestra para el botón "Firma Rápida"
 const FIRMA_ENCARGADO_DEMO = "data:image/svg+xml;utf8," + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
   <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
@@ -25,8 +24,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inicializarCanvasFirma();
     actualizarContadorOutbox();
-    cargarOrdenesEnTerminal('OT-2610-PMT-PRV-0045');
+    cargarOrdenesEnTerminal('OT-1002');
 });
+
+function abrirModalFirma() {
+    const modal = document.getElementById('modal-firma-terreno');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+
+function cerrarModalFirma() {
+    const modal = document.getElementById('modal-firma-terreno');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+    actualizarBadgeFirma();
+}
 
 function inicializarCanvasFirma() {
     canvasFirma = document.getElementById('signature-canvas');
@@ -102,6 +118,9 @@ function limpiarCanvasFirma() {
     if (!ctxFirma || !canvasFirma) return;
     ctxFirma.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
     firmaTactilRealizada = false;
+    credencialQRValidada = false;
+    const res = document.getElementById('qr-resultado');
+    if (res) res.classList.add('hidden');
     actualizarBadgeFirma();
 }
 
@@ -113,7 +132,7 @@ function cargarFirmaRapidaPrueba() {
         ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height);
         firmaTactilRealizada = true;
         actualizarBadgeFirma();
-        mostrarToastTerminal("✓ Rúbrica del Encargado de Terreno cargada.");
+        mostrarToastTerminal("Firma del Encargado cargada.");
     };
     img.src = FIRMA_ENCARGADO_DEMO;
 }
@@ -126,13 +145,13 @@ function seleccionarModoFirma(modo) {
     const panelQR = document.getElementById('panel-firma-qr');
 
     if (modo === 'TACTIL') {
-        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2 transition";
-        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2 transition";
+        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2";
+        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2";
         panelTactil.classList.remove('hidden');
         panelQR.classList.add('hidden');
     } else {
-        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2 transition";
-        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2 transition";
+        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2";
+        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2";
         panelTactil.classList.add('hidden');
         panelQR.classList.remove('hidden');
     }
@@ -142,13 +161,8 @@ function seleccionarModoFirma(modo) {
 function simularEscaneoQR() {
     credencialQRValidada = true;
     const res = document.getElementById('qr-resultado');
-    const btn = document.getElementById('btn-escanear-qr');
     if (res) res.classList.remove('hidden');
-    if (btn) {
-        btn.classList.add('border-emerald-600', 'text-emerald-500');
-        btn.innerHTML = `<span>✓ Credencial Encargado Validada (14.285.631-8)</span>`;
-    }
-    mostrarToastTerminal("✓ Credencial de Encargado de Terreno acreditada por QR.");
+    mostrarToastTerminal("Credencial QR validada.");
     actualizarBadgeFirma();
 }
 
@@ -157,45 +171,20 @@ function actualizarBadgeFirma() {
     if (!badge) return;
 
     if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) {
-        badge.className = "code-pill text-[9px] font-bold px-2 py-0.5 rounded text-emerald-500 border-emerald-600";
-        badge.innerText = "✓ RÚBRICA ENCARGADO OK";
+        badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
+        badge.innerText = "Firma adjuntada";
     } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
-        badge.className = "code-pill text-[9px] font-bold px-2 py-0.5 rounded text-emerald-500 border-emerald-600";
-        badge.innerText = "✓ TOKEN QR ENCARGADO OK";
+        badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
+        badge.innerText = "QR adjuntado";
     } else {
-        badge.className = "code-pill text-[9px] font-bold px-2 py-0.5 rounded text-theme-dim";
-        badge.innerText = "PENDIENTE";
+        badge.className = "text-[10px] font-mono text-theme-dim mt-0.5";
+        badge.innerText = "No adjuntada (Abrir)";
     }
 }
 
 function manejarCambioEstado(nuevoEstado) {
     autocompletarNovedad();
-    const btnEnviar = document.getElementById('btnEnviar');
-    const panelFirma = document.getElementById('panel-modulo-firma') || document.querySelector('.sig-canvas')?.closest('.border-2');
-    const badgeFirma = document.getElementById('badge-tipo-firma');
-
-    const requiereFirma = (nuevoEstado === 'EN VALIDACIÓN' || nuevoEstado === 'OT COMPLETADA');
-
-    if (requiereFirma) {
-        btnEnviar.innerText = "Firmar Recepción Conforme y Finalizar OT (SHA-256)";
-        if (badgeFirma && !firmaTactilRealizada && !credencialQRValidada) {
-            badgeFirma.innerText = "OBLIGATORIA PARA CIERRE";
-            badgeFirma.className = "code-pill text-[9px] font-bold px-2 py-0.5 rounded text-amber-500 border-amber-600";
-        }
-        if (panelFirma) {
-            panelFirma.classList.remove('opacity-60');
-            panelFirma.style.pointerEvents = "auto";
-        }
-    } else {
-        btnEnviar.innerText = "Guardar Reporte de Avance en Terreno";
-        if (badgeFirma) {
-            badgeFirma.innerText = "NO REQUERIDA EN AVANCE";
-            badgeFirma.className = "code-pill text-[9px] font-bold px-2 py-0.5 rounded text-theme-dim";
-        }
-        if (panelFirma) {
-            panelFirma.classList.add('opacity-60');
-        }
-    }
+    actualizarBadgeFirma();
 }
 
 function mostrarToastTerminal(mensaje, esError = false) {
@@ -205,7 +194,7 @@ function mostrarToastTerminal(mensaje, esError = false) {
     if (!toast || !msg) return;
 
     msg.innerText = mensaje;
-    led.className = esError ? 'w-2.5 h-2.5 rounded-full bg-red-500 shrink-0' : 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0';
+    led.className = esError ? 'w-2 h-2 rounded-full bg-red-500 shrink-0' : 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
 
     toast.classList.remove('opacity-0', 'translate-y-[-6px]');
     toast.classList.add('opacity-100', 'translate-y-0');
@@ -213,7 +202,7 @@ function mostrarToastTerminal(mensaje, esError = false) {
     setTimeout(() => {
         toast.classList.remove('opacity-100', 'translate-y-0');
         toast.classList.add('opacity-0', 'translate-y-[-6px]');
-    }, 3800);
+    }, 3500);
 }
 
 async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
@@ -231,6 +220,8 @@ async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
         if (cached.length > 0) {
             listaOTsCache = cached;
             poblarDropdown(cached, codigoPreseleccionado);
+        } else {
+            select.innerHTML = '<option value="">Sin órdenes cargadas</option>';
         }
     }
 }
@@ -243,7 +234,7 @@ function poblarDropdown(ots, codigoPreseleccionado = null) {
     }
 
     select.innerHTML = ots.map(o =>
-        `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.activo ? o.activo.nombre : o.tipo_mantenimiento}</option>`
+        `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'SurTel'} (${o.avance_pct || 0}%)</option>`
     ).join('');
 
     if (codigoPreseleccionado && ots.some(o => o.codigo_ot === codigoPreseleccionado)) {
@@ -252,39 +243,71 @@ function poblarDropdown(ots, codigoPreseleccionado = null) {
     actualizarInfoOTSeleccionada();
 }
 
+function obtenerHitosPorDefecto(ot) {
+    const completado = (ot && ot.estado_actual === 'OT COMPLETADA');
+    return [
+        { id: 1, dia: "Etapa 1", titulo: "Permiso de acceso a sitio y bloqueo LOTO (D.S. 594)", completado },
+        { id: 2, dia: "Etapa 2", titulo: "Inspección física de infraestructura e intervención técnica", completado },
+        { id: 3, dia: "Etapa 3", titulo: "Ajuste de parámetros operativos y verificación de enlace", completado },
+        { id: 4, dia: "Etapa 4", titulo: "Captura de evidencia fotográfica y recepción en terreno", completado }
+    ];
+}
+
+function renderizarChecklistTerminal() {
+    const cont = document.getElementById('contenedor-hitos-terminal');
+    const txtProg = document.getElementById('terminal-progreso-hitos');
+    const barra = document.getElementById('terminal-barra-hitos');
+    if (!cont) return;
+
+    const total = hitosActivosTerminal.length;
+    const comp = hitosActivosTerminal.filter(h => h.completado).length;
+    const pct = total > 0 ? Math.round((comp / total) * 100) : 0;
+
+    if (txtProg) txtProg.innerText = `${comp}/${total} (${pct}%)`;
+    if (barra) barra.style.width = `${pct}%`;
+
+    cont.innerHTML = hitosActivosTerminal.map((h, idx) => `
+        <label class="flex items-start gap-2.5 p-2 rounded border border-theme-dim bg-surface-2 cursor-pointer">
+            <input type="checkbox" ${h.completado ? 'checked' : ''} onchange="cambiarHitoEnTerminal(${idx}, this.checked)" class="mt-0.5 w-4 h-4 accent-[#c2410c]">
+            <div class="text-xs leading-snug">
+                <span class="font-mono text-[10px] font-bold text-accent block">${h.dia}</span>
+                <span class="${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">${h.titulo}</span>
+            </div>
+        </label>
+    `).join('');
+}
+
+function cambiarHitoEnTerminal(idx, marcado) {
+    if (!hitosActivosTerminal[idx]) return;
+    hitosActivosTerminal[idx].completado = marcado;
+    renderizarChecklistTerminal();
+
+    const todosListos = hitosActivosTerminal.every(h => h.completado);
+    const selectEstado = document.getElementById('estado_nuevo');
+    if (todosListos && selectEstado && selectEstado.value === 'EN EJECUCIÓN') {
+        selectEstado.value = 'EN VALIDACIÓN';
+        manejarCambioEstado('EN VALIDACIÓN');
+    }
+}
+
 function actualizarInfoOTSeleccionada() {
     const codigo = document.getElementById('codigo_ot').value;
     const ot = listaOTsCache.find(o => o.codigo_ot === codigo);
     if (!ot) return;
 
     const estadoActual = ot.estado_actual || 'EMITIDA';
-    document.getElementById('info-ot-estado').innerText = `Estado: ${estadoActual}`;
+    document.getElementById('info-ot-estado').innerText = estadoActual;
+    document.getElementById('info-ot-cliente').innerText = `Cliente: ${ot.cliente_mandante || 'SurTel Redes'}`;
     document.getElementById('info-ot-descripcion').innerText = ot.descripcion || 'Sin instrucciones.';
+    document.getElementById('perfil-nombre').innerText = `${ot.operario_responsable} (${ot.rut_responsable})`;
 
-    const nom = ot.operario_responsable || 'Sebastián Rivera';
-    const rut = ot.rut_responsable || '18.421.903-K';
-    const iniciales = nom.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
-
-    document.getElementById('perfil-nombre').innerText = nom;
-    document.getElementById('perfil-rut-cargo').innerText = `RUT: ${rut} · Técnico Ejecutor`;
-    document.getElementById('perfil-iniciales').innerText = iniciales;
+    const hitosBase = (ot.hitos && ot.hitos.length > 0) ? ot.hitos : obtenerHitosPorDefecto(ot);
+    hitosActivosTerminal = JSON.parse(JSON.stringify(hitosBase));
+    renderizarChecklistTerminal();
 
     gpsFueraDePlanta = false;
     actualizarCoordenadaGPS();
-
-    // Cargar si ya existía una firma del encargado en localStorage
     limpiarCanvasFirma();
-    credencialQRValidada = false;
-    const firmaGuardada = localStorage.getItem(`tasknode_signature_encargado_${codigo}`) || localStorage.getItem(`tasknode_signature_${codigo}`);
-    if (firmaGuardada && ctxFirma) {
-        const img = new Image();
-        img.onload = () => {
-            ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height);
-            firmaTactilRealizada = true;
-            actualizarBadgeFirma();
-        };
-        img.src = firmaGuardada;
-    }
 
     const selectEstado = document.getElementById('estado_nuevo');
     if (estadoActual === 'EMITIDA' || estadoActual === 'DETENIDA POR ANOMALÍA') {
@@ -301,41 +324,29 @@ function actualizarCoordenadaGPS() {
     const codigo = document.getElementById('codigo_ot').value;
     const ot = listaOTsCache.find(o => o.codigo_ot === codigo);
     const badge = document.getElementById('badge-geocerca');
-    const btnSim = document.getElementById('btn-sim-gps');
 
     if (gpsFueraDePlanta) {
-        const coordsLejanas = "-41.4950, -72.9900";
-        document.getElementById('gps').value = coordsLejanas;
-        badge.className = "font-mono font-semibold text-red-600";
-        badge.innerText = `⚠ Fuera de Planta (>4 km)`;
-        if (btnSim) btnSim.innerText = "Restaurar GPS en planta";
+        document.getElementById('gps').value = "-41.4950, -72.9900";
+        badge.className = "font-mono font-bold text-red-600";
+        badge.innerText = "Fuera de rango (>4 km)";
     } else {
-        const lat = (ot && ot.activo && ot.activo.latitud_referencia) ? ot.activo.latitud_referencia.toFixed(4) : '-41.4693';
-        const lon = (ot && ot.activo && ot.activo.longitud_referencia) ? ot.activo.longitud_referencia.toFixed(4) : '-72.9424';
-        const coords = `${lat}, ${lon}`;
-        document.getElementById('gps').value = coords;
-        badge.className = "font-mono font-semibold text-emerald-600";
-        badge.innerText = `✓ En Planta (${coords})`;
-        if (btnSim) btnSim.innerText = "Simular GPS lejos (>4km)";
+        const lat = (ot && ot.activo && ot.activo.latitud_referencia) ? ot.activo.latitud_referencia.toFixed(4) : '-41.4870';
+        const lon = (ot && ot.activo && ot.activo.longitud_referencia) ? ot.activo.longitud_referencia.toFixed(4) : '-72.9550';
+        document.getElementById('gps').value = `${lat}, ${lon}`;
+        badge.className = "font-mono font-bold text-emerald-600";
+        badge.innerText = `GPS en Sitio (${lat}, ${lon})`;
     }
 }
 
 function alternarSimulacionGPS() {
     gpsFueraDePlanta = !gpsFueraDePlanta;
     actualizarCoordenadaGPS();
-    if (gpsFueraDePlanta) {
-        mostrarToastTerminal('GPS desplazado a >4 km para probar bloqueo Haversine.', true);
-    } else {
-        mostrarToastTerminal('GPS restaurado en ubicación de máquina.');
-    }
 }
 
 function abrirPliegoPDFDesdeTerminal() {
     const codigo = document.getElementById('codigo_ot').value;
     if (!codigo) return;
-    const ot = listaOTsCache.find(o => o.codigo_ot === codigo);
-    const modo = (ot && ot.estado_actual === 'EMITIDA') ? 'ORIGINAL' : 'COMPLETA';
-    window.open(`orden_pdf.html?codigo=${encodeURIComponent(codigo)}&modo=${modo}`, '_blank');
+    window.open(`orden_pdf.html?codigo=${encodeURIComponent(codigo)}&modo=COMPLETA`, '_blank');
 }
 
 function actualizarNombreFoto(input) {
@@ -343,7 +354,7 @@ function actualizarNombreFoto(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
         const sizeKb = (file.size / 1024).toFixed(1);
-        label.innerHTML = `<span class="text-accent font-semibold">✓ ${file.name} (${sizeKb} KB)</span>`;
+        label.innerHTML = `<span class="text-accent font-bold">${file.name} (${sizeKb} KB)</span>`;
     }
 }
 
@@ -361,24 +372,14 @@ async function procesarTransicionTerreno(e) {
     const nombreEncargado = document.getElementById('nombre_encargado').value.trim() || 'Carlos Valenzuela M.';
     const rutEncargado = document.getElementById('rut_encargado').value.trim() || '14.285.631-8';
 
-    // Guardar datos del Encargado en localStorage
-    localStorage.setItem(`tasknode_encargado_nombre_${codigoOT}`, nombreEncargado);
-    localStorage.setItem(`tasknode_encargado_rut_${codigoOT}`, rutEncargado);
-
-    let infoFirmaTexto = "";
+    let firmaPayload = "";
     if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada && canvasFirma) {
-        const dataUrl = canvasFirma.toDataURL('image/png');
-        localStorage.setItem(`tasknode_signature_encargado_${codigoOT}`, dataUrl);
-        localStorage.setItem(`tasknode_signature_${codigoOT}`, dataUrl); // retrocompatibilidad
-        infoFirmaTexto = ` [RECEPCION_ENCARGADO: ${nombreEncargado} (${rutEncargado}) - FIRMA_TACTIL_REGISTRADA]`;
+        firmaPayload = canvasFirma.toDataURL('image/png');
     } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
-        const tokenQR = `TOKEN-QR-ENCARGADO-142856318-${Date.now().toString(36).toUpperCase()}`;
-        localStorage.setItem(`tasknode_qr_encargado_${codigoOT}`, tokenQR);
-        localStorage.setItem(`tasknode_qr_${codigoOT}`, tokenQR);
-        infoFirmaTexto = ` [RECEPCION_ENCARGADO: ${nombreEncargado} - CREDENCIAL_QR_VALIDADA: ${tokenQR}]`;
+        firmaPayload = `TOKEN-QR-ENCARGADO-142856318-${Date.now().toString(36).toUpperCase()}`;
     }
 
-    const obsFinal = `${obsVal}${infoFirmaTexto}`.trim();
+    const hitosSerializados = JSON.stringify(hitosActivosTerminal);
 
     if (modoOfflineSimulado || !navigator.onLine) {
         const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
@@ -387,12 +388,16 @@ async function procesarTransicionTerreno(e) {
             operario_id: operarioId,
             estado_nuevo: estadoNuevo,
             coordenadas_gps: gpsVal,
-            observacion: obsFinal || 'Recepción en terreno guardada sin conexión.',
+            observacion: obsVal || 'Avance registrado sin conexión.',
+            encargado_nombre: nombreEncargado,
+            encargado_rut: rutEncargado,
+            firma_data: firmaPayload,
+            hitos_json: hitosSerializados,
             timestamp: new Date().toISOString()
         });
         localStorage.setItem('tasknode_outbox', JSON.stringify(cola));
         actualizarContadorOutbox();
-        mostrarToastTerminal(`Guardado localmente (${cola.length} pendientes).`);
+        mostrarToastTerminal(`Guardado en cola local (${cola.length} pendientes).`);
         btn.disabled = false;
         return;
     }
@@ -402,7 +407,11 @@ async function procesarTransicionTerreno(e) {
     formData.append('operario_id', operarioId);
     formData.append('estado_nuevo', estadoNuevo);
     formData.append('coordenadas_gps', gpsVal);
-    formData.append('observacion', obsFinal);
+    formData.append('observacion', obsVal);
+    formData.append('encargado_nombre', nombreEncargado);
+    formData.append('encargado_rut', rutEncargado);
+    formData.append('hitos_json', hitosSerializados);
+    if (firmaPayload) formData.append('firma_data', firmaPayload);
 
     const inputFoto = document.getElementById('foto');
     if (inputFoto && inputFoto.files && inputFoto.files.length > 0) {
@@ -416,9 +425,9 @@ async function procesarTransicionTerreno(e) {
         if (!res.ok) {
             mostrarToastTerminal(data.detail || `Error HTTP ${res.status}`, true);
         } else {
-            mostrarToastTerminal(`✓ Orden ${data.codigo_ot} recibida por Encargado y sincronizada.`);
+            mostrarToastTerminal(`Avance sincronizado en ${data.codigo_ot}.`);
             if (inputFoto) inputFoto.value = '';
-            document.getElementById('camera-label').innerHTML = `📷 Adjuntar fotografía de inspección`;
+            document.getElementById('camera-label').innerText = "Adjuntar Fotografía";
             await cargarOrdenesEnTerminal(codigoOT);
         }
     } catch (err) {
@@ -435,8 +444,8 @@ async function conmutarModoRed() {
 
     if (modoOfflineSimulado) {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
-        label.innerText = 'SIN SEÑAL';
-        mostrarToastTerminal('Modo Sin Señal activado. Los reportes se almacenan en cola local.');
+        label.innerText = 'SIN RED';
+        mostrarToastTerminal('Modo sin conexión activado.');
     } else {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
         label.innerText = 'EN LÍNEA';
@@ -452,10 +461,7 @@ function actualizarContadorOutbox() {
 
 async function sincronizarColaOutbox() {
     const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
-    if (cola.length === 0) {
-        mostrarToastTerminal('Conexión restablecida.');
-        return;
-    }
+    if (cola.length === 0) return;
 
     let sincronizados = 0;
     const codigoActual = document.getElementById('codigo_ot').value;
@@ -467,6 +473,10 @@ async function sincronizarColaOutbox() {
         fd.append('estado_nuevo', item.estado_nuevo);
         fd.append('coordenadas_gps', item.coordenadas_gps);
         fd.append('observacion', item.observacion);
+        if (item.hitos_json) fd.append('hitos_json', item.hitos_json);
+        if (item.encargado_nombre) fd.append('encargado_nombre', item.encargado_nombre);
+        if (item.encargado_rut) fd.append('encargado_rut', item.encargado_rut);
+        if (item.firma_data) fd.append('firma_data', item.firma_data);
 
         try {
             const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
@@ -477,17 +487,18 @@ async function sincronizarColaOutbox() {
     localStorage.removeItem('tasknode_outbox');
     actualizarContadorOutbox();
     await cargarOrdenesEnTerminal(codigoActual);
-    mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length} reportes con firma.`);
+    mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length} registros.`);
 }
 
 function autocompletarNovedad() {
     const estado = document.getElementById('estado_nuevo').value;
     const txt = document.getElementById('obs');
+    const comp = hitosActivosTerminal.filter(h => h.completado).length;
     if (estado === 'DETENIDA POR ANOMALÍA') {
-        txt.value = 'Se suspende intervención por hallazgo de fuga activa en sello secundario. Equipo bloqueado bajo protocolo LOTO.';
+        txt.value = `Faena pausada con ${comp}/${hitosActivosTerminal.length} hitos completados. Equipo bloqueado bajo protocolo LOTO.`;
     } else if (estado === 'EN VALIDACIÓN' || estado === 'OT COMPLETADA') {
-        txt.value = 'Pauta técnica ejecutada al 100%. Reemplazo de kit de sellos finalizado, prueba hidráulica a 6.2 bar conforme y vibración global en 1.38 mm/s.';
+        txt.value = `Plan de ${hitosActivosTerminal.length} hitos completado al 100%. Parámetros verificados y recepción conforme.`;
     } else {
-        txt.value = 'Inicio de intervención en terreno. Desenergización comprobada (0.0 V) y candado personal LOTO instalado.';
+        txt.value = `Avance registrado (${comp}/${hitosActivosTerminal.length} hitos listos). Bloqueo LOTO y EPP verificados.`;
     }
 }

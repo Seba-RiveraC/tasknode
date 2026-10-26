@@ -1,8 +1,8 @@
 const API = window.TaskNodeConfig.API_URL;
 let ordenesGlobal = [];
 let ordenSeleccionada = null;
+let rolVistaActual = 'SUPERVISOR'; // 'SUPERVISOR' o 'CLIENTE'
 
-// Rúbrica precargada para la orden cerrada OT-0001
 const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
   <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
@@ -12,15 +12,7 @@ const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURICompone
 
 document.addEventListener('DOMContentLoaded', () => {
     actualizarMonitorCompleto();
-    setInterval(actualizarMonitorCompleto, 4000);
-
-    window.addEventListener('storage', (e) => {
-        if (e.key && (e.key.includes('tasknode_signature') || e.key.includes('tasknode_encargado') || e.key.includes('tasknode_qr'))) {
-            if (ordenSeleccionada) {
-                seleccionarFilaInspeccion(ordenSeleccionada);
-            }
-        }
-    });
+    setInterval(actualizarMonitorCompleto, 5000);
 });
 
 function mostrarToastScada(mensaje, esError = false) {
@@ -42,6 +34,59 @@ function mostrarToastScada(mensaje, esError = false) {
     }, 3500);
 }
 
+function cambiarRolVista(nuevoRol) {
+    rolVistaActual = nuevoRol;
+    const btnSup = document.getElementById('btn-rol-supervisor');
+    const btnCli = document.getElementById('btn-rol-cliente');
+    const btnNueva = document.getElementById('btn-nueva-ot-top');
+    const sub = document.getElementById('subtitulo-rol');
+
+    if (nuevoRol === 'CLIENTE') {
+        btnCli.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
+        btnSup.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
+        if (btnNueva) btnNueva.classList.add('hidden');
+        if (sub) sub.innerText = "Vista Ejecutiva Cliente Mandante: Seguimiento de SLA, hitos completados y actas firmadas";
+    } else {
+        btnSup.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
+        btnCli.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
+        if (btnNueva) btnNueva.classList.remove('hidden');
+        if (sub) sub.innerText = "Vista Operativa Supervisor: Gestión de órdenes, control de hitos multidía y auditoría";
+    }
+    aplicarFiltrosLocal();
+    if (ordenSeleccionada) poblarDatosInspector(ordenSeleccionada);
+}
+
+function cambiarTabInspector(tab) {
+    const tabs = ['HITOS', 'EVIDENCIA', 'FORENSE'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t.toLowerCase()}`);
+        const content = document.getElementById(`tab-content-${t.toLowerCase()}`);
+        if (t === tab) {
+            btn.className = "py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1";
+            content.classList.remove('hidden');
+        } else {
+            btn.className = "py-2 px-2 rounded-t text-theme-muted hover:text-theme-main";
+            content.classList.add('hidden');
+        }
+    });
+}
+
+function abrirDrawerInspeccion(orden) {
+    ordenSeleccionada = orden;
+    poblarDatosInspector(orden);
+    const drawer = document.getElementById('drawer-inspeccion');
+    const backdrop = document.getElementById('backdrop-inspeccion');
+    if (drawer) drawer.classList.remove('translate-x-full');
+    if (backdrop) backdrop.classList.remove('hidden');
+}
+
+function cerrarDrawerInspeccion() {
+    const drawer = document.getElementById('drawer-inspeccion');
+    const backdrop = document.getElementById('backdrop-inspeccion');
+    if (drawer) drawer.classList.add('translate-x-full');
+    if (backdrop) backdrop.classList.add('hidden');
+}
+
 function ofuscarRUTLey21719(rut) {
     if (!rut || typeof rut !== 'string') return 'RUT RESERVADO';
     const limpio = rut.trim();
@@ -57,20 +102,21 @@ function resolverUrlEvidencia(url) {
     return `${baseServer}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-function obtenerInfoEstado(estado) {
+function obtenerInfoEstado(estado, avanceReal) {
+    const pct = (avanceReal !== undefined && avanceReal !== null) ? avanceReal : 25;
     switch (estado) {
         case "EMITIDA":
-            return { pct: 25, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+            return { pct, badge: "badge-emitida", colorBarra: "bg-amber-500" };
         case "EN EJECUCIÓN":
-            return { pct: 50, badge: "badge-ejecucion", colorBarra: "bg-orange-600" };
+            return { pct, badge: "badge-ejecucion", colorBarra: "bg-orange-600" };
         case "EN VALIDACIÓN":
-            return { pct: 75, badge: "badge-validacion", colorBarra: "bg-indigo-600" };
+            return { pct, badge: "badge-validacion", colorBarra: "bg-indigo-600" };
         case "OT COMPLETADA":
             return { pct: 100, badge: "badge-completada", colorBarra: "bg-emerald-600" };
         case "DETENIDA POR ANOMALÍA":
-            return { pct: 50, badge: "badge-detenida", colorBarra: "bg-red-600" };
+            return { pct, badge: "badge-detenida", colorBarra: "bg-red-600" };
         default:
-            return { pct: 25, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+            return { pct, badge: "badge-emitida", colorBarra: "bg-amber-500" };
     }
 }
 
@@ -94,87 +140,122 @@ async function cargarKPIs() {
         };
 
         setTxt('kpi-volumen', m.volumen_total);
-        setTxt('kpi-ejecucion', m.ejecucion_normal);
+        setTxt('kpi-avance-hitos', `${m.avance_global_hitos_pct || 0}%`);
         setTxt('kpi-detenciones', m.detenciones_alertas);
         setTxt('kpi-resolucion', `${m.tasa_resolucion_pct}%`);
     } catch (e) {}
 }
 
 async function cargarTablaBitacora() {
-    const tbody = document.getElementById('tabla-body');
-    if (!tbody) return;
-
     try {
         const res = await fetch(`${API}/ordenes/`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         ordenesGlobal = await res.json();
-        tbody.innerHTML = '';
 
-        if (ordenesGlobal.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-theme-dim">No hay órdenes registradas.</td></tr>`;
-            return;
+        // Actualizar selector de clientes mandantes
+        const selectCli = document.getElementById('filtro-cliente');
+        if (selectCli) {
+            const valorActual = selectCli.value;
+            const clientesUnicos = [...new Set(ordenesGlobal.map(o => o.cliente_mandante || 'SurTel Interno'))];
+            selectCli.innerHTML = `<option value="TODOS">🏢 Todos los Clientes Mandantes (${clientesUnicos.length})</option>` +
+                clientesUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
+            if (clientesUnicos.includes(valorActual)) selectCli.value = valorActual;
         }
 
-        ordenesGlobal.forEach((r) => {
-            const estado = r.estado_actual || 'EMITIDA';
-            const info = obtenerInfoEstado(estado);
-            const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Equipo #${r.activo_id}`;
-
-            const tr = document.createElement('tr');
-            const isSelected = ordenSeleccionada && ordenSeleccionada.codigo_ot === r.codigo_ot;
-            tr.className = `cursor-pointer border-b border-theme-dim ${isSelected ? 'row-active' : ''}`;
-            tr.onclick = () => seleccionarFilaInspeccion(r);
-
-            const tieneFirma = Boolean(
-                localStorage.getItem(`tasknode_signature_encargado_${r.codigo_ot}`) ||
-                localStorage.getItem(`tasknode_signature_${r.codigo_ot}`) ||
-                localStorage.getItem(`tasknode_qr_encargado_${r.codigo_ot}`) ||
-                r.codigo_ot === 'OT-2610-PMT-PRV-0001'
-            );
-            const badgeFirma = tieneFirma ? `<span class="ml-1.5 px-1 py-0.2 rounded bg-emerald-950/40 text-emerald-500 border border-emerald-800 text-[8.5px] font-mono">✍ RECIBIDA</span>` : '';
-
-            tr.innerHTML = `
-                <td class="px-4 py-3">
-                    <div class="font-mono font-bold text-theme-main">${r.codigo_ot}${badgeFirma}</div>
-                    <div class="text-[11px] text-theme-dim truncate max-w-[230px]">${nombreEquipo}</div>
-                </td>
-                <td class="px-4 py-3">
-                    <div class="font-semibold text-theme-main">${r.operario_responsable}</div>
-                    <div class="text-[10px] font-mono text-theme-dim">${ofuscarRUTLey21719(r.rut_responsable)}</div>
-                </td>
-                <td class="px-4 py-3 whitespace-nowrap">
-                    <span class="px-2.5 py-0.5 text-[10px] font-bold rounded ${info.badge}">
-                        ${estado}
-                    </span>
-                </td>
-                <td class="px-4 py-3 hidden md:table-cell w-36">
-                    <div class="flex items-center gap-2">
-                        <div class="flex-1 h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
-                            <div class="h-full ${info.colorBarra}" style="width: ${info.pct}%"></div>
-                        </div>
-                        <span class="font-mono text-[10px] font-bold text-theme-muted w-8 text-right">${info.pct}%</span>
-                    </div>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+        aplicarFiltrosLocal();
 
         if (ordenSeleccionada) {
             const actualizada = ordenesGlobal.find(o => o.codigo_ot === ordenSeleccionada.codigo_ot);
-            if (actualizada) seleccionarFilaInspeccion(actualizada);
-        } else if (ordenesGlobal.length > 0) {
-            const inicial = ordenesGlobal.find(o => o.codigo_ot === 'OT-2610-PMT-PRV-0001') || ordenesGlobal[0];
-            seleccionarFilaInspeccion(inicial);
+            if (actualizada) {
+                ordenSeleccionada = actualizada;
+                poblarDatosInspector(actualizada);
+            }
         }
     } catch (e) {}
 }
 
-function seleccionarFilaInspeccion(orden) {
-    ordenSeleccionada = orden;
+function aplicarFiltrosLocal() {
+    const tbody = document.getElementById('tabla-body');
+    if (!tbody) return;
+
+    const q = (document.getElementById('filtro-texto')?.value || '').toLowerCase().trim();
+    const cliFiltro = document.getElementById('filtro-cliente')?.value || 'TODOS';
+    const estFiltro = document.getElementById('filtro-estado')?.value || 'TODOS';
+
+    const filtradas = ordenesGlobal.filter(o => {
+        const coincideTexto = !q ||
+            o.codigo_ot.toLowerCase().includes(q) ||
+            (o.cliente_mandante || '').toLowerCase().includes(q) ||
+            (o.operario_responsable || '').toLowerCase().includes(q) ||
+            (o.descripcion || '').toLowerCase().includes(q) ||
+            (o.activo && o.activo.nombre.toLowerCase().includes(q));
+        const coincideCli = (cliFiltro === 'TODOS') || (o.cliente_mandante === cliFiltro);
+        const coincideEst = (estFiltro === 'TODOS') || (o.estado_actual === estFiltro);
+        return coincideTexto && coincideCli && coincideEst;
+    });
+
+    const cont = document.getElementById('contador-resultados');
+    if (cont) cont.innerText = `Mostrando ${filtradas.length} de ${ordenesGlobal.length} órdenes`;
+
+    tbody.innerHTML = '';
+    if (filtradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">No se encontraron órdenes para el filtro seleccionado.</td></tr>`;
+        return;
+    }
+
+    filtradas.forEach((r) => {
+        const estado = r.estado_actual || 'EMITIDA';
+        const info = obtenerInfoEstado(estado, r.avance_pct);
+        const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Equipo #${r.activo_id}`;
+        const hitos = r.hitos || [];
+        const compHitos = hitos.filter(h => h.completado).length;
+
+        const tr = document.createElement('tr');
+        tr.className = "cursor-pointer border-b border-theme-dim hover:bg-surface-2 transition";
+        tr.onclick = () => abrirDrawerInspeccion(r);
+
+        tr.innerHTML = `
+            <td class="px-4 py-3">
+                <div class="font-mono font-bold text-theme-main text-xs">${r.codigo_ot}</div>
+                <div class="text-[11px] text-theme-dim truncate max-w-[240px]">${nombreEquipo}</div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="font-bold text-theme-main">${r.cliente_mandante || 'SurTel Interno'}</span>
+                <span class="block text-[10px] font-mono text-theme-dim">${r.tipo_mantenimiento} · Prioridad ${r.prioridad}</span>
+            </td>
+            <td class="px-4 py-3">
+                <div class="font-semibold text-theme-main">${r.operario_responsable}</div>
+                <div class="text-[10px] font-mono text-theme-dim">${ofuscarRUTLey21719(r.rut_responsable)}</div>
+            </td>
+            <td class="px-4 py-3 w-48">
+                <div class="flex justify-between text-[10px] font-mono mb-1">
+                    <span class="text-theme-muted">${compHitos}/${hitos.length} hitos</span>
+                    <span class="font-bold text-theme-main">${info.pct}%</span>
+                </div>
+                <div class="w-full h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
+                    <div class="h-full ${info.colorBarra}" style="width: ${info.pct}%"></div>
+                </div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded ${info.badge}">
+                    ${estado}
+                </span>
+            </td>
+            <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button class="px-3 py-1 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-theme-main font-semibold text-[11px]">
+                    🔍 Ver Hitos / Ficha
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function poblarDatosInspector(orden) {
     const estado = orden.estado_actual || 'EMITIDA';
-    const info = obtenerInfoEstado(estado);
-    const lat = (orden.activo && orden.activo.latitud_referencia) ? orden.activo.latitud_referencia.toFixed(4) : '-41.4693';
-    const lon = (orden.activo && orden.activo.longitud_referencia) ? orden.activo.longitud_referencia.toFixed(4) : '-72.9424';
+    const info = obtenerInfoEstado(estado, orden.avance_pct);
+    const lat = (orden.activo && orden.activo.latitud_referencia) ? orden.activo.latitud_referencia.toFixed(4) : '-41.4870';
+    const lon = (orden.activo && orden.activo.longitud_referencia) ? orden.activo.longitud_referencia.toFixed(4) : '-72.9550';
 
     const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -188,15 +269,34 @@ function seleccionarFilaInspeccion(orden) {
     }
 
     setTxt('inspect-ot-code', orden.codigo_ot);
-    setTxt('inspect-asset-tag', orden.activo ? orden.activo.codigo_activo : `Equipo #${orden.activo_id}`);
+    setTxt('inspect-cliente-mandante', `Cliente Mandante: ${orden.cliente_mandante || 'SurTel Interno'}`);
+    setTxt('inspect-asset-tag', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Equipo #${orden.activo_id}`);
     setTxt('inspect-ot-crew', `Técnico Ejecutor: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
     setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
-    setTxt('inspect-progress-txt', `${info.pct}%`);
+    setTxt('inspect-progress-txt', `${info.pct}% completado`);
 
     const bar = document.getElementById('inspect-progress-bar');
     if (bar) {
         bar.className = `h-full transition-all duration-300 ${info.colorBarra}`;
         bar.style.width = `${info.pct}%`;
+    }
+
+    // Renderizar Checklist de Hitos Multidía
+    const contHitos = document.getElementById('lista-hitos-inspector');
+    if (contHitos) {
+        const hitos = orden.hitos || [];
+        const bloqueadoEdicion = (rolVistaActual === 'CLIENTE' || estado === 'OT COMPLETADA');
+        contHitos.innerHTML = hitos.map((h, i) => `
+            <label class="flex items-start gap-2.5 p-2.5 rounded border border-theme-dim bg-surface-2 ${bloqueadoEdicion ? '' : 'cursor-pointer hover:bg-surface-3'} transition">
+                <input type="checkbox" ${h.completado ? 'checked' : ''} ${bloqueadoEdicion ? 'disabled' : ''}
+                    onchange="toggleHitoDesdeConsola(${i}, this.checked)"
+                    class="mt-0.5 w-4 h-4 accent-[#c2410c]">
+                <div class="flex-1 text-xs">
+                    <span class="font-mono text-[10px] font-bold text-accent uppercase block">${h.dia}</span>
+                    <span class="${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">${h.titulo}</span>
+                </div>
+            </label>
+        `).join('');
     }
 
     setTxt('inspect-laplacian-score', orden.laplacian_score ? `✓ Nitidez OK (Score: ${orden.laplacian_score})` : 'Pendiente de captura');
@@ -219,44 +319,41 @@ function seleccionarFilaInspeccion(orden) {
         }
     }
 
-    // =========================================================================
-    // VISUALIZACIÓN DE FIRMA DEL ENCARGADO DE TERRENO
-    // =========================================================================
     const sigImg = document.getElementById('inspect-sig-img');
     const sigPlaceholder = document.getElementById('inspect-sig-placeholder');
     const sigStatus = document.getElementById('inspect-sig-status');
     const elEncargadoNom = document.getElementById('inspect-encargado-nombre');
     const elEncargadoRut = document.getElementById('inspect-encargado-rut');
 
-    let firmaGuardada = localStorage.getItem(`tasknode_signature_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_signature_${orden.codigo_ot}`);
-    const tokenQR = localStorage.getItem(`tasknode_qr_encargado_${orden.codigo_ot}`) || localStorage.getItem(`tasknode_qr_${orden.codigo_ot}`);
-    const nomEncargado = localStorage.getItem(`tasknode_encargado_nombre_${orden.codigo_ot}`) || 'Carlos Valenzuela M.';
-    const rutEncargado = localStorage.getItem(`tasknode_encargado_rut_${orden.codigo_ot}`) || '14.285.631-8';
+    let datoFirma = orden.firma_data || localStorage.getItem(`tasknode_signature_encargado_${orden.codigo_ot}`);
+    const tokenQR = (datoFirma && datoFirma.startsWith('TOKEN-QR')) ? datoFirma : localStorage.getItem(`tasknode_qr_encargado_${orden.codigo_ot}`);
+    const nomEncargado = orden.encargado_nombre || 'Carlos Valenzuela M.';
+    const rutEncargado = orden.encargado_rut || '14.285.631-8';
 
     if (elEncargadoNom) elEncargadoNom.innerText = `Encargado: ${nomEncargado}`;
     if (elEncargadoRut) elEncargadoRut.innerText = `RUT: ${rutEncargado}`;
 
-    if (!firmaGuardada && !tokenQR && orden.codigo_ot === 'OT-2610-PMT-PRV-0001') {
-        firmaGuardada = FIRMA_ENCARGADO_PRECARGADA;
+    if (!datoFirma && !tokenQR && orden.codigo_ot === 'OT-1001') {
+        datoFirma = FIRMA_ENCARGADO_PRECARGADA;
     }
 
     if (sigImg && sigPlaceholder && sigStatus) {
-        if (firmaGuardada) {
-            sigImg.src = firmaGuardada;
+        if (datoFirma && datoFirma.startsWith('data:image')) {
+            sigImg.src = datoFirma;
             sigImg.classList.remove('hidden');
             sigPlaceholder.classList.add('hidden');
-            sigStatus.innerText = "✓ RÚBRICA ENCARGADO VALIDADA";
+            sigStatus.innerText = "✓ RÚBRICA VALIDADA";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
         } else if (tokenQR) {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
-            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">✓ CREDENCIAL QR ENCARGADO ACREDITADA<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
-            sigStatus.innerText = "✓ TOKEN QR CERTIFICADO";
+            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">✓ CREDENCIAL QR ACREDITADA<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
+            sigStatus.innerText = "✓ TOKEN QR OK";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
         } else {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
-            sigPlaceholder.innerHTML = `<span>✍️ Pendiente de firma del Encargado de Terreno</span>`;
+            sigPlaceholder.innerHTML = `<span>✍️ Pendiente de firma del Encargado en terreno</span>`;
             sigStatus.innerText = "PENDIENTE";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-theme-dim font-mono";
         }
@@ -264,30 +361,47 @@ function seleccionarFilaInspeccion(orden) {
 
     const btnAprobar = document.getElementById('btn-aprobar-fsm');
     if (btnAprobar) {
-        const puedeCompletar = (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN');
-        btnAprobar.disabled = !puedeCompletar;
-        btnAprobar.innerText = (estado === 'OT COMPLETADA')
-            ? '✓ Orden Cerrada y Auditada'
-            : '✓ Aprobar Trabajo y Cerrar Orden';
-    }
-
-    const filas = document.querySelectorAll('#tabla-body tr');
-    filas.forEach((tr, idx) => {
-        if (ordenesGlobal[idx] && ordenesGlobal[idx].codigo_ot === orden.codigo_ot) {
-            tr.classList.add('row-active');
+        if (rolVistaActual === 'CLIENTE') {
+            btnAprobar.classList.add('hidden');
         } else {
-            tr.classList.remove('row-active');
+            btnAprobar.classList.remove('hidden');
+            const puedeCompletar = (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN');
+            btnAprobar.disabled = !puedeCompletar;
+            btnAprobar.innerText = (estado === 'OT COMPLETADA')
+                ? '✓ Orden Cerrada y Auditada'
+                : '✓ Aprobar Todos los Hitos y Cerrar Orden';
         }
-    });
+    }
+}
+
+async function toggleHitoDesdeConsola(idx, nuevoValor) {
+    if (!ordenSeleccionada || !ordenSeleccionada.hitos) return;
+    ordenSeleccionada.hitos[idx].completado = nuevoValor;
+
+    try {
+        const res = await fetch(`${API}/ordenes/${encodeURIComponent(ordenSeleccionada.codigo_ot)}/hitos`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hitos: ordenSeleccionada.hitos })
+        });
+        if (!res.ok) throw new Error("Error al guardar hito");
+        const actualizada = await res.json();
+        ordenSeleccionada = actualizada;
+        poblarDatosInspector(actualizada);
+        await actualizarMonitorCompleto();
+        mostrarToastScada(`Hito #${idx + 1} actualizado en ${actualizada.codigo_ot}`);
+    } catch (e) {
+        mostrarToastScada("No se pudo actualizar el hito", true);
+    }
 }
 
 async function auditarOrdenActiva(accion) {
     if (!ordenSeleccionada) return;
     const nuevoEstado = (accion === 'COMPLETAR') ? 'OT COMPLETADA' : 'EN EJECUCIÓN';
-    const obs = 'Trabajo revisado y aprobado conforme por Supervisión de Planta. Orden cerrada.';
+    const obs = 'Hitos verificados y trabajo aprobado conforme por Supervisión. Orden cerrada.';
 
-    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4693;
-    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9424;
+    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4870;
+    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9550;
 
     const fd = new FormData();
     fd.append('codigo_ot', ordenSeleccionada.codigo_ot);
@@ -303,7 +417,7 @@ async function auditarOrdenActiva(accion) {
             mostrarToastScada(data.detail || 'No se pudo cambiar el estado', true);
             return;
         }
-        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} cerrada satisfactoriamente.`);
+        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} cerrada al 100%.`);
         await actualizarMonitorCompleto();
     } catch (e) {
         mostrarToastScada(`Error de red: ${e.message}`, true);
@@ -324,8 +438,8 @@ async function cargarActivosEnSelectorModal() {
 function abrirModalOT() {
     const modal = document.getElementById('modal-ot');
     if (!modal) return;
-    const rand = Math.floor(100 + Math.random() * 899);
-    document.getElementById('form-codigo').value = `OT-2610-PMT-PRV-0${rand}`;
+    const rand = Math.floor(1005 + Math.random() * 899);
+    document.getElementById('form-codigo').value = `OT-${rand}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -338,28 +452,42 @@ function cerrarModalOT() {
 }
 
 function autocompletarModalOT() {
-    const rand = Math.floor(100 + Math.random() * 899);
-    document.getElementById('form-codigo').value = `OT-2610-PMT-PRV-0${rand}`;
+    const rand = Math.floor(1005 + Math.random() * 899);
+    document.getElementById('form-codigo').value = `OT-${rand}`;
+    document.getElementById('form-cliente').value = 'Entel Operaciones';
     document.getElementById('form-tipo').value = 'PREVENTIVO';
     document.getElementById('form-prioridad').value = 'ALTA';
     document.getElementById('form-operario').value = 'Sebastián Rivera';
     document.getElementById('form-rut').value = '18.421.903-K';
-    document.getElementById('form-descripcion').value =
-        'Mantenimiento preventivo programado: 1) Aplicar bloqueo eléctrico LOTO (D.S. 594). ' +
-        '2) Inspección de rodamientos y ajuste de sello mecánico. ' +
-        '3) Recepción conforme por Encargado de Terreno para cierre.';
+    document.getElementById('form-descripcion').value = 'Mantenimiento multidía de enlace microondas y certificación de fibra óptica.';
+    document.getElementById('form-hitos').value =
+        'Día 1: Permiso de acceso, charla PTS y bloqueo LOTO (D.S. 594)\n' +
+        'Día 1: Inspección física de guía de onda y conectores en torre\n' +
+        'Día 2: Reajuste de parábola MW y fusión de respaldo FO\n' +
+        'Día 2: Prueba de potencia OTDR, foto nítida y firma de recepción';
 }
 
 async function enviarNuevaOT(e) {
     e.preventDefault();
+    const textoHitos = document.getElementById('form-hitos').value.trim();
+    const lineas = textoHitos ? textoHitos.split('\n').map(l => l.trim()).filter(Boolean) : [];
+    const hitosArray = lineas.map((linea, idx) => {
+        const partes = linea.split(':');
+        const dia = partes.length > 1 ? partes[0].trim() : `Hito ${idx + 1}`;
+        const titulo = partes.length > 1 ? partes.slice(1).join(':').trim() : linea;
+        return { id: idx + 1, dia, titulo, completado: false };
+    });
+
     const payload = {
         codigo_ot: document.getElementById('form-codigo').value.trim(),
+        cliente_mandante: document.getElementById('form-cliente').value.trim(),
         activo_id: parseInt(document.getElementById('form-activo').value, 10),
         tipo_mantenimiento: document.getElementById('form-tipo').value,
         prioridad: document.getElementById('form-prioridad').value,
         operario_responsable: document.getElementById('form-operario').value.trim(),
         rut_responsable: document.getElementById('form-rut').value.trim(),
-        descripcion: document.getElementById('form-descripcion').value.trim()
+        descripcion: document.getElementById('form-descripcion').value.trim(),
+        hitos: hitosArray.length > 0 ? hitosArray : null
     };
 
     try {
@@ -374,7 +502,7 @@ async function enviarNuevaOT(e) {
             return;
         }
         cerrarModalOT();
-        mostrarToastScada(`Orden ${payload.codigo_ot} emitida correctamente.`);
+        mostrarToastScada(`Orden ${payload.codigo_ot} creada para ${payload.cliente_mandante}.`);
         await actualizarMonitorCompleto();
     } catch (err) {
         mostrarToastScada(`Error de red: ${err.message}`, true);
@@ -382,10 +510,7 @@ async function enviarNuevaOT(e) {
 }
 
 function abrirPliegoDesdeConsola() {
-    if (!ordenSeleccionada) {
-        mostrarToastScada("Seleccione primero una Orden de Trabajo.", true);
-        return;
-    }
+    if (!ordenSeleccionada) return;
     const modo = (ordenSeleccionada.estado_actual === 'EMITIDA') ? 'ORIGINAL' : 'COMPLETA';
     window.open(`orden_pdf.html?codigo=${encodeURIComponent(ordenSeleccionada.codigo_ot)}&modo=${modo}`, '_blank');
 }

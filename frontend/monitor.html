@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Control de Órdenes de Trabajo</title>
+    <title>TaskNode | Control de Órdenes e Hitos</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=2.9">
+    <link rel="stylesheet" href="static/css/styles.css?v=3.1">
 </head>
 <body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
     <!-- Notificación Flotante -->
     <div id="hud-toast" class="fixed top-4 right-4 z-50 pointer-events-none opacity-0 translate-y-[-8px] transition-all duration-300">
         <div class="bg-surface-1 border-2 border-theme-bright shadow-2xl px-4 py-2.5 rounded flex items-center gap-2.5">
-            <span id="toast-led" class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span id="toast-led" class="w-2 h-2 rounded-full bg-amber-500"></span>
             <span id="toast-msg" class="font-semibold text-xs text-theme-main">Aviso del sistema</span>
         </div>
     </div>
 
-    <!-- Barra Lateral -->
+    <!-- Barra Lateral Tradicional -->
     <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0 z-20">
         <div>
             <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
@@ -25,238 +25,279 @@
                     <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
                     <div class="hidden lg:block">
                         <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim">CMMS INDUSTRIAL</span>
+                        <span class="text-[10px] font-mono text-theme-dim">GESTIÓN DE OPERACIONES</span>
                     </div>
                 </div>
             </div>
 
             <nav class="p-2.5 space-y-1">
                 <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
-                </a>
-                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span class="hidden lg:inline">Equipos (ISO 55000)</span>
-                </a>
-                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span class="hidden lg:inline">Auditoría SHA-256</span>
+                    <span class="hidden lg:inline">Órdenes e Hitos</span>
                 </a>
                 <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span class="hidden lg:inline">Indicadores (KPIs)</span>
+                    <span class="hidden lg:inline">Indicadores y BI</span>
+                </a>
+                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <span class="hidden lg:inline">Equipos y Nodos</span>
+                </a>
+                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <span class="hidden lg:inline">Registro de Auditoría</span>
                 </a>
             </nav>
         </div>
 
-        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block font-mono text-[10px]">
-            <div class="font-bold text-theme-main">ESTÁNDAR ACTIVO</div>
-            <div class="text-theme-dim mt-0.5">ISO 55001 · EN 13306 · D.S. 594</div>
+        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block space-y-2">
+            <a href="terminal.html" target="_blank" class="w-full py-2 px-3 rounded bg-surface-1 border border-theme-bright text-theme-main font-bold text-center block hover:bg-surface-3 transition">
+                Abrir Terminal de Terreno
+            </a>
+            <div class="font-mono text-[9.5px] text-theme-dim text-center">ISO 55001 · EN 13306</div>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <!-- Contenedor Principal -->
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         
         <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
-                <h1 class="font-bold text-theme-main text-sm sm:text-base tracking-tight">Planificación y Control de Órdenes de Trabajo</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block">Recepción conforme por Encargado de Terreno y trazabilidad inmutable</p>
+                <h1 class="font-bold text-theme-main text-sm sm:text-base tracking-tight">Control de Órdenes de Trabajo e Hitos</h1>
+                <p class="text-[11px] text-theme-dim hidden sm:block" id="subtitulo-rol">Seleccione cualquier orden de la tabla para abrir su ficha detallada</p>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-                <button onclick="abrirModalOT()" class="btn-primary font-semibold text-xs px-3.5 py-2 rounded flex items-center gap-1.5 shadow-sm">
-                    <span>+ Emitir Orden de Trabajo</span>
+                <div class="inline-flex rounded border border-theme-bright bg-surface-2 p-0.5 text-[11px] font-bold">
+                    <button id="btn-rol-supervisor" onclick="cambiarRolVista('SUPERVISOR')" class="px-2.5 py-1 rounded bg-[#c2410c] text-white transition">
+                        Modo Supervisor
+                    </button>
+                    <button id="btn-rol-cliente" onclick="cambiarRolVista('CLIENTE')" class="px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition">
+                        Modo Cliente
+                    </button>
+                </div>
+
+                <button id="btn-nueva-ot-top" onclick="abrirModalOT()" class="btn-primary font-semibold text-xs px-3.5 py-1.5 rounded shadow-sm">
+                    + Emitir Orden
                 </button>
 
-                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-3 py-1.5 rounded transition flex items-center gap-1.5">
-                    <span>🌙</span> <span class="hidden sm:inline">Modo Oscuro</span>
+                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-2.5 py-1.5 rounded transition">
+                    Tema Oscuro
                 </button>
             </div>
         </header>
 
-        <!-- Cinta de Indicadores -->
+        <!-- Resumen de Indicadores -->
         <section class="grid grid-cols-2 sm:grid-cols-4 border-b border-theme-dim bg-surface-2 shrink-0 divide-x divide-theme-dim">
-            <div class="px-4 py-2.5">
+            <div class="px-5 py-3">
                 <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Total Órdenes</span>
-                <span class="text-lg font-bold font-mono text-theme-main" id="kpi-volumen">-</span>
+                <span class="text-xl font-bold font-mono text-theme-main" id="kpi-volumen">-</span>
             </div>
-            <div class="px-4 py-2.5">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">En Ejecución</span>
-                <span class="text-lg font-bold font-mono text-accent" id="kpi-ejecucion">-</span>
+            <div class="px-5 py-3">
+                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Avance Global de Hitos</span>
+                <span class="text-xl font-bold font-mono text-accent" id="kpi-avance-hitos">-%</span>
             </div>
-            <div class="px-4 py-2.5">
+            <div class="px-5 py-3">
                 <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Detenidas por Anomalía</span>
-                <span class="text-lg font-bold font-mono text-red-600" id="kpi-detenciones">-</span>
+                <span class="text-xl font-bold font-mono text-red-600" id="kpi-detenciones">-</span>
             </div>
-            <div class="px-4 py-2.5">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Cumplimiento (ICP)</span>
-                <span class="text-lg font-bold font-mono text-emerald-600" id="kpi-resolucion">-%</span>
+            <div class="px-5 py-3">
+                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Cumplimiento (Cerradas)</span>
+                <span class="text-xl font-bold font-mono text-emerald-600" id="kpi-resolucion">-%</span>
             </div>
         </section>
 
-        <!-- Matriz + Inspector -->
-        <div class="flex-1 flex overflow-hidden">
-            
-            <!-- Tabla de Órdenes -->
-            <div class="flex-1 flex flex-col overflow-hidden bg-surface-1">
-                <div class="px-4 py-2 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
-                    <span class="font-bold text-xs text-theme-main uppercase tracking-wide">Matriz de Órdenes de Mantenimiento</span>
-                    <span class="text-[11px] text-theme-dim">Haga clic en una orden para inspeccionar la firma del Encargado de Terreno</span>
-                </div>
+        <!-- Barra de Filtros -->
+        <section class="px-5 py-2.5 bg-surface-1 border-b border-theme-dim flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div class="flex flex-wrap items-center gap-2 flex-1">
+                <input type="text" id="filtro-texto" oninput="aplicarFiltrosLocal()" placeholder="Buscar por código, equipo o técnico..." class="border border-theme-bright rounded px-3 py-1.5 text-xs w-full sm:w-64">
+                
+                <select id="filtro-cliente" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded px-3 py-1.5 text-xs font-semibold">
+                    <option value="TODOS">Todos los Clientes Mandantes</option>
+                </select>
 
-                <div class="flex-1 overflow-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase sticky top-0 z-10">
-                                <th class="px-4 py-2.5">Código OT / Máquina</th>
-                                <th class="px-4 py-2.5">Técnico Ejecutor</th>
-                                <th class="px-4 py-2.5">Estado (EN 13306)</th>
-                                <th class="px-4 py-2.5 hidden md:table-cell">Progreso</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-body" class="divide-y divide-theme-dim text-xs">
-                            <tr><td colspan="4" class="px-4 py-8 text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
-                        </tbody>
-                    </table>
+                <select id="filtro-estado" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded px-3 py-1.5 text-xs">
+                    <option value="TODOS">Todos los Estados</option>
+                    <option value="EMITIDA">EMITIDA</option>
+                    <option value="EN EJECUCIÓN">EN EJECUCIÓN</option>
+                    <option value="EN VALIDACIÓN">EN VALIDACIÓN</option>
+                    <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA</option>
+                    <option value="OT COMPLETADA">OT COMPLETADA</option>
+                </select>
+            </div>
+            <span class="text-[11px] font-mono text-theme-dim" id="contador-resultados">Cargando...</span>
+        </section>
+
+        <!-- Tabla Principal -->
+        <div class="flex-1 overflow-auto p-5">
+            <div class="bg-surface-1 border border-theme-dim rounded shadow-sm overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
+                            <th class="px-4 py-3">Folio OT / Equipo</th>
+                            <th class="px-4 py-3">Cliente Mandante</th>
+                            <th class="px-4 py-3">Técnico Asignado</th>
+                            <th class="px-4 py-3">Progreso de Hitos</th>
+                            <th class="px-4 py-3">Estado</th>
+                            <th class="px-4 py-3 text-right">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body" class="divide-y divide-theme-dim text-xs">
+                        <tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PANEL SUPERPUESTO LATERAL (DRAWER) -->
+        <div id="backdrop-inspeccion" onclick="cerrarDrawerInspeccion()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden transition-opacity"></div>
+
+        <aside id="drawer-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-lg bg-surface-1 border-l-2 border-theme-bright shadow-2xl flex flex-col transform translate-x-full transition-transform duration-200 ease-out">
+            
+            <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-base text-theme-main" id="inspect-ot-code">OT-XXXX</span>
+                        <span id="inspect-fsm-pill" class="text-[10px] font-bold px-2.5 py-0.5 rounded badge-emitida">ESTADO</span>
+                    </div>
+                    <span class="text-[11px] font-semibold text-accent block mt-0.5" id="inspect-cliente-mandante">Cliente: -</span>
                 </div>
+                <button onclick="cerrarDrawerInspeccion()" class="px-3 py-1 rounded border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main font-bold text-xs">
+                    Cerrar
+                </button>
             </div>
 
-            <!-- Panel Derecho: Ficha con Firma del Encargado -->
-            <div id="panel-inspeccion" class="w-[340px] sm:w-[380px] xl:w-[420px] bg-surface-1 border-l border-theme-dim flex flex-col shrink-0 overflow-y-auto">
-                
-                <div class="px-4 py-3 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
-                    <span class="font-bold text-xs text-theme-main uppercase tracking-wide">Ficha de Control de OT</span>
-                    <span id="inspect-fsm-pill" class="text-[10px] font-bold px-2.5 py-0.5 rounded badge-emitida">SIN SELECCIÓN</span>
+            <!-- Pestañas sin emojis -->
+            <div class="grid grid-cols-3 border-b border-theme-dim bg-surface-2 px-3 pt-2 gap-1 text-[11px] font-bold shrink-0">
+                <button id="tab-btn-hitos" onclick="cambiarTabInspector('HITOS')" class="py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1">
+                    1. Hitos de Avance
+                </button>
+                <button id="tab-btn-evidencia" onclick="cambiarTabInspector('EVIDENCIA')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main">
+                    2. Foto y Firma
+                </button>
+                <button id="tab-btn-forense" onclick="cambiarTabInspector('FORENSE')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main">
+                    3. Auditoría
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-4">
+
+                <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <span class="font-bold text-theme-main" id="inspect-asset-tag">Equipo: -</span>
+                        <span class="font-mono font-bold text-accent" id="inspect-progress-txt">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
+                        <div id="inspect-progress-bar" class="h-full bg-amber-600 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs text-theme-muted pt-1 leading-relaxed" id="inspect-ot-desc">-</p>
+                    <div class="text-[11px] font-mono text-theme-dim pt-0.5" id="inspect-ot-crew">Técnico: -</div>
                 </div>
 
-                <div class="p-4 space-y-3.5 flex-1">
-                    
-                    <!-- 1. Datos y Progreso -->
-                    <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-2">
-                        <div class="flex justify-between items-center">
-                            <span class="font-mono font-bold text-sm text-theme-main" id="inspect-ot-code">-</span>
-                            <span class="code-pill text-[10px] font-bold px-2 py-0.5 rounded" id="inspect-asset-tag">-</span>
-                        </div>
-                        <div class="text-xs font-medium text-theme-muted" id="inspect-ot-crew">Técnico: -</div>
-
-                        <!-- Barra de Avance -->
-                        <div class="pt-1">
-                            <div class="flex justify-between text-[10px] font-bold text-theme-dim mb-1">
-                                <span>AVANCE DEL TRABAJO</span>
-                                <span id="inspect-progress-txt" class="font-mono">0%</span>
-                            </div>
-                            <div class="w-full h-2.5 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
-                                <div id="inspect-progress-bar" class="h-full bg-amber-600 transition-all duration-300" style="width: 0%"></div>
-                            </div>
-                        </div>
-
-                        <div class="pt-0.5">
-                            <span class="text-[10px] font-bold text-theme-dim uppercase block mb-1">Pauta Técnica Asignada:</span>
-                            <p class="text-xs text-theme-main leading-relaxed bg-surface-1 p-2 rounded border border-theme-dim" id="inspect-ot-desc">
-                                Seleccione una orden en la tabla.
-                            </p>
-                        </div>
+                <!-- Pestaña 1: Hitos -->
+                <div id="tab-content-hitos" class="space-y-2.5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-theme-main uppercase">Checklist de Hitos del Proyecto</span>
+                        <span class="text-[10px] font-mono text-theme-dim">Control por etapas</span>
                     </div>
+                    <div id="lista-hitos-inspector" class="space-y-2"></div>
+                </div>
 
-                    <!-- 2. Evidencia Fotográfica -->
-                    <div class="space-y-1">
+                <!-- Pestaña 2: Foto y Firma -->
+                <div id="tab-content-evidencia" class="hidden space-y-4">
+                    <div class="space-y-1.5">
                         <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-theme-main uppercase">Evidencia Fotográfica de Faena</span>
+                            <span class="text-xs font-bold text-theme-main uppercase">Fotografía de Terreno</span>
                             <span class="font-mono text-[10px] font-bold text-emerald-600" id="inspect-laplacian-score">Sin captura</span>
                         </div>
                         <div class="relative bg-surface-2 border border-theme-dim rounded aspect-video flex items-center justify-center overflow-hidden">
-                            <img id="inspect-img-view" src="" alt="Evidencia de Mantenimiento" class="w-full h-full object-cover hidden">
-                            <div id="inspect-img-placeholder" class="text-center p-3">
+                            <img id="inspect-img-view" src="" alt="Evidencia" class="w-full h-full object-cover hidden">
+                            <div id="inspect-img-placeholder" class="text-center p-4">
                                 <span class="text-xs font-semibold text-theme-dim block">Sin fotografía adjunta</span>
-                                <span class="text-[10px] text-theme-dim block mt-0.5">Adjuntada en faena por la cuadrilla</span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 3. MÓDULO VISIBLE: Firma del Encargado de Terreno -->
-                    <div class="bg-surface-2 border-2 border-theme-bright rounded p-3 space-y-1.5">
+                    <div class="bg-surface-2 border border-theme-bright rounded p-3 space-y-2">
                         <div class="flex justify-between items-center text-[10px] font-bold">
-                            <span class="text-theme-main uppercase">Firma Encargado de Terreno (Recepción Conforme)</span>
-                            <span id="inspect-sig-status" class="code-pill text-[9px] px-2 py-0.5 rounded text-theme-dim font-mono">PENDIENTE</span>
+                            <span class="text-theme-main uppercase">Recepción del Encargado de Terreno</span>
+                            <span id="inspect-sig-status" class="code-pill text-[9px] px-2 py-0.5 rounded">PENDIENTE</span>
                         </div>
-
-                        <!-- Metadatos del Encargado de Terreno -->
                         <div class="text-[10px] text-theme-muted font-mono flex justify-between border-b border-theme-dim pb-1">
-                            <span id="inspect-encargado-nombre">Encargado: Carlos Valenzuela M.</span>
-                            <span id="inspect-encargado-rut">RUT: 14.285.631-8</span>
+                            <span id="inspect-encargado-nombre">Encargado: -</span>
+                            <span id="inspect-encargado-rut">RUT: -</span>
                         </div>
-                        
-                        <!-- Rúbrica estampada -->
-                        <div id="inspect-sig-container" class="h-20 bg-surface-1 border border-theme-dim rounded flex items-center justify-center overflow-hidden p-1.5 relative">
-                            <img id="inspect-sig-img" src="" alt="Firma Encargado de Terreno" class="h-full max-w-full object-contain hidden">
-                            <div id="inspect-sig-placeholder" class="text-center text-[10px] font-mono text-theme-dim p-2">
-                                <span>✍️ Pendiente de firma del Encargado en terreno</span>
+                        <div class="h-24 bg-surface-1 border border-theme-dim rounded flex items-center justify-center overflow-hidden p-2">
+                            <img id="inspect-sig-img" src="" alt="Firma" class="h-full max-w-full object-contain hidden">
+                            <div id="inspect-sig-placeholder" class="text-center text-[11px] font-mono text-theme-dim">
+                                <span>Pendiente de firma en terreno</span>
                             </div>
                         </div>
-                        
-                        <div class="flex justify-between text-[9px] font-mono text-theme-dim pt-0.5">
-                            <span>Validación: D.S. N° 594 Art. 53</span>
-                            <span class="text-emerald-600 font-bold">Recepción en Faena OK</span>
-                        </div>
                     </div>
+                </div>
 
-                    <!-- 4. Respaldo Normativo y SHA-256 -->
-                    <div class="bg-surface-2 border border-theme-dim rounded p-2.5 space-y-1.5 text-[11px]">
-                        <div class="font-bold text-theme-main border-b border-theme-dim pb-1 flex justify-between">
-                            <span>Respaldo Normativo y Criptográfico</span>
-                            <span class="text-emerald-600 font-mono text-[10px]">✓ ISO 55001</span>
+                <!-- Pestaña 3: Auditoría con Hash Desplegable -->
+                <div id="tab-content-forense" class="hidden space-y-3">
+                    <div class="bg-surface-2 border border-theme-dim rounded p-3.5 space-y-2.5 text-xs">
+                        <div class="font-bold text-theme-main border-b border-theme-dim pb-1.5 flex justify-between">
+                            <span>Cumplimiento Normativo y Geodésico</span>
+                            <span class="text-emerald-600 font-mono text-[10px]">ISO 55001 / D.S. 594</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-theme-dim">Geocerca GPS (Haversine):</span>
+                            <span class="text-theme-dim">Coordenada GPS Validada:</span>
                             <span class="font-mono text-theme-main font-semibold" id="inspect-gps-val">--</span>
                         </div>
-                        <div class="pt-0.5">
-                            <span class="text-theme-dim block text-[10px] font-semibold">Sello SHA-256 Inmutable:</span>
-                            <span class="code-pill text-[9px] break-all block p-1 rounded mt-0.5" id="inspect-hash-val">-</span>
-                        </div>
+
+                        <details class="pt-1 border-t border-theme-dim">
+                            <summary class="cursor-pointer font-semibold text-accent text-[11px] py-1">
+                                - Ver información de auditoría (Sello SHA-256)
+                            </summary>
+                            <div class="mt-2 space-y-1.5">
+                                <span class="text-theme-dim block text-[10px] font-bold uppercase">Firma Criptográfica SHA-256:</span>
+                                <span class="code-pill text-[10px] break-all block p-2 rounded" id="inspect-hash-val">-</span>
+                            </div>
+                        </details>
                     </div>
-
-                    <!-- 5. Botones -->
-                    <div class="pt-2 border-t border-theme-dim space-y-2">
-                        <button onclick="abrirPliegoDesdeConsola()" class="w-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs py-2.5 px-3 rounded flex items-center justify-center gap-2 transition shadow-sm">
-                            <span>📄 Abrir Documento Oficial de la OT (A4 / PDF)</span>
-                        </button>
-
-                        <button onclick="auditarOrdenActiva('COMPLETAR')" id="btn-aprobar-fsm" disabled class="w-full btn-primary font-bold py-2.5 rounded text-xs uppercase tracking-wide transition shadow-sm">
-                            ✓ Aprobar Trabajo y Cerrar Orden
-                        </button>
-                    </div>
-
                 </div>
+
             </div>
 
-        </div>
+            <div class="p-4 border-t border-theme-dim bg-surface-2 space-y-2 shrink-0">
+                <button onclick="abrirPliegoDesdeConsola()" class="w-full bg-surface-1 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs py-2.5 px-3 rounded transition">
+                    Abrir Documento Oficial A4 / PDF
+                </button>
+
+                <button onclick="auditarOrdenActiva('COMPLETAR')" id="btn-aprobar-fsm" disabled class="w-full btn-primary font-bold py-2.5 rounded text-xs uppercase tracking-wide transition">
+                    Aprobar Trabajo y Cerrar Orden
+                </button>
+            </div>
+        </aside>
+
     </main>
 
     <!-- Modal Nueva Orden -->
     <div id="modal-ot" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-surface-1 border-2 border-theme-bright rounded-lg max-w-md w-full overflow-hidden shadow-2xl">
-            <div class="px-4 py-3 border-b border-theme-dim bg-surface-2 flex justify-between items-center">
+        <div class="bg-surface-1 border-2 border-theme-bright rounded-lg max-w-lg w-full overflow-hidden shadow-2xl">
+            <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center">
                 <span class="font-bold text-theme-main text-sm">Emitir Nueva Orden de Trabajo</span>
                 <button type="button" onclick="autocompletarModalOT()" class="px-2.5 py-1 bg-surface-1 hover:bg-surface-3 text-accent text-xs font-bold rounded border border-theme-dim transition">
-                    + Cargar Plantilla
+                    Cargar Plantilla
                 </button>
             </div>
-            <form id="form-emitir-ot" class="p-4 space-y-3" onsubmit="enviarNuevaOT(event)">
+            <form id="form-emitir-ot" class="p-5 space-y-3" onsubmit="enviarNuevaOT(event)">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-theme-muted mb-1">Folio OT</label>
                         <input type="text" id="form-codigo" required class="w-full border rounded p-2 text-xs font-mono font-bold">
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted mb-1">Equipo / Máquina</label>
-                        <select id="form-activo" required class="w-full border rounded p-2 text-xs"></select>
+                        <label class="block text-[11px] font-bold text-theme-muted mb-1">Cliente Mandante</label>
+                        <input type="text" id="form-cliente" required class="w-full border rounded p-2 text-xs font-bold" placeholder="Ej: Entel Operaciones">
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted mb-1">Tipo Mantenimiento</label>
+                        <label class="block text-[11px] font-bold text-theme-muted mb-1">Equipo</label>
+                        <select id="form-activo" required class="w-full border rounded p-2 text-xs"></select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-theme-muted mb-1">Tipo</label>
                         <select id="form-tipo" required class="w-full border rounded p-2 text-xs">
                             <option value="PREVENTIVO">PREVENTIVO</option>
                             <option value="CORRECTIVO">CORRECTIVO</option>
@@ -283,8 +324,12 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-[11px] font-bold text-theme-muted mb-1">Pauta de Trabajo</label>
-                    <textarea id="form-descripcion" rows="3" required class="w-full border rounded p-2 text-xs" placeholder="Detalle las actividades técnicas y medidas de seguridad..."></textarea>
+                    <label class="block text-[11px] font-bold text-theme-muted mb-1">Alcance del Trabajo</label>
+                    <textarea id="form-descripcion" rows="2" required class="w-full border rounded p-2 text-xs"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-theme-muted mb-1">Checklist de Hitos (1 por línea)</label>
+                    <textarea id="form-hitos" rows="3" class="w-full border rounded p-2 text-xs font-mono"></textarea>
                 </div>
                 <div class="pt-2 border-t border-theme-dim flex justify-end gap-2">
                     <button type="button" onclick="cerrarModalOT()" class="px-3.5 py-1.5 border border-theme-dim text-theme-muted text-xs font-semibold rounded hover:bg-surface-2">Cancelar</button>
@@ -294,7 +339,7 @@
         </div>
     </div>
 
-    <script src="static/js/config.js?v=2.9"></script>
-    <script src="static/js/dashboard.js?v=2.9"></script>
+    <script src="static/js/config.js?v=3.1"></script>
+    <script src="static/js/dashboard.js?v=3.1"></script>
 </body>
 </html>

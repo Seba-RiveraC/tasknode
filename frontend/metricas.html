@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Indicadores de Confiabilidad (UNE-EN 15341)</title>
+    <title>TaskNode | BI y Confiabilidad</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=2.6">
+    <link rel="stylesheet" href="static/css/styles.css?v=3.1">
 </head>
 <body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
+    <!-- Menú Lateral Tradicional -->
     <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0">
         <div>
             <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
@@ -16,90 +17,174 @@
                     <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
                     <div class="hidden lg:block">
                         <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim">CMMS INDUSTRIAL</span>
+                        <span class="text-[10px] font-mono text-theme-dim">GESTIÓN DE OPERACIONES</span>
                     </div>
                 </div>
             </div>
             <nav class="p-2.5 space-y-1">
                 <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
-                </a>
-                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span class="hidden lg:inline">Equipos (ISO 55000)</span>
-                </a>
-                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span class="hidden lg:inline">Auditoría SHA-256</span>
+                    <span class="hidden lg:inline">Órdenes e Hitos</span>
                 </a>
                 <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span class="hidden lg:inline">Indicadores (KPIs)</span>
+                    <span class="hidden lg:inline">Indicadores y BI</span>
+                </a>
+                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    <span class="hidden lg:inline">Equipos y Nodos</span>
+                </a>
+                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span class="hidden lg:inline">Registro de Auditoría</span>
                 </a>
             </nav>
         </div>
         <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block font-mono text-[10px]">
-            <div class="font-bold text-theme-main">CONFIABILIDAD</div>
+            <div class="font-bold text-theme-main">REPORTE EJECUTIVO</div>
             <div class="text-theme-dim mt-0.5">Norma UNE-EN 15341</div>
         </div>
     </aside>
 
+    <!-- Contenido Principal -->
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
-                <h1 class="font-bold text-sm sm:text-base text-theme-main tracking-tight">Indicadores de Confiabilidad y Mantenibilidad (UNE-EN 15341)</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block">Cálculo automático de tiempos medios de reparación, fallas y disponibilidad de planta</p>
+                <h1 class="font-bold text-sm sm:text-base text-theme-main tracking-tight">Indicadores de Negocio (BI) y Mantenibilidad</h1>
+                <p class="text-[11px] text-theme-dim hidden sm:block">Presione el botón (?) en cualquier indicador para ver su explicación simple y fórmula normativa</p>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="cargarIndicadoresConfiabilidad()" class="btn-primary font-bold text-xs px-3.5 py-2 rounded transition shadow-sm">Recalcular KPIs</button>
-                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-3 py-1.5 rounded transition flex items-center gap-1.5">
-                    <span>🌙</span> <span class="hidden sm:inline">Modo Oscuro</span>
+                <button onclick="cargarIndicadoresConfiabilidad()" class="btn-primary font-bold text-xs px-3.5 py-1.5 rounded transition shadow-sm">↻ Actualizar Datos</button>
+                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-2.5 py-1.5 rounded transition">
+                    <span>🌙</span>
                 </button>
             </div>
         </header>
 
-        <div class="flex-1 overflow-auto p-5 space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
-                    <span class="text-xs font-bold text-accent uppercase block">MTTR · Tiempo Medio de Reparación</span>
-                    <div class="text-2xl font-bold font-mono text-theme-main" id="m-mttr">-- h</div>
-                    <p class="text-xs text-theme-muted">Promedio de horas empleadas en resolver una detención correctiva.</p>
-                    <div class="p-2 code-pill rounded text-[11px]">
-                        MTTR = &Sigma;(Horas Detención) / N° Fallas
+        <div class="flex-1 overflow-auto p-5 space-y-5">
+
+            <!-- TARJETAS CON BOTÓN (?) DE AYUDA BAJO DEMANDA -->
+            <div>
+                <h2 class="text-xs font-bold text-theme-main uppercase tracking-wider mb-2.5">1. Indicadores Clave de Rendimiento (UNE-EN 15341)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    
+                    <!-- MTTR -->
+                    <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-theme-main">Tiempo Medio de Reparación (MTTR)</span>
+                            <button onclick="toggleAyudaMetrica('ayuda-mttr')" class="w-6 h-6 rounded-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-xs flex items-center justify-center transition" title="¿Qué significa este indicador?">
+                                ?
+                            </button>
+                        </div>
+                        <div class="flex items-baseline justify-between pt-1">
+                            <div class="text-2xl font-bold font-mono text-theme-main" id="m-mttr">-- h</div>
+                            <span class="text-[10px] font-semibold text-emerald-600">Meta: &le; 2.5 horas</span>
+                        </div>
+                        <!-- Cuadro oculto que se abre al tocar (?) -->
+                        <div id="ayuda-mttr" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
+                            <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
+                                <strong>¿Qué significa en simple?</strong> Es el tiempo promedio que tarda nuestra cuadrilla en terreno en levantar un enlace caído o resolver una falla desde que se reporta.
+                            </div>
+                            <div class="text-[10px] font-mono text-theme-dim">
+                                Cálculo: Horas totales de detención / N° de fallas
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
-                    <span class="text-xs font-bold text-accent uppercase block">MTBF · Tiempo Medio Entre Fallas</span>
-                    <div class="text-2xl font-bold font-mono text-theme-main" id="m-mtbf">-- h</div>
-                    <p class="text-xs text-theme-muted">Promedio de horas que los equipos operan sin presentar detenciones.</p>
-                    <div class="p-2 code-pill rounded text-[11px]">
-                        MTBF = (Horas Operación) / N° Fallas
+
+                    <!-- MTBF -->
+                    <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-theme-main">Tiempo Medio Entre Fallas (MTBF)</span>
+                            <button onclick="toggleAyudaMetrica('ayuda-mtbf')" class="w-6 h-6 rounded-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-xs flex items-center justify-center transition" title="¿Qué significa este indicador?">
+                                ?
+                            </button>
+                        </div>
+                        <div class="flex items-baseline justify-between pt-1">
+                            <div class="text-2xl font-bold font-mono text-theme-main" id="m-mtbf">-- h</div>
+                            <span class="text-[10px] font-semibold text-theme-dim">Base: 168h semanales</span>
+                        </div>
+                        <!-- Cuadro oculto que se abre al tocar (?) -->
+                        <div id="ayuda-mtbf" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
+                            <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
+                                <strong>¿Qué significa en simple?</strong> Son las horas continuas que una torre, nodo de fibra o UPS funciona sin sufrir cortes ni requerir reparaciones de emergencia.
+                            </div>
+                            <div class="text-[10px] font-mono text-theme-dim">
+                                Cálculo: Horas operativas sin corte / N° de fallas
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
-                    <span class="text-xs font-bold text-emerald-600 uppercase block">Ao · Disponibilidad Operacional</span>
-                    <div class="text-2xl font-bold font-mono text-emerald-600" id="m-ao">--%</div>
-                    <p class="text-xs text-theme-muted">Porcentaje del tiempo total en que la planta se encuentra disponible.</p>
-                    <div class="p-2 code-pill rounded text-[11px]">
-                        Ao = [ MTBF / (MTBF + MTTR) ] &times; 100
+
+                    <!-- Disponibilidad Ao -->
+                    <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-theme-main">Disponibilidad Operacional (SLA)</span>
+                            <button onclick="toggleAyudaMetrica('ayuda-ao')" class="w-6 h-6 rounded-full bg-surface-2 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-xs flex items-center justify-center transition" title="¿Qué significa este indicador?">
+                                ?
+                            </button>
+                        </div>
+                        <div class="flex items-baseline justify-between pt-1">
+                            <div class="text-2xl font-bold font-mono text-emerald-600" id="m-ao">--%</div>
+                            <span class="text-[10px] font-semibold text-emerald-600">Contrato: &ge; 98.0%</span>
+                        </div>
+                        <!-- Cuadro oculto que se abre al tocar (?) -->
+                        <div id="ayuda-ao" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
+                            <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
+                                <strong>¿Qué significa en simple?</strong> Es el porcentaje del tiempo que la red del cliente mandante está 100% activa. Define si cumplimos el contrato sin multas.
+                            </div>
+                            <div class="text-[10px] font-mono text-theme-dim">
+                                Cálculo: [ MTBF / (MTBF + MTTR) ] &times; 100
+                            </div>
+                        </div>
                     </div>
+
                 </div>
             </div>
 
-            <div class="bg-surface-1 border border-theme-dim rounded p-4 space-y-2 shadow-sm">
-                <div class="flex justify-between items-center text-xs">
-                    <span class="text-theme-main font-bold uppercase">Índice de Cumplimiento del Programa de Mantenimiento (ICP)</span>
-                    <span class="text-accent font-bold font-mono" id="valor-icp">Calculando...</span>
+            <!-- BLOQUE 2: INTELIGENCIA DE NEGOCIOS Y MINERÍA DE DATOS -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+                <!-- Cumplimiento por Cliente -->
+                <div class="bg-surface-1 border border-theme-dim rounded overflow-hidden shadow-sm">
+                    <div class="px-4 py-3 border-b border-theme-dim bg-surface-2">
+                        <span class="font-bold text-xs text-theme-main uppercase block">2. Cumplimiento por Cliente Mandante</span>
+                        <span class="text-[10px] text-theme-dim">Estado de órdenes y avance de hitos por empresa contratante</span>
+                    </div>
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
+                                <th class="px-4 py-2.5">Cliente Mandante</th>
+                                <th class="px-4 py-2.5 text-center">Cerradas</th>
+                                <th class="px-4 py-2.5">Avance Hitos</th>
+                                <th class="px-4 py-2.5 text-right">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-bi-clientes" class="divide-y divide-theme-dim">
+                            <tr><td colspan="4" class="px-4 py-6 text-center text-theme-dim">Cargando clientes...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="w-full bg-surface-2 border border-theme-dim rounded-sm h-3 overflow-hidden">
-                    <div id="progreso-icp" class="bg-emerald-600 h-3 transition-all duration-500" style="width: 0%"></div>
+
+                <!-- Cuellos de Botella en Hitos -->
+                <div class="bg-surface-1 border border-theme-dim rounded overflow-hidden shadow-sm">
+                    <div class="px-4 py-3 border-b border-theme-dim bg-surface-2">
+                        <span class="font-bold text-xs text-theme-main uppercase block">3. Avance por Etapa del Trabajo (Detección de Cuellos de Botella)</span>
+                        <span class="text-[10px] text-theme-dim">Muestra en qué etapa de la checklist se concentran las tareas pendientes</span>
+                    </div>
+                    <div id="contenedor-bi-hitos" class="p-4 space-y-3"></div>
                 </div>
+
             </div>
+
         </div>
     </main>
 
-    <script src="static/js/config.js?v=2.6"></script>
-    <script src="static/js/metricas.js?v=2.6"></script>
+    <script src="static/js/config.js?v=3.1"></script>
+    <script src="static/js/metricas.js?v=3.1"></script>
+    <script>
+        function toggleAyudaMetrica(idPanel) {
+            const panel = document.getElementById(idPanel);
+            if (panel) panel.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>

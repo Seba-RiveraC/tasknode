@@ -8,7 +8,7 @@
 
     window.TaskNodeConfig = {
         API_URL: apiUrl,
-        VERSION: "2.7.0",
+        VERSION: "3.1.0",
         LEY_PRIVACIDAD: "Ley 21.719 (Chile)"
     };
 
@@ -27,13 +27,10 @@
         const current = document.documentElement.getAttribute("data-theme") || "light";
         const botones = document.querySelectorAll("#btn-theme-toggle, .btn-theme-toggle");
         botones.forEach(btn => {
-            btn.innerHTML = current === "light"
-                ? `<span>🌙</span> <span class="hidden sm:inline">Modo Oscuro</span>`
-                : `<span>☀️</span> <span class="hidden sm:inline">Modo Claro</span>`;
+            btn.innerText = current === "light" ? "Tema Oscuro" : "Tema Claro";
         });
     };
 
-    // Sincroniza automáticamente el tema entre las dos ventanas en pantalla dividida
     window.addEventListener("storage", function (e) {
         if (e.key === "tasknode_theme" && e.newValue) {
             document.documentElement.setAttribute("data-theme", e.newValue);
