@@ -8,7 +8,7 @@
 
     window.TaskNodeConfig = {
         API_URL: apiUrl,
-        VERSION: "3.1.0",
+        VERSION: "3.4.0",
         LEY_PRIVACIDAD: "Ley 21.719 (Chile)"
     };
 
@@ -29,6 +29,21 @@
         botones.forEach(btn => {
             btn.innerText = current === "light" ? "Tema Oscuro" : "Tema Claro";
         });
+    };
+
+    window.obtenerUsuarioActual = function () {
+        try {
+            const raw = localStorage.getItem("tasknode_user");
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    };
+
+    window.cerrarSesion = function () {
+        localStorage.removeItem("tasknode_user");
+        localStorage.removeItem("tasknode_token");
+        window.location.href = "login.html";
     };
 
     window.addEventListener("storage", function (e) {

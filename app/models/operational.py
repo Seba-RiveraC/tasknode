@@ -3,10 +3,47 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boo
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
-class ActivoIndustrial(Base):
-    __tablename__ = "activos_industriales"
+
+class EmpresaMandante(Base):
+    __tablename__ = "empresa_mandante"
 
     id = Column(Integer, primary_key=True, index=True)
+    rut_empresa = Column(String(20), unique=True, index=True, nullable=False)
+    razon_social = Column(String(120), unique=True, nullable=False)
+    contacto_email = Column(String(100), nullable=True)
+    sla_objetivo_pct = Column(Float, default=98.0, nullable=False)
+    activa = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    usuarios = relationship("Usuario", back_populates="empresa")
+    activos = relationship("ActivoIndustrial", back_populates="empresa")
+    ordenes = relationship("OrdenTrabajo", back_populates="empresa")
+
+
+class Usuario(Base):
+    __tablename__ = "usuario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresa_mandante.id"), nullable=True)
+    nombre_completo = Column(String(100), nullable=False)
+    rut = Column(String(20), unique=True, index=True, nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    password_hash = Column(String(128), nullable=False)
+    rol = Column(String(20), default="TRABAJADOR", nullable=False)  # SUPERVISOR, CLIENTE, TRABAJADOR
+    cargo = Column(String(80), default="Técnico de Terreno", nullable=False)
+    activo = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    empresa = relationship("EmpresaMandante", back_populates="usuarios")
+    ordenes_asignadas = relationship("OrdenTrabajo", back_populates="operario")
+    transiciones = relationship("BitacoraTransicion", back_populates="usuario")
+
+
+class ActivoIndustrial(Base):
+    __tablename__ = "activo_industrial"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresa_mandante.id"), nullable=False)
     codigo_activo = Column(String(50), unique=True, index=True, nullable=False)
     nombre = Column(String(120), nullable=False)
     ubicacion_tecnica = Column(String(150), nullable=False)
@@ -14,40 +51,64 @@ class ActivoIndustrial(Base):
     latitud_referencia = Column(Float, nullable=False, default=-41.4870)
     longitud_referencia = Column(Float, nullable=False, default=-72.9550)
 
+    empresa = relationship("EmpresaMandante", back_populates="activos")
     ordenes = relationship("OrdenTrabajo", back_populates="activo")
 
 
 class OrdenTrabajo(Base):
-    __tablename__ = "ordenes_trabajo"
+    __tablename__ = "orden_trabajo"
 
     id = Column(Integer, primary_key=True, index=True)
     codigo_ot = Column(String(60), unique=True, index=True, nullable=False)
-    cliente_mandante = Column(String(100), default="SurTel Redes (Interno)", nullable=False)
-    activo_id = Column(Integer, ForeignKey("activos_industriales.id"), nullable=False)
+
+    # 3FN Estricta: Referencias por Llave Foránea sin duplicar textos de cliente ni operario
+    empresa_id = Column(Integer, ForeignKey("empresa_mandante.id"), nullable=False)
+    activo_id = Column(Integer, ForeignKey("activo_industrial.id"), nullable=False)
+    operario_id = Column(Integer, ForeignKey("usuario.id"), nullable=False)
+
     tipo_mantenimiento = Column(String(30), nullable=False)
     prioridad = Column(String(20), default="MEDIA", nullable=False)
     estado_actual = Column(String(30), default="EMITIDA", nullable=False)
-    operario_responsable = Column(String(100), nullable=False)
-    rut_responsable = Column(String(20), nullable=False)
     descripcion = Column(Text, nullable=False)
-    
-    hitos_json = Column(Text, default="[]", nullable=False)
-    avance_pct = Column(Integer, default=0, nullable=False)
-    
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    empresa = relationship("EmpresaMandante", back_populates="ordenes")
     activo = relationship("ActivoIndustrial", back_populates="ordenes")
-    transiciones = relationship("BitacoraTransicion", back_populates="orden", order_by="BitacoraTransicion.id.asc()")
+    operario = relationship("Usuario", back_populates="ordenes_asignadas")
+    hitos = relationship(
+        "HitoOrden",
+        back_populates="orden",
+        cascade="all, delete-orphan",
+        order_by="HitoOrden.orden_secuencia.asc()"
+    )
+    transiciones = relationship(
+        "BitacoraTransicion",
+        back_populates="orden",
+        order_by="BitacoraTransicion.id.asc()"
+    )
+
+
+class HitoOrden(Base):
+    __tablename__ = "hito_orden"
+
+    id = Column(Integer, primary_key=True, index=True)
+    orden_id = Column(Integer, ForeignKey("orden_trabajo.id", ondelete="CASCADE"), nullable=False)
+    orden_secuencia = Column(Integer, nullable=False, default=1)
+    dia = Column(String(40), nullable=False)
+    titulo = Column(String(255), nullable=False)
+    completado = Column(Boolean, default=False, nullable=False)
+
+    orden = relationship("OrdenTrabajo", back_populates="hitos")
 
 
 class BitacoraTransicion(Base):
-    __tablename__ = "bitacora_transiciones"
+    __tablename__ = "bitacora_transicion"
 
     id = Column(Integer, primary_key=True, index=True)
-    orden_id = Column(Integer, ForeignKey("ordenes_trabajo.id"), nullable=False)
-    codigo_ot = Column(String(60), index=True, nullable=False)
-    operario_responsable = Column(String(100), nullable=False)
-    rut_responsable = Column(String(20), nullable=False)
+    # 3FN Estricta: Vinculado a orden_trabajo y usuario por FK sin repetir codigo_ot ni nombre_operario
+    orden_id = Column(Integer, ForeignKey("orden_trabajo.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuario.id"), nullable=False)
+
     estado_anterior = Column(String(30), nullable=False)
     estado_nuevo = Column(String(30), nullable=False)
     coordenadas_gps = Column(String(50), nullable=False)
@@ -55,22 +116,25 @@ class BitacoraTransicion(Base):
     hash_previo = Column(String(64), nullable=False)
     hash_cadena = Column(String(64), nullable=False)
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
-    evidencia_url = Column(String(255), nullable=True)
-    laplacian_score = Column(Float, nullable=True)
 
     encargado_nombre = Column(String(100), nullable=True)
     encargado_rut = Column(String(20), nullable=True)
     firma_data = Column(Text, nullable=True)
 
     orden = relationship("OrdenTrabajo", back_populates="transiciones")
-    evidencias = relationship("EvidenciaMultimedia", back_populates="transicion")
+    usuario = relationship("Usuario", back_populates="transiciones")
+    evidencias = relationship(
+        "EvidenciaMultimedia",
+        back_populates="transicion",
+        order_by="EvidenciaMultimedia.id.asc()"
+    )
 
 
 class EvidenciaMultimedia(Base):
-    __tablename__ = "evidencias_multimedia"
+    __tablename__ = "evidencia_multimedia"
 
     id = Column(Integer, primary_key=True, index=True)
-    transicion_id = Column(Integer, ForeignKey("bitacora_transiciones.id"), nullable=False)
+    transicion_id = Column(Integer, ForeignKey("bitacora_transicion.id", ondelete="CASCADE"), nullable=False)
     url_almacenamiento = Column(String(255), nullable=False)
     laplacian_score = Column(Float, nullable=True)
     aprobado_nitidez = Column(Boolean, default=False, nullable=False)
@@ -80,13 +144,12 @@ class EvidenciaMultimedia(Base):
 
 
 # =====================================================================
-# CANDADOS DE INMUTABILIDAD MULTI-MOTOR (SQLite & PostgreSQL)
+# CANDADOS DE INMUTABILIDAD MULTI-MOTOR SOBRE `bitacora_transicion`
 # =====================================================================
 
-# 1. Triggers para SQLite
 sqlite_no_delete = DDL("""
 CREATE TRIGGER IF NOT EXISTS tr_bitacora_no_delete
-BEFORE DELETE ON bitacora_transiciones
+BEFORE DELETE ON bitacora_transicion
 BEGIN
     SELECT RAISE(ABORT, 'VIOLACION ISO 55001: Bitacora Append-Only. Eliminacion bloqueada.');
 END;
@@ -94,14 +157,13 @@ END;
 
 sqlite_no_update = DDL("""
 CREATE TRIGGER IF NOT EXISTS tr_bitacora_no_update
-BEFORE UPDATE OF codigo_ot, operario_responsable, rut_responsable, estado_anterior, estado_nuevo, coordenadas_gps, hash_previo, hash_cadena, timestamp
-ON bitacora_transiciones
+BEFORE UPDATE OF orden_id, usuario_id, estado_anterior, estado_nuevo, coordenadas_gps, hash_previo, hash_cadena, timestamp
+ON bitacora_transicion
 BEGIN
-    SELECT RAISE(ABORT, 'VIOLACION ISO 55001: Prohibido alterar campos firmados en bitacora_transiciones.');
+    SELECT RAISE(ABORT, 'VIOLACION ISO 55001: Prohibido alterar campos firmados en bitacora_transicion.');
 END;
 """).execute_if(dialect="sqlite")
 
-# 2. Función y Triggers PL/pgSQL para PostgreSQL (Docker)
 pg_func_inmutable = DDL("""
 CREATE OR REPLACE FUNCTION fn_proteger_bitacora_iso55001()
 RETURNS TRIGGER AS $$
@@ -112,17 +174,17 @@ $$ LANGUAGE plpgsql;
 """).execute_if(dialect="postgresql")
 
 pg_tr_no_delete = DDL("""
-DROP TRIGGER IF EXISTS tr_bitacora_no_delete ON bitacora_transiciones;
+DROP TRIGGER IF EXISTS tr_bitacora_no_delete ON bitacora_transicion;
 CREATE TRIGGER tr_bitacora_no_delete
-BEFORE DELETE ON bitacora_transiciones
+BEFORE DELETE ON bitacora_transicion
 FOR EACH ROW EXECUTE FUNCTION fn_proteger_bitacora_iso55001();
 """).execute_if(dialect="postgresql")
 
 pg_tr_no_update = DDL("""
-DROP TRIGGER IF EXISTS tr_bitacora_no_update ON bitacora_transiciones;
+DROP TRIGGER IF EXISTS tr_bitacora_no_update ON bitacora_transicion;
 CREATE TRIGGER tr_bitacora_no_update
-BEFORE UPDATE OF codigo_ot, operario_responsable, rut_responsable, estado_anterior, estado_nuevo, coordenadas_gps, hash_previo, hash_cadena, timestamp
-ON bitacora_transiciones
+BEFORE UPDATE OF orden_id, usuario_id, estado_anterior, estado_nuevo, coordenadas_gps, hash_previo, hash_cadena, timestamp
+ON bitacora_transicion
 FOR EACH ROW EXECUTE FUNCTION fn_proteger_bitacora_iso55001();
 """).execute_if(dialect="postgresql")
 

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskNode | Portal de Acceso Corporativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/css/styles.css?v=3.5">
+</head>
+<body class="h-full flex flex-col justify-between font-sans text-xs bg-surface-base top-accent-line">
+
+    <!-- Cabecera Institucional -->
+    <header class="h-14 bg-surface-1 border-b border-theme-dim px-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs">TN</div>
+            <div>
+                <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
+                <span class="text-[10px] font-mono text-theme-dim">ENTERPRISE CMMS & FIELD SERVICE MANAGEMENT</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5">
+            <a href="index.html" class="px-3 py-1.5 rounded border border-theme-dim bg-surface-2 text-theme-muted hover:text-theme-main font-semibold transition">
+                Arquitectura y Planes
+            </a>
+            <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 border border-theme-bright text-theme-main font-semibold text-xs px-3 py-1.5 rounded transition">
+                Tema Oscuro
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenedor Central de Autenticación -->
+    <main class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-surface-1 border border-theme-dim rounded-lg shadow-xl max-w-md w-full overflow-hidden">
+            
+            <div class="p-6 border-b border-theme-dim bg-surface-2 flex items-center justify-between">
+                <div>
+                    <h1 class="text-base font-bold text-theme-main">Autenticación de Operaciones</h1>
+                    <p class="text-[11px] text-theme-muted mt-0.5">Control de acceso basado en roles (ISO 55001 / Ley 21.719)</p>
+                </div>
+                <span class="code-pill text-[10px] font-bold px-2 py-0.5 rounded">SSO / RBAC</span>
+            </div>
+
+            <form id="form-login" onsubmit="procesarLogin(event)" class="p-6 space-y-4">
+                <div id="login-error" class="hidden p-3 rounded bg-red-600/10 border border-red-600 text-red-600 font-semibold text-xs"></div>
+
+                <!-- Selector de Directorio Corporativo (Agiliza la exposición con estética 100% empresarial) -->
+                <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-1.5">
+                    <label class="block text-[10px] font-mono font-bold text-theme-dim uppercase">
+                        Directorio de Sesiones Corporativas Activas
+                    </label>
+                    <select id="selector-directorio" onchange="seleccionarCuentaDirectorio(this.value)" class="w-full border rounded p-2 text-xs font-semibold">
+                        <option value="">— Seleccionar credencial del directorio o ingresar manual —</option>
+                        <optgroup label="Supervisión y Control Operativo">
+                            <option value="supervisor@tasknode.cl|super123">Javier Méndez R. · Coordinador de Operaciones (Supervisor)</option>
+                        </optgroup>
+                        <optgroup label="Portales de Clientes Mandantes (SLA)">
+                            <option value="cliente@australconectividad.cl|cliente123">Andrea Lagos · Austral Conectividad SpA (Mandante)</option>
+                            <option value="operaciones@patagoniaredes.cl|cliente123">Roberto Díaz · Patagonia Redes Ltda. (Mandante)</option>
+                        </optgroup>
+                        <optgroup label="Cuadrillas Especialistas en Terreno">
+                            <option value="rodrigo@tasknode.cl|terreno123">Rodrigo Fuentes A. · Especialista Fibra Óptica (Terreno)</option>
+                            <option value="carlos@tasknode.cl|terreno123">Carlos Valenzuela M. · Jefe Cuadrilla RF/MW (Terreno)</option>
+                            <option value="marcelo@tasknode.cl|terreno123">Marcelo Soto P. · Especialista Respaldo UPS (Terreno)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-theme-main uppercase mb-1">Identificador (Correo o RUT)</label>
+                    <input type="text" id="login-id" required placeholder="nombre@empresa.cl o 15.902.438-2" class="w-full border rounded p-2.5 text-xs font-medium">
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-theme-main uppercase mb-1">Clave de Acceso</label>
+                    <input type="password" id="login-pwd" required placeholder="••••••••" class="w-full border rounded p-2.5 text-xs font-medium">
+                </div>
+
+                <button type="submit" id="btn-submit-login" class="w-full py-3 btn-primary font-bold text-xs uppercase tracking-wide rounded shadow transition">
+                    Iniciar Sesión
+                </button>
+            </form>
+
+            <div class="px-6 py-3 bg-surface-2 border-t border-theme-dim flex justify-between items-center text-[10px] font-mono text-theme-dim">
+                <span>TLS / SHA-256 AUTH</span>
+                <span>REGIÓN DE LOS LAGOS · CHILE</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-3 px-6 text-center font-mono text-[10px] text-theme-dim border-t border-theme-dim bg-surface-1">
+        TASKNODE CORE v3.5 · PLATAFORMA DE TRAZABILIDAD OPERACIONAL
+    </footer>
+
+    <script src="static/js/config.js?v=3.5"></script>
+    <script>
+        function seleccionarCuentaDirectorio(val) {
+            if (!val) return;
+            const [usr, pwd] = val.split('|');
+            document.getElementById('login-id').value = usr;
+            document.getElementById('login-pwd').value = pwd;
+            document.getElementById('form-login').requestSubmit();
+        }
+
+        // Atajos silenciosos de teclado para defensa (Alt+1: Supervisor, Alt+2: Cliente, Alt+3: Trabajador)
+        window.addEventListener('keydown', (e) => {
+            if (e.altKey && e.key === '1') seleccionarCuentaDirectorio('supervisor@tasknode.cl|super123');
+            if (e.altKey && e.key === '2') seleccionarCuentaDirectorio('cliente@australconectividad.cl|cliente123');
+            if (e.altKey && e.key === '3') seleccionarCuentaDirectorio('rodrigo@tasknode.cl|terreno123');
+        });
+
+        async function procesarLogin(e) {
+            e.preventDefault();
+            const errBox = document.getElementById('login-error');
+            const btn = document.getElementById('btn-submit-login');
+            errBox.classList.add('hidden');
+            btn.disabled = true;
+
+            const payload = {
+                identificador: document.getElementById('login-id').value.trim(),
+                password: document.getElementById('login-pwd').value
+            };
+
+            try {
+                const res = await fetch(`${window.TaskNodeConfig.API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok) {
+                    errBox.innerText = data.detail || 'Credenciales inválidas.';
+                    errBox.classList.remove('hidden');
+                    btn.disabled = false;
+                    return;
+                }
+
+                localStorage.setItem('tasknode_token', data.token);
+                localStorage.setItem('tasknode_user', JSON.stringify(data.usuario));
+                window.location.href = data.redirect_url || '/app/monitor.html';
+            } catch (err) {
+                errBox.innerText = 'No fue posible establecer conexión con el servicio de autenticación.';
+                errBox.classList.remove('hidden');
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -17,8 +17,10 @@ router = APIRouter()
 _ledger_lock = threading.Lock()
 GENESIS_HASH = "GENESIS_HASH_TASKNODE_0000000000000000000000000000000000000000"
 
+
 def sha256_cadena(texto: str) -> str:
     return hashlib.sha256(texto.encode("utf-8")).hexdigest()
+
 
 def construir_payload_canonico(
     hash_previo: str,
@@ -31,9 +33,52 @@ def construir_payload_canonico(
 ) -> str:
     return f"{hash_previo}|{codigo_ot}|{estado_anterior}|{estado_nuevo}|{rut_responsable}|{coordenadas_gps}|{timestamp_iso}"
 
+
+def hidratar_transicion(t: models.BitacoraTransicion) -> schemas.TransicionOut:
+    codigo_ot = t.orden.codigo_ot if t.orden else f"OT-{t.orden_id}"
+    operario_nom = t.usuario.nombre_completo if t.usuario else "Técnico Terreno"
+    operario_rut = t.usuario.rut if t.usuario else "15.902.438-2"
+
+    ev_url = None
+    ev_score = None
+    if t.evidencias:
+        ult_ev = t.evidencias[-1]
+        ev_url = ult_ev.url_almacenamiento
+        ev_score = ult_ev.laplacian_score
+    elif t.orden and t.orden.transiciones:
+        for prev_t in reversed(t.orden.transiciones):
+            if prev_t.id <= t.id and prev_t.evidencias:
+                ev_url = prev_t.evidencias[-1].url_almacenamiento
+                ev_score = prev_t.evidencias[-1].laplacian_score
+                break
+
+    return schemas.TransicionOut(
+        id=t.id,
+        orden_id=t.orden_id,
+        usuario_id=t.usuario_id,
+        codigo_ot=codigo_ot,
+        operario_responsable=operario_nom,
+        rut_responsable=operario_rut,
+        estado_anterior=t.estado_anterior,
+        estado_nuevo=t.estado_nuevo,
+        coordenadas_gps=t.coordenadas_gps,
+        observacion=t.observacion,
+        hash_previo=t.hash_previo,
+        hash_cadena=t.hash_cadena,
+        timestamp=t.timestamp,
+        evidencia_url=ev_url,
+        laplacian_score=ev_score,
+        encargado_nombre=t.encargado_nombre,
+        encargado_rut=t.encargado_rut,
+        firma_data=t.firma_data
+    )
+
+
 @router.get("/", response_model=List[schemas.TransicionOut])
 def listar_transiciones(db: Session = Depends(get_db)):
-    return db.query(models.BitacoraTransicion).order_by(models.BitacoraTransicion.id.desc()).all()
+    filas = db.query(models.BitacoraTransicion).order_by(models.BitacoraTransicion.id.desc()).all()
+    return [hidratar_transicion(t) for t in filas]
+
 
 @router.get("/verificar")
 def verificar_integridad_ledger(db: Session = Depends(get_db)):
@@ -44,13 +89,15 @@ def verificar_integridad_ledger(db: Session = Depends(get_db)):
     for b in bloques:
         eslabon_valido = (b.hash_previo == hash_esperado_previo)
         ts_iso = b.timestamp.isoformat() if b.timestamp else ""
-        
+        codigo_ot = b.orden.codigo_ot if b.orden else ""
+        rut_resp = b.usuario.rut if b.usuario else ""
+
         payload = construir_payload_canonico(
             hash_previo=b.hash_previo,
-            codigo_ot=b.codigo_ot,
+            codigo_ot=codigo_ot,
             estado_anterior=b.estado_anterior,
             estado_nuevo=b.estado_nuevo,
-            rut_responsable=b.rut_responsable,
+            rut_responsable=rut_resp,
             coordenadas_gps=b.coordenadas_gps,
             timestamp_iso=ts_iso
         )
@@ -60,7 +107,7 @@ def verificar_integridad_ledger(db: Session = Depends(get_db)):
         if not eslabon_valido or not firma_valida:
             discrepancias.append({
                 "bloque_id": b.id,
-                "codigo_ot": b.codigo_ot,
+                "codigo_ot": codigo_ot,
                 "eslabon_valido": eslabon_valido,
                 "firma_valida": firma_valida,
                 "hash_almacenado": b.hash_cadena,
@@ -75,6 +122,7 @@ def verificar_integridad_ledger(db: Session = Depends(get_db)):
         "discrepancias_detectadas": len(discrepancias),
         "detalle_discrepancias": discrepancias
     }
+
 
 @router.post("/", response_model=schemas.TransicionOut)
 async def registrar_transicion(
@@ -115,11 +163,6 @@ async def registrar_transicion(
         if not orden:
             raise HTTPException(status_code=404, detail=f"Orden '{codigo_ot}' no encontrada.")
 
-        # 3A. Compuerta FSM
-        estado_anterior = orden.estado_actual
-        if estado_nuevo != estado_anterior:
-            fsm_service.validar_transicion(estado_anterior, estado_nuevo)
-
         # 3B. Compuerta Geocerca Haversine
         if orden.activo:
             fsm_service.validar_geocerca_wgs84(
@@ -128,28 +171,62 @@ async def registrar_transicion(
                 orden.activo.longitud_referencia
             )
 
-        # Actualizar estado e Hitos Multidía si vienen desde terreno
+        operario_user = orden.operario
+        operario_rut = operario_user.rut if operario_user else "15.902.438-2"
+        usuario_fk_id = operario_user.id if operario_user else 1
+        estado_anterior = orden.estado_actual
+
+        # Puenteo Ágil Bajo el Capó para PyMEs
+        if estado_anterior in ("EMITIDA", "DETENIDA POR ANOMALÍA") and estado_nuevo in ("EN VALIDACIÓN", "OT COMPLETADA"):
+            ult_pre = db.query(models.BitacoraTransicion).order_by(models.BitacoraTransicion.id.desc()).first()
+            hash_prev_auto = ult_pre.hash_cadena if (ult_pre and ult_pre.hash_cadena) else GENESIS_HASH
+            ts_auto = datetime.utcnow().replace(microsecond=0)
+            payload_auto = construir_payload_canonico(
+                hash_previo=hash_prev_auto,
+                codigo_ot=codigo_ot,
+                estado_anterior=estado_anterior,
+                estado_nuevo="EN EJECUCIÓN",
+                rut_responsable=operario_rut,
+                coordenadas_gps=coordenadas_gps,
+                timestamp_iso=ts_auto.isoformat()
+            )
+            hash_cad_auto = sha256_cadena(payload_auto)
+            trans_puente = models.BitacoraTransicion(
+                orden_id=orden.id,
+                usuario_id=usuario_fk_id,
+                estado_anterior=estado_anterior,
+                estado_nuevo="EN EJECUCIÓN",
+                coordenadas_gps=coordenadas_gps,
+                observacion="Inicio de ejecución registrado automáticamente por flujo ágil.",
+                hash_previo=hash_prev_auto,
+                hash_cadena=hash_cad_auto,
+                timestamp=ts_auto,
+                encargado_nombre=encargado_nombre or "Carlos Valenzuela M.",
+                encargado_rut=encargado_rut or "14.285.631-8"
+            )
+            db.add(trans_puente)
+            db.flush()
+            estado_anterior = "EN EJECUCIÓN"
+            orden.estado_actual = "EN EJECUCIÓN"
+
+        # 3A. Compuerta FSM
+        if estado_nuevo != estado_anterior:
+            fsm_service.validar_transicion(estado_anterior, estado_nuevo)
+
+        # Actualizar estado e Hitos en la tabla `hito_orden` (1FN/3FN)
         orden.estado_actual = estado_nuevo
         if hitos_json:
             try:
                 lista_h = json.loads(hitos_json)
-                if estado_nuevo == "OT COMPLETADA":
-                    for h in lista_h:
-                        h["completado"] = True
-                orden.hitos_json = json.dumps(lista_h, ensure_ascii=False)
-                completados = sum(1 for h in lista_h if h.get("completado"))
-                orden.avance_pct = 100 if estado_nuevo == "OT COMPLETADA" else int(round((completados / max(len(lista_h), 1)) * 100))
+                for h_rel in orden.hitos:
+                    match = next((x for x in lista_h if x.get("id") == h_rel.orden_secuencia), None)
+                    if match is not None:
+                        h_rel.completado = True if estado_nuevo == "OT COMPLETADA" else bool(match.get("completado"))
             except Exception:
                 pass
         elif estado_nuevo == "OT COMPLETADA":
-            try:
-                lista_h = json.loads(orden.hitos_json or "[]")
-                for h in lista_h:
-                    h["completado"] = True
-                orden.hitos_json = json.dumps(lista_h, ensure_ascii=False)
-                orden.avance_pct = 100
-            except Exception:
-                orden.avance_pct = 100
+            for h_rel in orden.hitos:
+                h_rel.completado = True
 
         db.add(orden)
 
@@ -166,9 +243,6 @@ async def registrar_transicion(
         )
 
         timestamp_actual = datetime.utcnow().replace(microsecond=0)
-        operario_nom = orden.operario_responsable or "S. Rivera"
-        operario_rut = orden.rut_responsable or "18.421.903-K"
-
         payload_firma = construir_payload_canonico(
             hash_previo=hash_previo,
             codigo_ot=codigo_ot,
@@ -180,17 +254,12 @@ async def registrar_transicion(
         )
         hash_cadena = sha256_cadena(payload_firma)
 
-        url_previa = None
-        score_previo = None
         firma_previa = firma_data
         nom_enc_previo = encargado_nombre
         rut_enc_previo = encargado_rut
 
         if orden.transiciones:
             for t_ant in reversed(orden.transiciones):
-                if not url_previa and t_ant.evidencia_url:
-                    url_previa = t_ant.evidencia_url
-                    score_previo = t_ant.laplacian_score
                 if not firma_previa and t_ant.firma_data:
                     firma_previa = t_ant.firma_data
                     nom_enc_previo = nom_enc_previo or t_ant.encargado_nombre
@@ -198,9 +267,7 @@ async def registrar_transicion(
 
         nueva_transicion = models.BitacoraTransicion(
             orden_id=orden.id,
-            codigo_ot=codigo_ot,
-            operario_responsable=operario_nom,
-            rut_responsable=operario_rut,
+            usuario_id=usuario_fk_id,
             estado_anterior=estado_anterior,
             estado_nuevo=estado_nuevo,
             coordenadas_gps=coordenadas_gps,
@@ -208,8 +275,6 @@ async def registrar_transicion(
             hash_previo=hash_previo,
             hash_cadena=hash_cadena,
             timestamp=timestamp_actual,
-            evidencia_url=url_previa,
-            laplacian_score=score_previo,
             encargado_nombre=nom_enc_previo or "Carlos Valenzuela M.",
             encargado_rut=rut_enc_previo or "14.285.631-8",
             firma_data=firma_previa
@@ -226,9 +291,8 @@ async def registrar_transicion(
                 aprobado_nitidez=es_nitida
             )
             db.add(evidencia)
-            nueva_transicion.evidencia_url = url_archivo
-            nueva_transicion.laplacian_score = score_laplacian
+            db.flush()
 
         db.commit()
         db.refresh(nueva_transicion)
-        return nueva_transicion
+        return hidratar_transicion(nueva_transicion)

@@ -24,8 +24,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     inicializarCanvasFirma();
     actualizarContadorOutbox();
-    cargarOrdenesEnTerminal('OT-1002');
+    cargarOrdenesEnTerminal();
 });
+
+function togglePanelDiagnosticoDefensa() {
+    const panel = document.getElementById('panel-diagnostico-oculto');
+    if (panel) panel.classList.toggle('hidden');
+}
+
+function insertarChipMinuta(textoChip) {
+    const txt = document.getElementById('obs');
+    if (!txt) return;
+    const actual = txt.value.trim();
+    txt.value = actual ? `${actual} ${textoChip}` : textoChip;
+}
 
 function abrirModalFirma() {
     const modal = document.getElementById('modal-firma-terreno');
@@ -132,7 +144,7 @@ function cargarFirmaRapidaPrueba() {
         ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height);
         firmaTactilRealizada = true;
         actualizarBadgeFirma();
-        mostrarToastTerminal("Firma del Encargado cargada.");
+        mostrarToastTerminal("Rúbrica acreditada aplicada.");
     };
     img.src = FIRMA_ENCARGADO_DEMO;
 }
@@ -162,7 +174,7 @@ function simularEscaneoQR() {
     credencialQRValidada = true;
     const res = document.getElementById('qr-resultado');
     if (res) res.classList.remove('hidden');
-    mostrarToastTerminal("Credencial QR validada.");
+    mostrarToastTerminal("Token QR verificado.");
     actualizarBadgeFirma();
 }
 
@@ -172,13 +184,13 @@ function actualizarBadgeFirma() {
 
     if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) {
         badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
-        badge.innerText = "Firma adjuntada";
+        badge.innerText = "Rúbrica lista";
     } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
         badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
-        badge.innerText = "QR adjuntado";
+        badge.innerText = "Token QR listo";
     } else {
         badge.className = "text-[10px] font-mono text-theme-dim mt-0.5";
-        badge.innerText = "No adjuntada (Abrir)";
+        badge.innerText = "Firma / Token QR";
     }
 }
 
@@ -228,16 +240,28 @@ async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
 
 function poblarDropdown(ots, codigoPreseleccionado = null) {
     const select = document.getElementById('codigo_ot');
-    if (ots.length === 0) {
-        select.innerHTML = '<option value="">No hay órdenes disponibles</option>';
+    const verTodas = document.getElementById('chk-ver-todas')?.checked;
+    const userLog = window.obtenerUsuarioActual ? window.obtenerUsuarioActual() : null;
+
+    let listaFiltrada = ots || [];
+    if (!verTodas && userLog && userLog.rol === 'TRABAJADOR') {
+        const propias = listaFiltrada.filter(o =>
+            (o.operario_id && o.operario_id === userLog.id) ||
+            (o.rut_responsable && o.rut_responsable === userLog.rut)
+        );
+        if (propias.length > 0) listaFiltrada = propias;
+    }
+
+    if (listaFiltrada.length === 0) {
+        select.innerHTML = '<option value="">No hay órdenes asignadas</option>';
         return;
     }
 
-    select.innerHTML = ots.map(o =>
-        `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'SurTel'} (${o.avance_pct || 0}%)</option>`
+    select.innerHTML = listaFiltrada.map(o =>
+        `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'Austral Conectividad'} (${o.avance_pct || 0}%)</option>`
     ).join('');
 
-    if (codigoPreseleccionado && ots.some(o => o.codigo_ot === codigoPreseleccionado)) {
+    if (codigoPreseleccionado && listaFiltrada.some(o => o.codigo_ot === codigoPreseleccionado)) {
         select.value = codigoPreseleccionado;
     }
     actualizarInfoOTSeleccionada();
@@ -297,7 +321,7 @@ function actualizarInfoOTSeleccionada() {
 
     const estadoActual = ot.estado_actual || 'EMITIDA';
     document.getElementById('info-ot-estado').innerText = estadoActual;
-    document.getElementById('info-ot-cliente').innerText = `Cliente: ${ot.cliente_mandante || 'SurTel Redes'}`;
+    document.getElementById('info-ot-cliente').innerText = `Mandante: ${ot.cliente_mandante || 'Austral Conectividad SpA'}`;
     document.getElementById('info-ot-descripcion').innerText = ot.descripcion || 'Sin instrucciones.';
     document.getElementById('perfil-nombre').innerText = `${ot.operario_responsable} (${ot.rut_responsable})`;
 
@@ -328,13 +352,13 @@ function actualizarCoordenadaGPS() {
     if (gpsFueraDePlanta) {
         document.getElementById('gps').value = "-41.4950, -72.9900";
         badge.className = "font-mono font-bold text-red-600";
-        badge.innerText = "Fuera de rango (>4 km)";
+        badge.innerText = "DESVIACIÓN GPS (>4 KM)";
     } else {
         const lat = (ot && ot.activo && ot.activo.latitud_referencia) ? ot.activo.latitud_referencia.toFixed(4) : '-41.4870';
         const lon = (ot && ot.activo && ot.activo.longitud_referencia) ? ot.activo.longitud_referencia.toFixed(4) : '-72.9550';
         document.getElementById('gps').value = `${lat}, ${lon}`;
         badge.className = "font-mono font-bold text-emerald-600";
-        badge.innerText = `GPS en Sitio (${lat}, ${lon})`;
+        badge.innerText = `WGS84 EN SITIO (${lat}, ${lon})`;
     }
 }
 
@@ -388,7 +412,7 @@ async function procesarTransicionTerreno(e) {
             operario_id: operarioId,
             estado_nuevo: estadoNuevo,
             coordenadas_gps: gpsVal,
-            observacion: obsVal || 'Avance registrado sin conexión.',
+            observacion: obsVal || 'Avance registrado en cola local (Store-and-Forward).',
             encargado_nombre: nombreEncargado,
             encargado_rut: rutEncargado,
             firma_data: firmaPayload,
@@ -397,7 +421,7 @@ async function procesarTransicionTerreno(e) {
         });
         localStorage.setItem('tasknode_outbox', JSON.stringify(cola));
         actualizarContadorOutbox();
-        mostrarToastTerminal(`Guardado en cola local (${cola.length} pendientes).`);
+        mostrarToastTerminal(`Almacenado en cola local (${cola.length} pendientes).`);
         btn.disabled = false;
         return;
     }
@@ -427,7 +451,7 @@ async function procesarTransicionTerreno(e) {
         } else {
             mostrarToastTerminal(`Avance sincronizado en ${data.codigo_ot}.`);
             if (inputFoto) inputFoto.value = '';
-            document.getElementById('camera-label').innerText = "Adjuntar Fotografía";
+            document.getElementById('camera-label').innerText = "Fotografía en Sitio";
             await cargarOrdenesEnTerminal(codigoOT);
         }
     } catch (err) {
@@ -444,11 +468,11 @@ async function conmutarModoRed() {
 
     if (modoOfflineSimulado) {
         dot.className = 'w-2 h-2 rounded-full bg-amber-500';
-        label.innerText = 'SIN RED';
-        mostrarToastTerminal('Modo sin conexión activado.');
+        label.innerText = 'OFFLINE';
+        mostrarToastTerminal('Modo almacenamiento local (Sin señal) activo.');
     } else {
         dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-        label.innerText = 'EN LÍNEA';
+        label.innerText = 'ONLINE';
         await sincronizarColaOutbox();
     }
 }
@@ -487,7 +511,7 @@ async function sincronizarColaOutbox() {
     localStorage.removeItem('tasknode_outbox');
     actualizarContadorOutbox();
     await cargarOrdenesEnTerminal(codigoActual);
-    mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length} registros.`);
+    mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length} registros pendientes.`);
 }
 
 function autocompletarNovedad() {
@@ -495,10 +519,10 @@ function autocompletarNovedad() {
     const txt = document.getElementById('obs');
     const comp = hitosActivosTerminal.filter(h => h.completado).length;
     if (estado === 'DETENIDA POR ANOMALÍA') {
-        txt.value = `Faena pausada con ${comp}/${hitosActivosTerminal.length} hitos completados. Equipo bloqueado bajo protocolo LOTO.`;
+        txt.value = `Faena pausada con ${comp}/${hitosActivosTerminal.length} etapas completadas. Activo asegurado bajo bloqueo LOTO.`;
     } else if (estado === 'EN VALIDACIÓN' || estado === 'OT COMPLETADA') {
-        txt.value = `Plan de ${hitosActivosTerminal.length} hitos completado al 100%. Parámetros verificados y recepción conforme.`;
+        txt.value = `Protocolo de ${hitosActivosTerminal.length} etapas completado al 100%. Parámetros verificados y recepción conforme.`;
     } else {
-        txt.value = `Avance registrado (${comp}/${hitosActivosTerminal.length} hitos listos). Bloqueo LOTO y EPP verificados.`;
+        txt.value = `Avance operativo registrado (${comp}/${hitosActivosTerminal.length} etapas listas). Bloqueo LOTO y EPP verificados.`;
     }
 }

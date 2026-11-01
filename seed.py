@@ -1,5 +1,4 @@
 import os
-import json
 os.environ["DISABLE_SQLALCHEMY_CEXT"] = "1"
 
 from pathlib import Path
@@ -7,11 +6,15 @@ from datetime import datetime, timedelta
 from urllib.parse import quote
 import numpy as np
 import cv2
+from sqlalchemy import text
 
 from app.core.database import SessionLocal, engine, Base
 from app.models.operational import (
+    EmpresaMandante,
+    Usuario,
     ActivoIndustrial,
     OrdenTrabajo,
+    HitoOrden,
     BitacoraTransicion,
     EvidenciaMultimedia,
 )
@@ -20,6 +23,7 @@ from app.api.v1.endpoints.transitions import (
     sha256_cadena,
     GENESIS_HASH,
 )
+from app.api.v1.endpoints.auth import hashear_password
 from app.services.vision_service import calcular_nitidez_laplaciana
 
 FIRMA_SVG_PRECARGADA = "data:image/svg+xml;utf8," + quote("""<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
@@ -49,7 +53,7 @@ def generar_evidencia_sintetica_local(nombre_archivo: str, codigo_ot: str, equip
     cv2.circle(img, (400, 160), 10, (16, 185, 129), -1)
 
     cv2.rectangle(img, (20, 20), (780, 80), (12, 15, 20), -1)
-    cv2.putText(img, f"SURTEL TELECOM VERIFIER | {codigo_ot}", (35, 50),
+    cv2.putText(img, f"TASKNODE TELECOM VERIFIER | {codigo_ot}", (35, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.65, (245, 158, 11), 2)
     cv2.putText(img, f"INFRAESTRUCTURA: {equipo} | ZONA SUR", (35, 72),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 210, 225), 1)
@@ -68,11 +72,15 @@ def generar_evidencia_sintetica_local(nombre_archivo: str, codigo_ot: str, equip
 
 
 def poblar_sistema():
-    print("-> [1/3] Regenerando base de datos SQLite con soporte de Hitos Multidía y BI...")
-    Base.metadata.drop_all(bind=engine)
+    print(f"-> [1/4] Recreando esquema 3FN en singular sobre motor: {engine.dialect.name.upper()}...")
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+    else:
+        Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
-    print("-> [2/3] Creando imágenes de evidencia sintética nítida...")
+    print("-> [2/4] Generando evidencias ópticas de respaldo...")
     url_ev_1001, score_1001 = generar_evidencia_sintetica_local(
         "evidencia_ot_1001.jpg", "OT-1001", "ANT-01 (Torre Tenglo)", "ENLACE MW REAJUSTADO | POTENCIA: -48 dBm | VSWR: 1.15 OK"
     )
@@ -82,8 +90,69 @@ def poblar_sistema():
 
     db = SessionLocal()
     try:
-        print("-> [3/3] Registrando activos, clientes mandantes y órdenes con checklists multidía...")
+        print("-> [3/4] Poblando entidad `empresa_mandante` y `usuario` en 3FN...")
+        emp_austral = EmpresaMandante(rut_empresa="76.580.120-7", razon_social="Austral Conectividad SpA", contacto_email="operaciones@australconectividad.cl", sla_objetivo_pct=99.0)
+        emp_patagonia = EmpresaMandante(rut_empresa="77.120.450-K", razon_social="Patagonia Redes Ltda.", contacto_email="soporte@patagoniaredes.cl", sla_objetivo_pct=98.5)
+        emp_frigorifico = EmpresaMandante(rut_empresa="79.840.110-3", razon_social="Frigorífico Los Lagos (Planta)", contacto_email="mantencion@frigorificoloslagos.cl", sla_objetivo_pct=98.0)
+        db.add_all([emp_austral, emp_patagonia, emp_frigorifico])
+        db.flush()
+
+        u_supervisor = Usuario(
+            nombre_completo="Javier Méndez R.",
+            rut="13.450.220-K",
+            email="supervisor@tasknode.cl",
+            password_hash=hashear_password("super123"),
+            rol="SUPERVISOR",
+            cargo="Coordinador de Operaciones y Terreno"
+        )
+        u_cli_austral = Usuario(
+            empresa_id=emp_austral.id,
+            nombre_completo="Andrea Lagos (Austral Conectividad)",
+            rut="15.110.820-4",
+            email="cliente@australconectividad.cl",
+            password_hash=hashear_password("cliente123"),
+            rol="CLIENTE",
+            cargo="Jefa de Operaciones Zona Sur"
+        )
+        u_cli_patagonia = Usuario(
+            empresa_id=emp_patagonia.id,
+            nombre_completo="Roberto Díaz (Patagonia Redes)",
+            rut="14.990.312-1",
+            email="operaciones@patagoniaredes.cl",
+            password_hash=hashear_password("cliente123"),
+            rol="CLIENTE",
+            cargo="Supervisor de Contratos"
+        )
+        u_trab_carlos = Usuario(
+            nombre_completo="Carlos Valenzuela M.",
+            rut="14.285.631-8",
+            email="carlos@tasknode.cl",
+            password_hash=hashear_password("terreno123"),
+            rol="TRABAJADOR",
+            cargo="Jefe de Cuadrilla RF & Microondas"
+        )
+        u_trab_rodrigo = Usuario(
+            nombre_completo="Rodrigo Fuentes A.",
+            rut="15.902.438-2",
+            email="rodrigo@tasknode.cl",
+            password_hash=hashear_password("terreno123"),
+            rol="TRABAJADOR",
+            cargo="Especialista en Fusión Fibra Óptica"
+        )
+        u_trab_marcelo = Usuario(
+            nombre_completo="Marcelo Soto P.",
+            rut="16.892.110-3",
+            email="marcelo@tasknode.cl",
+            password_hash=hashear_password("terreno123"),
+            rol="TRABAJADOR",
+            cargo="Técnico Electromecánico de Respaldo UPS"
+        )
+        db.add_all([u_supervisor, u_cli_austral, u_cli_patagonia, u_trab_carlos, u_trab_rodrigo, u_trab_marcelo])
+        db.flush()
+
+        print("-> [4/4] Poblando `activo_industrial`, `orden_trabajo`, `hito_orden` y `bitacora_transicion`...")
         torre_tenglo = ActivoIndustrial(
+            empresa_id=emp_austral.id,
             codigo_activo="ANT-01",
             nombre="Torre Celular y Enlace MW Tenglo",
             ubicacion_tecnica="Isla Tenglo · Sector Antenas · Puerto Montt",
@@ -92,6 +161,7 @@ def poblar_sistema():
             longitud_referencia=-72.9550
         )
         nodo_coihuin = ActivoIndustrial(
+            empresa_id=emp_patagonia.id,
             codigo_activo="NOD-02",
             nombre="Nodo Repetidor FO Coihuín",
             ubicacion_tecnica="Carretera Austral Km 7 · Puerto Montt",
@@ -100,8 +170,9 @@ def poblar_sistema():
             longitud_referencia=-72.8715
         )
         datacenter_alerce = ActivoIndustrial(
+            empresa_id=emp_frigorifico.id,
             codigo_activo="DAT-03",
-            nombre="Centro de Distribución y Servidores Alerce",
+            nombre="Sala de Servidores y Respaldo Alerce",
             ubicacion_tecnica="Av. Norte-Sur · Alerce Norte · Puerto Montt",
             criticidad="ALTA",
             latitud_referencia=-41.3920,
@@ -112,176 +183,111 @@ def poblar_sistema():
 
         ahora = datetime.utcnow().replace(microsecond=0)
 
-        hitos_1001 = [
-            {"id": 1, "dia": "Día 1 · AM", "titulo": "Acreditación de cuadrilla, bloqueo LOTO y ascenso a Torre Tenglo", "completado": True},
-            {"id": 2, "dia": "Día 1 · PM", "titulo": "Inspección de guía de onda, conectores RF y sello vulcanizado", "completado": True},
-            {"id": 3, "dia": "Día 2 · AM", "titulo": "Reajuste de acimut en parábola MW hasta lograr -48 dBm", "completado": True},
-            {"id": 4, "dia": "Día 2 · PM", "titulo": "Prueba de tráfico, fotografía nítida y firma de recepción", "completado": True},
-        ]
-
-        hitos_1002 = [
-            {"id": 1, "dia": "Día 1 · AM", "titulo": "Señalización vial en Carretera Austral Km 7 y apertura de cámara", "completado": True},
-            {"id": 2, "dia": "Día 1 · PM", "titulo": "Preparación de manguito y sangrado de fibra óptica de 48 hilos", "completado": True},
-            {"id": 3, "dia": "Día 2 · AM", "titulo": "Fusión por arco de hilos 01 al 12 y sellado termocontraíble", "completado": False},
-            {"id": 4, "dia": "Día 2 · PM", "titulo": "Certificación bidireccional con OTDR (< 0.05 dB) y cierre", "completado": False},
-        ]
-
-        hitos_1003 = [
-            {"id": 1, "dia": "Día 1 · AM", "titulo": "Aislamiento eléctrico de gabinete UPS y verificación 0.0 V (LOTO)", "completado": True},
-            {"id": 2, "dia": "Día 1 · PM", "titulo": "Extracción de módulo rectificador dañado y diagnóstico de bancos", "completado": False},
-            {"id": 3, "dia": "Día 2 · AM", "titulo": "Instalación de nuevo módulo rectificador desde bodega central", "completado": False},
-            {"id": 4, "dia": "Día 2 · PM", "titulo": "Prueba de transferencia en carga y firma de conformidad", "completado": False},
-        ]
-
-        hitos_1004 = [
-            {"id": 1, "dia": "Día 1 · AM", "titulo": "Charla de seguridad en altura, revisión de arnés y bloqueo LOTO", "completado": False},
-            {"id": 2, "dia": "Día 1 · PM", "titulo": "Medición con tensiómetro en riostras nivel 1, 2 y 3 post-temporal", "completado": False},
-            {"id": 3, "dia": "Día 2 · AM", "titulo": "Reapriete de grilletes, engrase anticorrosivo y sellado de gabinete", "completado": False},
-            {"id": 4, "dia": "Día 2 · PM", "titulo": "Evidencia óptica de verticalidad y recepción por Encargado", "completado": False},
-        ]
-
         ot_completada = OrdenTrabajo(
             codigo_ot="OT-1001",
-            cliente_mandante="Entel Operaciones",
+            empresa_id=emp_austral.id,
             activo_id=torre_tenglo.id,
+            operario_id=u_trab_carlos.id,
             tipo_mantenimiento="PREVENTIVO",
             prioridad="ALTA",
             estado_actual="OT COMPLETADA",
-            operario_responsable="Carlos Valenzuela M.",
-            rut_responsable="14.285.631-8",
             descripcion="Mantenimiento preventivo post-temporal: reajuste de parábola de enlace microondas, inspección de cable de bajada RF y sello contra humedad.",
-            hitos_json=json.dumps(hitos_1001, ensure_ascii=False),
-            avance_pct=100,
             created_at=ahora - timedelta(days=2)
         )
-
         ot_ejecucion = OrdenTrabajo(
             codigo_ot="OT-1002",
-            cliente_mandante="Mundo Telecom",
+            empresa_id=emp_patagonia.id,
             activo_id=nodo_coihuin.id,
+            operario_id=u_trab_rodrigo.id,
             tipo_mantenimiento="CORRECTIVO",
             prioridad="MEDIA",
             estado_actual="EN EJECUCIÓN",
-            operario_responsable="Rodrigo Fuentes A.",
-            rut_responsable="15.902.438-2",
             descripcion="Reparación de manguito de empalme e inspección OTDR por atenuación en tramo troncal de fibra óptica Carretera Austral.",
-            hitos_json=json.dumps(hitos_1002, ensure_ascii=False),
-            avance_pct=50,
             created_at=ahora - timedelta(days=1)
         )
-
         ot_detenida = OrdenTrabajo(
             codigo_ot="OT-1003",
-            cliente_mandante="Salmones Austral (Enlace Planta)",
+            empresa_id=emp_frigorifico.id,
             activo_id=datacenter_alerce.id,
+            operario_id=u_trab_marcelo.id,
             tipo_mantenimiento="CORRECTIVO",
             prioridad="ALTA",
             estado_actual="DETENIDA POR ANOMALÍA",
-            operario_responsable="Marcelo Soto P.",
-            rut_responsable="16.892.110-3",
-            descripcion="Revisión de banco de baterías de respaldo (UPS). Faena pausada en Hito 2 a la espera de módulo rectificador desde bodega.",
-            hitos_json=json.dumps(hitos_1003, ensure_ascii=False),
-            avance_pct=25,
+            descripcion="Revisión de banco de baterías de respaldo (UPS). Faena pausada en Etapa 2 a la espera de módulo rectificador desde bodega.",
             created_at=ahora - timedelta(hours=18)
         )
-
         ot_emitida = OrdenTrabajo(
             codigo_ot="OT-1004",
-            cliente_mandante="GTD Teleductos Sur",
+            empresa_id=emp_austral.id,
             activo_id=torre_tenglo.id,
+            operario_id=u_trab_rodrigo.id,
             tipo_mantenimiento="INSPECCION",
             prioridad="ALTA",
             estado_actual="EMITIDA",
-            operario_responsable="Camila Morales T.",
-            rut_responsable="17.341.890-5",
-            descripcion="Inspección multidía post-viento: verificación de tensión de riostras (vientos de anclaje) y estado de gabinete de intemperie.",
-            hitos_json=json.dumps(hitos_1004, ensure_ascii=False),
-            avance_pct=0,
+            descripcion="Inspección ágil post-viento para Austral Conectividad: verificación de tensión de riostras y estado de gabinete.",
             created_at=ahora - timedelta(hours=2)
         )
-
         db.add_all([ot_completada, ot_ejecucion, ot_detenida, ot_emitida])
         db.flush()
 
+        hitos_por_ot = [
+            (ot_completada, [
+                ("Etapa 1", "Acreditación de cuadrilla, bloqueo LOTO y ascenso a Torre Tenglo", True),
+                ("Etapa 2", "Inspección de guía de onda, conectores RF y sello vulcanizado", True),
+                ("Etapa 3", "Reajuste de acimut en parábola MW hasta lograr -48 dBm", True),
+                ("Etapa 4", "Prueba de tráfico, fotografía nítida y firma de recepción", True),
+            ]),
+            (ot_ejecucion, [
+                ("Etapa 1", "Señalización vial en Carretera Austral Km 7 y apertura de cámara", True),
+                ("Etapa 2", "Preparación de manguito y sangrado de fibra óptica de 48 hilos", True),
+                ("Etapa 3", "Fusión por arco de hilos 01 al 12 y sellado termocontraíble", False),
+                ("Etapa 4", "Certificación bidireccional con OTDR (< 0.05 dB) y cierre", False),
+            ]),
+            (ot_detenida, [
+                ("Etapa 1", "Aislamiento eléctrico de gabinete UPS y verificación 0.0 V (LOTO)", True),
+                ("Etapa 2", "Extracción de módulo rectificador dañado y diagnóstico de bancos", False),
+                ("Etapa 3", "Instalación de nuevo módulo rectificador desde bodega central", False),
+                ("Etapa 4", "Prueba de transferencia en carga y firma de conformidad", False),
+            ]),
+            (ot_emitida, [
+                ("Etapa 1", "Charla de seguridad en altura, revisión de arnés y bloqueo LOTO", False),
+                ("Etapa 2", "Medición con tensiómetro en riostras nivel 1, 2 y 3 post-temporal", False),
+                ("Etapa 3", "Reapriete de grilletes, engrase anticorrosivo y sellado de gabinete", False),
+                ("Etapa 4", "Evidencia óptica de verticalidad y recepción por Encargado", False),
+            ]),
+        ]
+
+        for ot_obj, etapas in hitos_por_ot:
+            for idx, (dia, titulo, comp) in enumerate(etapas, start=1):
+                db.add(HitoOrden(
+                    orden_id=ot_obj.id,
+                    orden_secuencia=idx,
+                    dia=dia,
+                    titulo=titulo,
+                    completado=comp
+                ))
+        db.flush()
+
         bloques = [
-            {
-                "orden": ot_completada,
-                "anterior": "EMITIDA",
-                "nuevo": "EN EJECUCIÓN",
-                "gps": "-41.4870, -72.9550",
-                "ts": ahora - timedelta(hours=28),
-                "obs": "Día 1: Arribo a sitio de torre Tenglo. Hitos 1 y 2 completados.",
-                "evidencia_url": None,
-                "laplacian": None,
-                "firma": FIRMA_SVG_PRECARGADA,
-            },
-            {
-                "orden": ot_completada,
-                "anterior": "EN EJECUCIÓN",
-                "nuevo": "EN VALIDACIÓN",
-                "gps": "-41.4870, -72.9550",
-                "ts": ahora - timedelta(hours=5),
-                "obs": "Día 2: Ajuste de acimut realizado. Potencia en -48 dBm. Hitos 3 y 4 completados.",
-                "evidencia_url": url_ev_1001,
-                "laplacian": score_1001,
-                "firma": FIRMA_SVG_PRECARGADA,
-            },
-            {
-                "orden": ot_completada,
-                "anterior": "EN VALIDACIÓN",
-                "nuevo": "OT COMPLETADA",
-                "gps": "-41.4870, -72.9550",
-                "ts": ahora - timedelta(hours=2),
-                "obs": "Recepción conforme para cliente Entel Operaciones. Cierre de sitio.",
-                "evidencia_url": url_ev_1001,
-                "laplacian": score_1001,
-                "firma": FIRMA_SVG_PRECARGADA,
-            },
-            {
-                "orden": ot_ejecucion,
-                "anterior": "EMITIDA",
-                "nuevo": "EN EJECUCIÓN",
-                "gps": "-41.4812, -72.8715",
-                "ts": ahora - timedelta(hours=14),
-                "obs": "Día 1 completado (Hitos 1 y 2). En preparación para fusión de fibra Día 2.",
-                "evidencia_url": url_ev_1002,
-                "laplacian": score_1002,
-                "firma": None,
-            },
-            {
-                "orden": ot_detenida,
-                "anterior": "EMITIDA",
-                "nuevo": "EN EJECUCIÓN",
-                "gps": "-41.3920, -72.9150",
-                "ts": ahora - timedelta(hours=10),
-                "obs": "Hito 1 completado: Aislamiento LOTO en Datacenter Alerce.",
-                "evidencia_url": None,
-                "laplacian": None,
-                "firma": None,
-            },
-            {
-                "orden": ot_detenida,
-                "anterior": "EN EJECUCIÓN",
-                "nuevo": "DETENIDA POR ANOMALÍA",
-                "gps": "-41.3920, -72.9150",
-                "ts": ahora - timedelta(hours=6),
-                "obs": "Bloqueo en Hito 2: Falla interna en módulo rectificador 2. En espera de repuesto.",
-                "evidencia_url": None,
-                "laplacian": None,
-                "firma": None,
-            },
+            {"orden": ot_completada, "usr": u_trab_carlos, "anterior": "EMITIDA", "nuevo": "EN EJECUCIÓN", "gps": "-41.4870, -72.9550", "ts": ahora - timedelta(hours=28), "obs": "Arribo a sitio de torre Tenglo. Etapas 1 y 2 completadas.", "evidencia_url": None, "laplacian": None, "firma": FIRMA_SVG_PRECARGADA},
+            {"orden": ot_completada, "usr": u_trab_carlos, "anterior": "EN EJECUCIÓN", "nuevo": "EN VALIDACIÓN", "gps": "-41.4870, -72.9550", "ts": ahora - timedelta(hours=5), "obs": "Ajuste de acimut realizado. Potencia en -48 dBm. Etapas 3 y 4 completadas.", "evidencia_url": url_ev_1001, "laplacian": score_1001, "firma": FIRMA_SVG_PRECARGADA},
+            {"orden": ot_completada, "usr": u_supervisor, "anterior": "EN VALIDACIÓN", "nuevo": "OT COMPLETADA", "gps": "-41.4870, -72.9550", "ts": ahora - timedelta(hours=2), "obs": "Recepción conforme para Austral Conectividad SpA. Cierre de sitio.", "evidencia_url": url_ev_1001, "laplacian": score_1001, "firma": FIRMA_SVG_PRECARGADA},
+            {"orden": ot_ejecucion, "usr": u_trab_rodrigo, "anterior": "EMITIDA", "nuevo": "EN EJECUCIÓN", "gps": "-41.4812, -72.8715", "ts": ahora - timedelta(hours=14), "obs": "Etapas 1 y 2 completadas. En preparación para fusión de fibra.", "evidencia_url": url_ev_1002, "laplacian": score_1002, "firma": None},
+            {"orden": ot_detenida, "usr": u_trab_marcelo, "anterior": "EMITIDA", "nuevo": "EN EJECUCIÓN", "gps": "-41.3920, -72.9150", "ts": ahora - timedelta(hours=10), "obs": "Etapa 1 completada: Aislamiento LOTO en Sala de Servidores Alerce.", "evidencia_url": None, "laplacian": None, "firma": None},
+            {"orden": ot_detenida, "usr": u_trab_marcelo, "anterior": "EN EJECUCIÓN", "nuevo": "DETENIDA POR ANOMALÍA", "gps": "-41.3920, -72.9150", "ts": ahora - timedelta(hours=6), "obs": "Pausa en Etapa 2: Falla interna en módulo rectificador 2. En espera de repuesto.", "evidencia_url": None, "laplacian": None, "firma": None},
         ]
 
         hash_previo = GENESIS_HASH
         for item in bloques:
             ot_obj = item["orden"]
+            usr_obj = item["usr"]
             ts_iso = item["ts"].isoformat()
             payload = construir_payload_canonico(
                 hash_previo=hash_previo,
                 codigo_ot=ot_obj.codigo_ot,
                 estado_anterior=item["anterior"],
                 estado_nuevo=item["nuevo"],
-                rut_responsable=ot_obj.rut_responsable,
+                rut_responsable=usr_obj.rut,
                 coordenadas_gps=item["gps"],
                 timestamp_iso=ts_iso,
             )
@@ -289,9 +295,7 @@ def poblar_sistema():
 
             transicion = BitacoraTransicion(
                 orden_id=ot_obj.id,
-                codigo_ot=ot_obj.codigo_ot,
-                operario_responsable=ot_obj.operario_responsable,
-                rut_responsable=ot_obj.rut_responsable,
+                usuario_id=usr_obj.id,
                 estado_anterior=item["anterior"],
                 estado_nuevo=item["nuevo"],
                 coordenadas_gps=item["gps"],
@@ -299,8 +303,6 @@ def poblar_sistema():
                 hash_previo=hash_previo,
                 hash_cadena=hash_actual,
                 timestamp=item["ts"],
-                evidencia_url=item["evidencia_url"],
-                laplacian_score=item["laplacian"],
                 encargado_nombre="Carlos Valenzuela M.",
                 encargado_rut="14.285.631-8",
                 firma_data=item["firma"]
@@ -309,25 +311,24 @@ def poblar_sistema():
             db.flush()
 
             if item["evidencia_url"]:
-                evidencia = EvidenciaMultimedia(
+                db.add(EvidenciaMultimedia(
                     transicion_id=transicion.id,
                     url_almacenamiento=item["evidencia_url"],
                     laplacian_score=item["laplacian"],
                     aprobado_nitidez=True,
                     created_at=item["ts"],
-                )
-                db.add(evidencia)
-
+                ))
             hash_previo = hash_actual
 
         db.commit()
-        print("[OK] Base de datos poblada con Clientes Mandantes e Hitos Multidía (OT-1001 a OT-1004).")
+        print("[OK] Base de datos en 3FN estricta (tablas en singular) poblada con éxito.")
     except Exception as e:
         db.rollback()
         print(f"[ERROR EN SEED]: {e}")
         raise e
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     poblar_sistema()

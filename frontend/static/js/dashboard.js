@@ -1,7 +1,48 @@
 const API = window.TaskNodeConfig.API_URL;
 let ordenesGlobal = [];
 let ordenSeleccionada = null;
-let rolVistaActual = 'SUPERVISOR'; // 'SUPERVISOR' o 'CLIENTE'
+let rolVistaActual = 'SUPERVISOR';
+let hitosConstructor = [];
+let listaTecnicosBD = [];
+
+const PLANTILLAS_PROTOCOLOS = {
+    RF_MW: {
+        descripcion: "Mantenimiento preventivo de enlace microondas: verificación de bloqueo LOTO, inspección de guía de onda y ajuste de acimut.",
+        etapas: [
+            { dia: "Etapa 1", titulo: "Permiso de trabajo seguro (PTS), bloqueo LOTO y ascenso acreditado" },
+            { dia: "Etapa 2", titulo: "Inspección de guía de onda, conectores RF y sellado vulcanizado" },
+            { dia: "Etapa 3", titulo: "Alineación de parábola MW y verificación de potencia (-48 dBm / VSWR)" },
+            { dia: "Etapa 4", titulo: "Captura de evidencia óptica nítida y firma de conformidad en sitio" }
+        ]
+    },
+    FIBRA_OTDR: {
+        descripcion: "Intervención en tramo troncal de fibra óptica: preparación de manguito, fusión por arco y certificación reflectométrica OTDR.",
+        etapas: [
+            { dia: "Etapa 1", titulo: "Segregación de área de trabajo y apertura de cámara/mufa óptica" },
+            { dia: "Etapa 2", titulo: "Sangrado de buffer, limpieza de filamentos y preparación de casete" },
+            { dia: "Etapa 3", titulo: "Fusión por arco de hilos asignados con atenuación < 0.05 dB" },
+            { dia: "Etapa 4", titulo: "Medición bidireccional OTDR, respaldo fotográfico y cierre de manguito" }
+        ]
+    },
+    UPS_LOTO: {
+        descripcion: "Intervención electromecánica en sistema de energía ininterrumpida (UPS) bajo protocolo de energía cero D.S. 594.",
+        etapas: [
+            { dia: "Etapa 1", titulo: "Seccionamiento eléctrico, bloqueo LOTO y comprobación de energía residual 0.0 V" },
+            { dia: "Etapa 2", titulo: "Diagnóstico de bancos de baterías y extracción de módulo rectificador" },
+            { dia: "Etapa 3", titulo: "Montaje de unidad de reemplazo y torque calibrado de bornes" },
+            { dia: "Etapa 4", titulo: "Prueba de transferencia en carga real y recepción conforme" }
+        ]
+    },
+    TORRE_EST: {
+        descripcion: "Inspección estructural de torre de telecomunicaciones: control de tensión en riostras, verticalidad y estado de anclajes.",
+        etapas: [
+            { dia: "Etapa 1", titulo: "Verificación de arnés de altura, línea de vida y bloqueo perimetral" },
+            { dia: "Etapa 2", titulo: "Medición con tensiómetro en vientos de anclaje niveles 1, 2 y 3" },
+            { dia: "Etapa 3", titulo: "Reapriete de grilletes, aplicación de anticorrosivo y revisión de baliza" },
+            { dia: "Etapa 4", titulo: "Registro fotográfico de verticalidad y firma de encargado de planta" }
+        ]
+    }
+};
 
 const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
@@ -11,9 +52,41 @@ const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURICompone
 </svg>`);
 
 document.addEventListener('DOMContentLoaded', () => {
+    configurarSesionSegunUsuario();
     actualizarMonitorCompleto();
+    cargarCatalogosRelacionalesModal();
     setInterval(actualizarMonitorCompleto, 5000);
 });
+
+function configurarSesionSegunUsuario() {
+    const user = window.obtenerUsuarioActual ? window.obtenerUsuarioActual() : null;
+    if (!user) return;
+
+    if (user.rol === 'TRABAJADOR') {
+        window.location.href = 'terminal.html';
+        return;
+    }
+
+    const sideTag = document.getElementById('sidebar-rol-tag');
+    const sideName = document.getElementById('sidebar-user-name');
+    const switchCont = document.getElementById('contenedor-switch-rol');
+    const navAudit = document.getElementById('nav-link-auditoria');
+    const sub = document.getElementById('subtitulo-rol');
+
+    if (sideName) sideName.innerText = user.nombre_completo;
+
+    if (user.rol === 'CLIENTE') {
+        cambiarRolVista('CLIENTE');
+        if (switchCont) switchCont.classList.add('hidden');
+        if (navAudit) navAudit.classList.add('hidden');
+        if (sideTag) sideTag.innerText = 'PORTAL MANDANTE';
+        if (sub) sub.innerText = `Empresa Mandante: ${user.empresa_nombre || user.nombre_completo} · Monitoreo de SLA y Actas`;
+    } else {
+        cambiarRolVista('SUPERVISOR');
+        if (sideTag) sideTag.innerText = 'SUPERVISIÓN CMMS';
+        if (sub) sub.innerText = `${user.nombre_completo} · ${user.cargo}`;
+    }
+}
 
 function mostrarToastScada(mensaje, esError = false) {
     const toast = document.getElementById('hud-toast');
@@ -23,7 +96,7 @@ function mostrarToastScada(mensaje, esError = false) {
 
     msg.innerText = mensaje;
     if (led) {
-        led.className = esError ? 'w-2.5 h-2.5 rounded-full bg-red-500' : 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+        led.className = esError ? 'w-2 h-2 rounded-full bg-red-500' : 'w-2 h-2 rounded-full bg-emerald-500';
     }
     toast.classList.remove('opacity-0', 'translate-y-[-8px]');
     toast.classList.add('opacity-100', 'translate-y-0');
@@ -42,15 +115,15 @@ function cambiarRolVista(nuevoRol) {
     const sub = document.getElementById('subtitulo-rol');
 
     if (nuevoRol === 'CLIENTE') {
-        btnCli.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
-        btnSup.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
+        if (btnCli) btnCli.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
+        if (btnSup) btnSup.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
         if (btnNueva) btnNueva.classList.add('hidden');
-        if (sub) sub.innerText = "Vista Ejecutiva Cliente Mandante: Seguimiento de SLA, hitos completados y actas firmadas";
+        if (sub) sub.innerText = "Vista Cliente Mandante: Seguimiento de cumplimiento SLA, etapas verificadas y recepción";
     } else {
-        btnSup.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
-        btnCli.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
+        if (btnSup) btnSup.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
+        if (btnCli) btnCli.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
         if (btnNueva) btnNueva.classList.remove('hidden');
-        if (sub) sub.innerText = "Vista Operativa Supervisor: Gestión de órdenes, control de hitos multidía y auditoría";
+        if (sub) sub.innerText = "Supervisión Operativa: Gestión de órdenes de trabajo, protocolos de terreno y cierre";
     }
     aplicarFiltrosLocal();
     if (ordenSeleccionada) poblarDatosInspector(ordenSeleccionada);
@@ -121,43 +194,51 @@ function obtenerInfoEstado(estado, avanceReal) {
 }
 
 async function actualizarMonitorCompleto() {
-    await Promise.all([
-        cargarKPIs(),
-        cargarTablaBitacora(),
-        cargarActivosEnSelectorModal()
-    ]);
+    await cargarTablaBitacora();
 }
 
-async function cargarKPIs() {
-    try {
-        const res = await fetch(`${API}/metricas/`);
-        if (!res.ok) return;
-        const m = await res.json();
+function actualizarKPIsDesdeLista(lista) {
+    const total = lista.length;
+    const detenidas = lista.filter(o => o.estado_actual === "DETENIDA POR ANOMALÍA").length;
+    const completadas = lista.filter(o => o.estado_actual === "OT COMPLETADA").length;
+    const sumaAvance = lista.reduce((acc, o) => acc + (o.avance_pct || 0), 0);
 
-        const setTxt = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.innerText = val;
-        };
+    const promAvance = total > 0 ? Math.round(sumaAvance / total) : 0;
+    const tasaRes = total > 0 ? ((completadas / total) * 100).toFixed(1) : "0.0";
 
-        setTxt('kpi-volumen', m.volumen_total);
-        setTxt('kpi-avance-hitos', `${m.avance_global_hitos_pct || 0}%`);
-        setTxt('kpi-detenciones', m.detenciones_alertas);
-        setTxt('kpi-resolucion', `${m.tasa_resolucion_pct}%`);
-    } catch (e) {}
+    const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    };
+
+    setTxt('kpi-volumen', total);
+    setTxt('kpi-avance-hitos', `${promAvance}%`);
+    setTxt('kpi-detenciones', detenidas);
+    setTxt('kpi-resolucion', `${tasaRes}%`);
 }
 
 async function cargarTablaBitacora() {
     try {
         const res = await fetch(`${API}/ordenes/`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        ordenesGlobal = await res.json();
+        let todas = await res.json();
 
-        // Actualizar selector de clientes mandantes
+        const userLog = window.obtenerUsuarioActual ? window.obtenerUsuarioActual() : null;
+        if (userLog && userLog.rol === 'CLIENTE') {
+            todas = todas.filter(o =>
+                (userLog.empresa_id && o.empresa_id === userLog.empresa_id) ||
+                (userLog.empresa_nombre && o.cliente_mandante === userLog.empresa_nombre)
+            );
+        }
+
+        ordenesGlobal = todas;
+        actualizarKPIsDesdeLista(ordenesGlobal);
+
         const selectCli = document.getElementById('filtro-cliente');
         if (selectCli) {
             const valorActual = selectCli.value;
-            const clientesUnicos = [...new Set(ordenesGlobal.map(o => o.cliente_mandante || 'SurTel Interno'))];
-            selectCli.innerHTML = `<option value="TODOS">🏢 Todos los Clientes Mandantes (${clientesUnicos.length})</option>` +
+            const clientesUnicos = [...new Set(ordenesGlobal.map(o => o.cliente_mandante || 'Austral Conectividad SpA'))];
+            selectCli.innerHTML = `<option value="TODOS">Todas las Empresas Mandantes (${clientesUnicos.length})</option>` +
                 clientesUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
             if (clientesUnicos.includes(valorActual)) selectCli.value = valorActual;
         }
@@ -195,18 +276,18 @@ function aplicarFiltrosLocal() {
     });
 
     const cont = document.getElementById('contador-resultados');
-    if (cont) cont.innerText = `Mostrando ${filtradas.length} de ${ordenesGlobal.length} órdenes`;
+    if (cont) cont.innerText = `${filtradas.length} de ${ordenesGlobal.length} órdenes`;
 
     tbody.innerHTML = '';
     if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">No se encontraron órdenes para el filtro seleccionado.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">Sin registros coincidentes.</td></tr>`;
         return;
     }
 
     filtradas.forEach((r) => {
         const estado = r.estado_actual || 'EMITIDA';
         const info = obtenerInfoEstado(estado, r.avance_pct);
-        const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Equipo #${r.activo_id}`;
+        const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Activo #${r.activo_id}`;
         const hitos = r.hitos || [];
         const compHitos = hitos.filter(h => h.completado).length;
 
@@ -220,7 +301,7 @@ function aplicarFiltrosLocal() {
                 <div class="text-[11px] text-theme-dim truncate max-w-[240px]">${nombreEquipo}</div>
             </td>
             <td class="px-4 py-3">
-                <span class="font-bold text-theme-main">${r.cliente_mandante || 'SurTel Interno'}</span>
+                <span class="font-bold text-theme-main">${r.cliente_mandante || 'Austral Conectividad SpA'}</span>
                 <span class="block text-[10px] font-mono text-theme-dim">${r.tipo_mantenimiento} · Prioridad ${r.prioridad}</span>
             </td>
             <td class="px-4 py-3">
@@ -229,7 +310,7 @@ function aplicarFiltrosLocal() {
             </td>
             <td class="px-4 py-3 w-48">
                 <div class="flex justify-between text-[10px] font-mono mb-1">
-                    <span class="text-theme-muted">${compHitos}/${hitos.length} hitos</span>
+                    <span class="text-theme-muted">${compHitos}/${hitos.length} etapas</span>
                     <span class="font-bold text-theme-main">${info.pct}%</span>
                 </div>
                 <div class="w-full h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
@@ -243,7 +324,7 @@ function aplicarFiltrosLocal() {
             </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button class="px-3 py-1 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-theme-main font-semibold text-[11px]">
-                    🔍 Ver Hitos / Ficha
+                    Inspeccionar
                 </button>
             </td>
         `;
@@ -269,9 +350,9 @@ function poblarDatosInspector(orden) {
     }
 
     setTxt('inspect-ot-code', orden.codigo_ot);
-    setTxt('inspect-cliente-mandante', `Cliente Mandante: ${orden.cliente_mandante || 'SurTel Interno'}`);
-    setTxt('inspect-asset-tag', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Equipo #${orden.activo_id}`);
-    setTxt('inspect-ot-crew', `Técnico Ejecutor: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
+    setTxt('inspect-cliente-mandante', `Empresa Mandante: ${orden.cliente_mandante || 'Austral Conectividad SpA'}`);
+    setTxt('inspect-asset-tag', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Activo #${orden.activo_id}`);
+    setTxt('inspect-ot-crew', `Especialista: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
     setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
     setTxt('inspect-progress-txt', `${info.pct}% completado`);
 
@@ -281,7 +362,6 @@ function poblarDatosInspector(orden) {
         bar.style.width = `${info.pct}%`;
     }
 
-    // Renderizar Checklist de Hitos Multidía
     const contHitos = document.getElementById('lista-hitos-inspector');
     if (contHitos) {
         const hitos = orden.hitos || [];
@@ -299,9 +379,9 @@ function poblarDatosInspector(orden) {
         `).join('');
     }
 
-    setTxt('inspect-laplacian-score', orden.laplacian_score ? `✓ Nitidez OK (Score: ${orden.laplacian_score})` : 'Pendiente de captura');
-    setTxt('inspect-gps-val', `${lat}, ${lon} (≤ 500m OK)`);
-    setTxt('inspect-hash-val', orden.hash_cadena || 'Pendiente de primera transición en terreno');
+    setTxt('inspect-laplacian-score', orden.laplacian_score ? `Nitidez Verificada (Score: ${orden.laplacian_score})` : 'Sin captura óptica');
+    setTxt('inspect-gps-val', `${lat}, ${lon} (Radio <= 500m OK)`);
+    setTxt('inspect-hash-val', orden.hash_cadena || 'Pendiente de primera transición');
 
     const imgView = document.getElementById('inspect-img-view');
     const imgPlaceholder = document.getElementById('inspect-img-placeholder');
@@ -330,7 +410,7 @@ function poblarDatosInspector(orden) {
     const nomEncargado = orden.encargado_nombre || 'Carlos Valenzuela M.';
     const rutEncargado = orden.encargado_rut || '14.285.631-8';
 
-    if (elEncargadoNom) elEncargadoNom.innerText = `Encargado: ${nomEncargado}`;
+    if (elEncargadoNom) elEncargadoNom.innerText = `Receptor: ${nomEncargado}`;
     if (elEncargadoRut) elEncargadoRut.innerText = `RUT: ${rutEncargado}`;
 
     if (!datoFirma && !tokenQR && orden.codigo_ot === 'OT-1001') {
@@ -342,18 +422,18 @@ function poblarDatosInspector(orden) {
             sigImg.src = datoFirma;
             sigImg.classList.remove('hidden');
             sigPlaceholder.classList.add('hidden');
-            sigStatus.innerText = "✓ RÚBRICA VALIDADA";
+            sigStatus.innerText = "RÚBRICA ACREDITADA";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
         } else if (tokenQR) {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
-            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">✓ CREDENCIAL QR ACREDITADA<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
-            sigStatus.innerText = "✓ TOKEN QR OK";
+            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">TOKEN QR VERIFICADO<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
+            sigStatus.innerText = "TOKEN QR OK";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
         } else {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
-            sigPlaceholder.innerHTML = `<span>✍️ Pendiente de firma del Encargado en terreno</span>`;
+            sigPlaceholder.innerHTML = `<span>Pendiente de firma en terreno</span>`;
             sigStatus.innerText = "PENDIENTE";
             sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-theme-dim font-mono";
         }
@@ -365,11 +445,11 @@ function poblarDatosInspector(orden) {
             btnAprobar.classList.add('hidden');
         } else {
             btnAprobar.classList.remove('hidden');
-            const puedeCompletar = (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN');
-            btnAprobar.disabled = !puedeCompletar;
-            btnAprobar.innerText = (estado === 'OT COMPLETADA')
-                ? '✓ Orden Cerrada y Auditada'
-                : '✓ Aprobar Todos los Hitos y Cerrar Orden';
+            const yaCerrada = (estado === 'OT COMPLETADA');
+            btnAprobar.disabled = yaCerrada;
+            btnAprobar.innerText = yaCerrada
+                ? 'Orden Cerrada y Auditada'
+                : 'Visar Protocolo y Cerrar Orden';
         }
     }
 }
@@ -384,21 +464,21 @@ async function toggleHitoDesdeConsola(idx, nuevoValor) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hitos: ordenSeleccionada.hitos })
         });
-        if (!res.ok) throw new Error("Error al guardar hito");
+        if (!res.ok) throw new Error("Error al guardar etapa");
         const actualizada = await res.json();
         ordenSeleccionada = actualizada;
         poblarDatosInspector(actualizada);
         await actualizarMonitorCompleto();
-        mostrarToastScada(`Hito #${idx + 1} actualizado en ${actualizada.codigo_ot}`);
+        mostrarToastScada(`Etapa #${idx + 1} actualizada en ${actualizada.codigo_ot}`);
     } catch (e) {
-        mostrarToastScada("No se pudo actualizar el hito", true);
+        mostrarToastScada("No se pudo actualizar la etapa", true);
     }
 }
 
 async function auditarOrdenActiva(accion) {
     if (!ordenSeleccionada) return;
     const nuevoEstado = (accion === 'COMPLETAR') ? 'OT COMPLETADA' : 'EN EJECUCIÓN';
-    const obs = 'Hitos verificados y trabajo aprobado conforme por Supervisión. Orden cerrada.';
+    const obs = 'Protocolo de etapas verificado y visado conforme por Supervisión. Orden cerrada.';
 
     const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4870;
     const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9550;
@@ -414,32 +494,134 @@ async function auditarOrdenActiva(accion) {
         const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            mostrarToastScada(data.detail || 'No se pudo cambiar el estado', true);
+            mostrarToastScada(data.detail || 'No se pudo cerrar la orden', true);
             return;
         }
-        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} cerrada al 100%.`);
+        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} visada y cerrada.`);
         await actualizarMonitorCompleto();
     } catch (e) {
         mostrarToastScada(`Error de red: ${e.message}`, true);
     }
 }
 
-async function cargarActivosEnSelectorModal() {
-    const select = document.getElementById('form-activo');
-    if (!select || select.options.length > 0) return;
+/* ==========================================================================
+   MODAL EMISIÓN Y CONSTRUCTOR HÍBRIDO DE HITOS (PLANTILLA + FILAS DINÁMICAS)
+   ========================================================================== */
+
+async function cargarCatalogosRelacionalesModal() {
     try {
-        const res = await fetch(`${API}/activos/`);
-        if (!res.ok) return;
-        const activos = await res.json();
-        select.innerHTML = activos.map(a => `<option value="${a.id}">${a.codigo_activo} — ${a.nombre}</option>`).join('');
+        const [resAct, resUsr, resEmp] = await Promise.all([
+            fetch(`${API}/activos/`),
+            fetch(`${API}/auth/usuarios?rol=TRABAJADOR`),
+            fetch(`${API}/auth/empresas`)
+        ]);
+
+        if (resAct.ok) {
+            const activos = await resAct.json();
+            const selAct = document.getElementById('form-activo');
+            if (selAct) {
+                selAct.innerHTML = activos.map(a => `<option value="${a.id}">${a.codigo_activo} — ${a.nombre}</option>`).join('');
+            }
+        }
+
+        if (resUsr.ok) {
+            listaTecnicosBD = await resUsr.json();
+            const selTec = document.getElementById('selector-tecnico-bd');
+            if (selTec) {
+                selTec.innerHTML = `<option value="">Seleccionar del personal registrado (${listaTecnicosBD.length})...</option>` +
+                    listaTecnicosBD.map(u => `<option value="${u.id}">${u.nombre_completo} · ${u.cargo}</option>`).join('');
+            }
+        }
+
+        if (resEmp.ok) {
+            const empresas = await resEmp.json();
+            const dlEmp = document.getElementById('lista-empresas-mandantes');
+            if (dlEmp) {
+                dlEmp.innerHTML = empresas.map(e => `<option value="${e.razon_social}">`).join('');
+            }
+        }
     } catch (e) {}
+}
+
+function seleccionarTecnicoDesdeBD(idStr) {
+    if (!idStr) return;
+    const u = listaTecnicosBD.find(x => String(x.id) === String(idStr));
+    if (u) {
+        document.getElementById('form-operario').value = u.nombre_completo;
+        document.getElementById('form-rut').value = u.rut;
+    }
+}
+
+function aplicarPlantillaProtocolo(clave) {
+    let key = clave;
+    if (clave === 'PREVENTIVO') key = 'RF_MW';
+    if (clave === 'CORRECTIVO') key = 'FIBRA_OTDR';
+    if (clave === 'INSPECCION') key = 'TORRE_EST';
+
+    const p = PLANTILLAS_PROTOCOLOS[key] || PLANTILLAS_PROTOCOLOS.RF_MW;
+    const descInput = document.getElementById('form-descripcion');
+    if (descInput) descInput.value = p.descripcion;
+
+    hitosConstructor = p.etapas.map(e => ({ dia: e.dia, titulo: e.titulo }));
+    renderizarFilasConstructorHitos();
+}
+
+function renderizarFilasConstructorHitos() {
+    const cont = document.getElementById('constructor-hitos-filas');
+    if (!cont) return;
+
+    cont.innerHTML = hitosConstructor.map((h, idx) => `
+        <div class="flex items-center gap-2">
+            <input type="text" value="${h.dia}" oninput="actualizarDatoHitoConstructor(${idx}, 'dia', this.value)"
+                class="w-24 border rounded px-2 py-1.5 text-[11px] font-mono font-bold shrink-0" placeholder="Etapa">
+            <input type="text" value="${h.titulo}" oninput="actualizarDatoHitoConstructor(${idx}, 'titulo', this.value)"
+                class="flex-1 border rounded px-2.5 py-1.5 text-xs" placeholder="Descripción verificable de la etapa..." required>
+            <button type="button" onclick="eliminarFilaHitoConstructor(${idx})"
+                class="px-2 py-1 rounded border border-theme-dim hover:border-red-500 text-theme-dim hover:text-red-500 font-bold text-xs shrink-0" title="Eliminar etapa">
+                ×
+            </button>
+        </div>
+    `).join('');
+}
+
+function actualizarDatoHitoConstructor(idx, campo, valor) {
+    if (hitosConstructor[idx]) {
+        hitosConstructor[idx][campo] = valor;
+    }
+}
+
+function agregarFilaHitoConstructor() {
+    const num = hitosConstructor.length + 1;
+    hitosConstructor.push({
+        dia: `Etapa ${num}`,
+        titulo: ""
+    });
+    renderizarFilasConstructorHitos();
+}
+
+function eliminarFilaHitoConstructor(idx) {
+    if (hitosConstructor.length <= 1) return;
+    hitosConstructor.splice(idx, 1);
+    renderizarFilasConstructorHitos();
 }
 
 function abrirModalOT() {
     const modal = document.getElementById('modal-ot');
     if (!modal) return;
-    const rand = Math.floor(1005 + Math.random() * 899);
-    document.getElementById('form-codigo').value = `OT-${rand}`;
+
+    const siguienteNum = 1001 + ordenesGlobal.length;
+    document.getElementById('form-codigo').value = `OT-${siguienteNum}`;
+    document.getElementById('form-cliente').value = 'Austral Conectividad SpA';
+
+    if (listaTecnicosBD.length > 0) {
+        document.getElementById('selector-tecnico-bd').value = String(listaTecnicosBD[0].id);
+        seleccionarTecnicoDesdeBD(listaTecnicosBD[0].id);
+    } else {
+        document.getElementById('form-operario').value = 'Rodrigo Fuentes A.';
+        document.getElementById('form-rut').value = '15.902.438-2';
+    }
+
+    aplicarPlantillaProtocolo('RF_MW');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -451,32 +633,16 @@ function cerrarModalOT() {
     modal.classList.remove('flex');
 }
 
-function autocompletarModalOT() {
-    const rand = Math.floor(1005 + Math.random() * 899);
-    document.getElementById('form-codigo').value = `OT-${rand}`;
-    document.getElementById('form-cliente').value = 'Entel Operaciones';
-    document.getElementById('form-tipo').value = 'PREVENTIVO';
-    document.getElementById('form-prioridad').value = 'ALTA';
-    document.getElementById('form-operario').value = 'Sebastián Rivera';
-    document.getElementById('form-rut').value = '18.421.903-K';
-    document.getElementById('form-descripcion').value = 'Mantenimiento multidía de enlace microondas y certificación de fibra óptica.';
-    document.getElementById('form-hitos').value =
-        'Día 1: Permiso de acceso, charla PTS y bloqueo LOTO (D.S. 594)\n' +
-        'Día 1: Inspección física de guía de onda y conectores en torre\n' +
-        'Día 2: Reajuste de parábola MW y fusión de respaldo FO\n' +
-        'Día 2: Prueba de potencia OTDR, foto nítida y firma de recepción';
-}
-
 async function enviarNuevaOT(e) {
     e.preventDefault();
-    const textoHitos = document.getElementById('form-hitos').value.trim();
-    const lineas = textoHitos ? textoHitos.split('\n').map(l => l.trim()).filter(Boolean) : [];
-    const hitosArray = lineas.map((linea, idx) => {
-        const partes = linea.split(':');
-        const dia = partes.length > 1 ? partes[0].trim() : `Hito ${idx + 1}`;
-        const titulo = partes.length > 1 ? partes.slice(1).join(':').trim() : linea;
-        return { id: idx + 1, dia, titulo, completado: false };
-    });
+    const hitosLimpios = hitosConstructor
+        .filter(h => h.titulo && h.titulo.trim().length > 0)
+        .map((h, idx) => ({
+            id: idx + 1,
+            dia: (h.dia || `Etapa ${idx + 1}`).trim(),
+            titulo: h.titulo.trim(),
+            completado: false
+        }));
 
     const payload = {
         codigo_ot: document.getElementById('form-codigo').value.trim(),
@@ -487,7 +653,7 @@ async function enviarNuevaOT(e) {
         operario_responsable: document.getElementById('form-operario').value.trim(),
         rut_responsable: document.getElementById('form-rut').value.trim(),
         descripcion: document.getElementById('form-descripcion').value.trim(),
-        hitos: hitosArray.length > 0 ? hitosArray : null
+        hitos: hitosLimpios.length > 0 ? hitosLimpios : null
     };
 
     try {
@@ -498,11 +664,11 @@ async function enviarNuevaOT(e) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-            mostrarToastScada(data.detail || 'Error al crear la orden', true);
+            mostrarToastScada(data.detail || 'Error al emitir la orden', true);
             return;
         }
         cerrarModalOT();
-        mostrarToastScada(`Orden ${payload.codigo_ot} creada para ${payload.cliente_mandante}.`);
+        mostrarToastScada(`Orden ${payload.codigo_ot} asignada a ${payload.operario_responsable}.`);
         await actualizarMonitorCompleto();
     } catch (err) {
         mostrarToastScada(`Error de red: ${err.message}`, true);

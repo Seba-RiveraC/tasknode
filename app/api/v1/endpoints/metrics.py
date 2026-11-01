@@ -1,4 +1,3 @@
-import json
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.api.deps import get_db
@@ -6,12 +5,9 @@ from app import models, schemas
 
 router = APIRouter()
 
+
 @router.get("/", response_model=schemas.MetricasResponse)
 def obtener_metricas_operativas(db: Session = Depends(get_db)):
-    """
-    Motor de Inteligencia de Negocios (BI), Minería de Datos y Confiabilidad UNE-EN 15341.
-    Cruza desempeño por Cliente Mandante, avance de Hitos Multidía y cuellos de botella.
-    """
     ordenes = db.query(models.OrdenTrabajo).all()
     total_ots = len(ordenes)
     en_ejecucion = sum(1 for o in ordenes if o.estado_actual == "EN EJECUCIÓN")
@@ -20,18 +16,17 @@ def obtener_metricas_operativas(db: Session = Depends(get_db)):
 
     tasa = round((completadas / total_ots * 100), 1) if total_ots > 0 else 0.0
 
-    # 1. Minería de Datos: Agrupación por Cliente Mandante y Análisis de Hitos
     clientes_map = {}
     etapas_stats = {
-        1: {"etapa": "Hito 1 · Acceso, PTS y Bloqueo LOTO", "total": 0, "completados": 0, "pendientes": 0},
-        2: {"etapa": "Hito 2 · Montaje / Tendido Físico", "total": 0, "completados": 0, "pendientes": 0},
-        3: {"etapa": "Hito 3 · Fusión FO / Alineación RF", "total": 0, "completados": 0, "pendientes": 0},
-        4: {"etapa": "Hito 4 · Certificación OTDR y Firma", "total": 0, "completados": 0, "pendientes": 0},
+        1: {"etapa": "Etapa 1 · Acceso, PTS y Bloqueo LOTO", "total": 0, "completados": 0, "pendientes": 0},
+        2: {"etapa": "Etapa 2 · Montaje / Tendido Físico", "total": 0, "completados": 0, "pendientes": 0},
+        3: {"etapa": "Etapa 3 · Fusión FO / Alineación RF", "total": 0, "completados": 0, "pendientes": 0},
+        4: {"etapa": "Etapa 4 · Certificación y Firma", "total": 0, "completados": 0, "pendientes": 0},
     }
 
     suma_avance_global = 0
     for o in ordenes:
-        cli = o.cliente_mandante or "SurTel Interno"
+        cli = o.empresa.razon_social if o.empresa else "Austral Conectividad SpA"
         if cli not in clientes_map:
             clientes_map[cli] = {
                 "cliente": cli,
@@ -46,13 +41,9 @@ def obtener_metricas_operativas(db: Session = Depends(get_db)):
         if o.estado_actual == "DETENIDA POR ANOMALÍA":
             clientes_map[cli]["detenidas"] += 1
 
-        try:
-            hitos = json.loads(o.hitos_json) if o.hitos_json else []
-        except Exception:
-            hitos = []
-
+        hitos = o.hitos or []
         if hitos:
-            comp = sum(1 for h in hitos if h.get("completado"))
+            comp = sum(1 for h in hitos if h.completado)
             pct_ot = 100 if o.estado_actual == "OT COMPLETADA" else int(round((comp / len(hitos)) * 100))
         else:
             pct_ot = 100 if o.estado_actual == "OT COMPLETADA" else 25
@@ -60,10 +51,10 @@ def obtener_metricas_operativas(db: Session = Depends(get_db)):
         clientes_map[cli]["suma_avance"] += pct_ot
         suma_avance_global += pct_ot
 
-        for idx, h in enumerate(hitos, start=1):
-            slot = idx if idx in etapas_stats else 4
+        for h in hitos:
+            slot = h.orden_secuencia if h.orden_secuencia in etapas_stats else 4
             etapas_stats[slot]["total"] += 1
-            if h.get("completado") or o.estado_actual == "OT COMPLETADA":
+            if h.completado or o.estado_actual == "OT COMPLETADA":
                 etapas_stats[slot]["completados"] += 1
             else:
                 etapas_stats[slot]["pendientes"] += 1
@@ -95,7 +86,6 @@ def obtener_metricas_operativas(db: Session = Depends(get_db)):
             "tasa_avance_pct": tasa_hito
         })
 
-    # Indicadores UNE-EN 15341
     mttr = round(1.85 * detenidas, 2) if detenidas > 0 else 1.40
     mtbf = 168.0
     disponibilidad = round((mtbf / (mtbf + mttr)) * 100, 2) if mttr > 0 else 100.0
