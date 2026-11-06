@@ -65,8 +65,8 @@
         
         <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
-                <h1 class="font-bold text-theme-main text-sm sm:text-base tracking-tight">Gestión de Órdenes de Trabajo y Protocolos de Terreno</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block" id="subtitulo-rol">Supervisión operativa bajo estándar UNE-EN 13306 e ISO 55001</p>
+                <h1 class="font-bold text-theme-main text-sm sm:text-base tracking-tight">Gestión de Órdenes de Trabajo y Cronograma de Faenas</h1>
+                <p class="text-[11px] text-theme-dim hidden sm:block" id="subtitulo-rol">Supervisión operativa, control multidía y seguimiento de hitos de terreno</p>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
@@ -100,7 +100,7 @@
                 <span class="text-xl font-bold font-mono text-theme-main" id="kpi-volumen">-</span>
             </div>
             <div class="px-5 py-3">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Cumplimiento de Etapas</span>
+                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Cumplimiento Global Hitos</span>
                 <span class="text-xl font-bold font-mono text-accent" id="kpi-avance-hitos">-%</span>
             </div>
             <div class="px-5 py-3">
@@ -141,47 +141,58 @@
                     <thead>
                         <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
                             <th class="px-4 py-3">Folio / Activo Físico</th>
+                            <th class="px-4 py-3">Plazo SLA / Término</th>
                             <th class="px-4 py-3">Empresa Mandante</th>
                             <th class="px-4 py-3">Especialista Asignado</th>
-                            <th class="px-4 py-3">Ejecución de Protocolo</th>
+                            <th class="px-4 py-3 min-w-[200px]">Cronograma (Mini Gantt)</th>
                             <th class="px-4 py-3">Estado Normativo</th>
-                            <th class="px-4 py-3 text-right">Expediente</th>
+                            <th class="px-4 py-3 text-right">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-body" class="divide-y divide-theme-dim text-xs">
-                        <tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
+                        <tr><td colspan="7" class="px-4 py-8 text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- PANEL LATERAL DE INSPECCIÓN (DRAWER) -->
+        <!-- PANEL LATERAL DE INSPECCIÓN -->
         <div id="backdrop-inspeccion" onclick="cerrarDrawerInspeccion()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden transition-opacity"></div>
 
-        <aside id="drawer-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-lg bg-surface-1 border-l-2 border-theme-bright shadow-2xl flex flex-col transform translate-x-full transition-transform duration-200 ease-out">
+        <aside id="drawer-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-xl bg-surface-1 border-l-2 border-theme-bright shadow-2xl flex flex-col transform translate-x-full transition-transform duration-200 ease-out">
             
             <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
                 <div>
                     <div class="flex items-center gap-2">
                         <span class="font-mono font-bold text-base text-theme-main" id="inspect-ot-code">OT-XXXX</span>
                         <span id="inspect-fsm-pill" class="text-[10px] font-bold px-2.5 py-0.5 rounded badge-emitida">ESTADO</span>
+                        <button type="button" id="btn-inspect-calendar" class="btn-trigger-calendario p-1 rounded border border-theme-bright hover:bg-surface-3 text-accent transition" title="Ver plazo y minicalendario SLA">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </button>
                     </div>
                     <span class="text-[11px] font-semibold text-accent block mt-0.5" id="inspect-cliente-mandante">Mandante: -</span>
+                    <span class="text-[10px] font-mono text-theme-dim block" id="inspect-sla-tiempo">Plazo: Calculando...</span>
                 </div>
                 <button onclick="cerrarDrawerInspeccion()" class="px-3 py-1 rounded border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main font-bold text-xs">
                     Cerrar
                 </button>
             </div>
 
-            <div class="grid grid-cols-3 border-b border-theme-dim bg-surface-2 px-3 pt-2 gap-1 text-[11px] font-bold shrink-0">
-                <button id="tab-btn-hitos" onclick="cambiarTabInspector('HITOS')" class="py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1">
-                    1. Protocolo de Etapas
+            <!-- 4 Pestañas del Inspector -->
+            <div class="grid grid-cols-4 border-b border-theme-dim bg-surface-2 px-3 pt-2 gap-1 text-[11px] font-bold shrink-0">
+                <button id="tab-btn-gantt" onclick="cambiarTabInspector('GANTT')" class="py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1 text-center truncate">
+                    1. Cronograma Gantt
                 </button>
-                <button id="tab-btn-evidencia" onclick="cambiarTabInspector('EVIDENCIA')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main">
-                    2. Evidencia y Firma
+                <button id="tab-btn-hitos" onclick="cambiarTabInspector('HITOS')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
+                    2. Checklists
                 </button>
-                <button id="tab-btn-forense" onclick="cambiarTabInspector('FORENSE')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main">
-                    3. Trazabilidad ISO
+                <button id="tab-btn-evidencia" onclick="cambiarTabInspector('EVIDENCIA')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
+                    3. Evidencia & Firma
+                </button>
+                <button id="tab-btn-forense" onclick="cambiarTabInspector('FORENSE')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
+                    4. Auditoría ISO
                 </button>
             </div>
 
@@ -192,23 +203,60 @@
                         <span class="font-bold text-theme-main" id="inspect-asset-tag">Activo: -</span>
                         <span class="font-mono font-bold text-accent" id="inspect-progress-txt">0%</span>
                     </div>
-                    <div class="w-full h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
-                        <div id="inspect-progress-bar" class="h-full bg-amber-600 transition-all duration-300" style="width: 0%"></div>
-                    </div>
+                    <!-- Barra de progreso segmentada Gantt -->
+                    <div id="inspect-gantt-segmentos" class="flex gap-1 h-2.5 w-full bg-surface-base rounded overflow-hidden p-0.5 border border-theme-dim"></div>
                     <p class="text-xs text-theme-muted pt-1 leading-relaxed" id="inspect-ot-desc">-</p>
                     <div class="text-[11px] font-mono text-theme-dim pt-0.5" id="inspect-ot-crew">Especialista: -</div>
                 </div>
 
-                <!-- Pestaña 1: Etapas -->
-                <div id="tab-content-hitos" class="space-y-2.5">
+                <!-- Pestaña 1: Mini Carta Gantt Interactiva con Formulario Integrado -->
+                <div id="tab-content-gantt" class="space-y-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-theme-main uppercase">Pauta de Actividades Verificables</span>
-                        <span class="text-[10px] font-mono text-theme-dim">Sincronización en tiempo real</span>
+                        <div>
+                            <span class="text-xs font-bold text-theme-main uppercase block">Carta Gantt Operativa</span>
+                            <span class="text-[10px] text-theme-dim">Usa las flechas (▲ ▼) para reordenar días</span>
+                        </div>
+                        <button type="button" onclick="mostrarFormularioNuevoHito()" class="px-2.5 py-1 rounded bg-surface-2 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-[11px] transition">
+                            + Añadir Día / Etapa
+                        </button>
+                    </div>
+
+                    <!-- Formulario integrado en el menú (Cero alertas 'localhost dice') -->
+                    <div id="formulario-agregar-hito-panel" class="hidden bg-surface-2 border-2 border-theme-bright rounded p-3 space-y-2.5 transition-all">
+                        <div class="flex justify-between items-center border-b border-theme-dim pb-1.5">
+                            <span class="text-[11px] font-bold text-theme-main uppercase">Nueva Etapa de Faena</span>
+                            <button type="button" onclick="ocultarFormularioNuevoHito()" class="text-theme-dim hover:text-theme-main font-bold text-xs">✕</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold text-theme-dim uppercase mb-0.5">Etiqueta</label>
+                                <input type="text" id="nuevo-hito-tag" class="w-full border rounded p-1.5 text-xs font-mono font-bold" placeholder="Día 5">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-[10px] font-bold text-theme-dim uppercase mb-0.5">Actividad Planificada</label>
+                                <input type="text" id="nuevo-hito-titulo" class="w-full border rounded p-1.5 text-xs" placeholder="Describa la tarea del día...">
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-1">
+                            <button type="button" onclick="ocultarFormularioNuevoHito()" class="px-3 py-1 rounded border border-theme-dim text-theme-muted text-xs">Cancelar</button>
+                            <button type="button" onclick="guardarNuevoHitoDesdeFormulario()" class="btn-primary font-bold text-xs px-3.5 py-1 rounded">Guardar en Gantt</button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Hitos de la Carta Gantt con Reordenamiento -->
+                    <div id="contenedor-carta-gantt" class="space-y-2"></div>
+                </div>
+
+                <!-- Pestaña 2: Checklist de Hitos -->
+                <div id="tab-content-hitos" class="hidden space-y-2.5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-theme-main uppercase">Actividades Verificables en Faena</span>
+                        <span class="text-[10px] font-mono text-theme-dim" id="conteo-etapas-inspector">0 etapas</span>
                     </div>
                     <div id="lista-hitos-inspector" class="space-y-2"></div>
                 </div>
 
-                <!-- Pestaña 2: Foto y Firma -->
+                <!-- Pestaña 3: Foto y Firma -->
                 <div id="tab-content-evidencia" class="hidden space-y-4">
                     <div class="space-y-1.5">
                         <div class="flex justify-between items-center">
@@ -241,7 +289,7 @@
                     </div>
                 </div>
 
-                <!-- Pestaña 3: Cumplimiento Normativo -->
+                <!-- Pestaña 4: Cumplimiento Normativo -->
                 <div id="tab-content-forense" class="hidden space-y-3">
                     <div class="bg-surface-2 border border-theme-dim rounded p-3.5 space-y-2.5 text-xs">
                         <div class="font-bold text-theme-main border-b border-theme-dim pb-1.5 flex justify-between">
@@ -280,14 +328,14 @@
 
     </main>
 
-    <!-- MODAL DE EMISIÓN CON CONSTRUCTOR DINÁMICO DE HITOS (ESTILO MAINTAINX / FRACTTAL) -->
+    <!-- MODAL DE EMISIÓN -->
     <div id="modal-ot" class="fixed inset-0 bg-black/75 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
         <div class="bg-surface-1 border-2 border-theme-bright rounded-lg max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
             
             <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center shrink-0">
                 <div>
                     <span class="font-bold text-theme-main text-sm block">Emisión de Orden de Trabajo</span>
-                    <span class="text-[10px] font-mono text-theme-dim">Asignación relacional de activo, especialista y pauta de actividades</span>
+                    <span class="text-[10px] font-mono text-theme-dim">Asignación relacional y planificación de cronograma multidía</span>
                 </div>
                 <button type="button" onclick="cerrarModalOT()" class="px-2.5 py-1 rounded border border-theme-dim bg-surface-1 text-theme-main font-bold text-xs">
                     Cerrar
@@ -296,7 +344,6 @@
 
             <form id="form-emitir-ot" class="p-5 space-y-3.5 overflow-y-auto flex-1" onsubmit="enviarNuevaOT(event)">
                 
-                <!-- Fila 1: Folio, Empresa Mandante y Activo -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Folio OT</label>
@@ -309,7 +356,6 @@
                     </div>
                 </div>
 
-                <!-- Fila 2: Activo, Tipo y Prioridad -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Activo Industrial</label>
@@ -326,14 +372,13 @@
                     <div>
                         <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Prioridad SLA</label>
                         <select id="form-prioridad" required class="w-full border rounded p-2 text-xs font-semibold">
-                            <option value="ALTA">ALTA (Crítica)</option>
-                            <option value="MEDIA">MEDIA (Programada)</option>
-                            <option value="BAJA">BAJA (Rutinaria)</option>
+                            <option value="ALTA">ALTA (Crítica - 24h)</option>
+                            <option value="MEDIA">MEDIA (Programada - 72h)</option>
+                            <option value="BAJA">BAJA (Rutinaria - 7 Días)</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Fila 3: Asignación de Especialista desde Base de Datos -->
                 <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-2">
                     <div class="flex justify-between items-center">
                         <label class="text-[11px] font-bold text-theme-main uppercase">Especialista Asignado a Terreno</label>
@@ -351,33 +396,31 @@
                     </div>
                 </div>
 
-                <!-- Fila 4: Alcance General -->
                 <div>
                     <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Alcance Técnico del Trabajo</label>
                     <textarea id="form-descripcion" rows="2" required class="w-full border rounded p-2 text-xs" placeholder="Describa las actividades principales y requerimientos de seguridad..."></textarea>
                 </div>
 
-                <!-- Fila 5: Constructor Híbrido de Hitos (Plantilla + Filas Dinámicas Editables) -->
                 <div class="bg-surface-2 border border-theme-dim rounded p-3.5 space-y-2.5">
                     <div class="flex flex-wrap justify-between items-center gap-2 border-b border-theme-dim pb-2">
                         <div>
-                            <span class="text-[11px] font-bold text-theme-main uppercase block">Constructor de Protocolo de Etapas (Hitos)</span>
-                            <span class="text-[10px] text-theme-dim">Cargue una pauta estándar o personalice cada actividad</span>
+                            <span class="text-[11px] font-bold text-theme-main uppercase block">Cronograma de Faena (Hitos Multidía)</span>
+                            <span class="text-[10px] text-theme-dim" id="label-total-dias-constructor">Total: 4 etapas planificadas</span>
                         </div>
                         <div class="flex items-center gap-1.5">
                             <select id="selector-plantilla-hitos" onchange="aplicarPlantillaProtocolo(this.value)" class="border rounded px-2 py-1 text-[11px] font-semibold">
-                                <option value="RF_MW">Pauta Estándar: Enlace RF / Microondas</option>
-                                <option value="FIBRA_OTDR">Pauta Estándar: Fusión Fibra Óptica / OTDR</option>
-                                <option value="UPS_LOTO">Pauta Estándar: Respaldo Eléctrico UPS (LOTO)</option>
-                                <option value="TORRE_EST">Pauta Estándar: Inspección Estructural Torre</option>
+                                <option value="SEMANA_7D">Faena Zonal: Semana Corrida (7 Días)</option>
+                                <option value="RF_MW">Pauta: Enlace Microondas (4 Días)</option>
+                                <option value="FIBRA_OTDR">Pauta: Fusión Fibra Óptica (4 Días)</option>
+                                <option value="UPS_LOTO">Pauta: Respaldo Eléctrico UPS (4 Días)</option>
                             </select>
                             <button type="button" onclick="agregarFilaHitoConstructor()" class="px-2.5 py-1 rounded bg-surface-1 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-[11px] transition">
-                                + Añadir Etapa
+                                + Añadir Día / Etapa
                             </button>
                         </div>
                     </div>
 
-                    <div id="constructor-hitos-filas" class="space-y-2 max-h-44 overflow-y-auto pr-1"></div>
+                    <div id="constructor-hitos-filas" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
                 </div>
 
                 <div class="pt-2 border-t border-theme-dim flex justify-end gap-2 shrink-0">
@@ -393,6 +436,6 @@
     </div>
 
     <script src="static/js/config.js?v=3.5"></script>
-    <script src="static/js/dashboard.js?v=3.5"></script>
+    <script src="static/js/dashboard.js?v=6.0"></script>
 </body>
 </html>

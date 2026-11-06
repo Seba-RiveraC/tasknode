@@ -9,40 +9,46 @@
 </head>
 <body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
-    <!-- Menú Lateral Tradicional -->
-    <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0">
+    <!-- Navegación Lateral Estandarizada -->
+    <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0 z-20">
         <div>
             <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
                     <div class="hidden lg:block">
                         <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim">GESTIÓN DE OPERACIONES</span>
+                        <span class="text-[10px] font-mono text-theme-dim" id="sidebar-rol-tag">OPERACIONES CMMS</span>
                     </div>
                 </div>
             </div>
+
             <nav class="p-2.5 space-y-1">
                 <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span class="hidden lg:inline">Órdenes e Hitos</span>
+                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
                 </a>
                 <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    <span class="hidden lg:inline">Indicadores y BI</span>
+                    <span class="hidden lg:inline">Indicadores y SLA (BI)</span>
                 </a>
                 <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-                    <span class="hidden lg:inline">Equipos y Nodos</span>
+                    <span class="hidden lg:inline">Catálogo de Activos</span>
                 </a>
-                <a href="auditoria.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    <span class="hidden lg:inline">Registro de Auditoría</span>
+                <a href="auditoria.html" id="nav-link-auditoria" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
+                    <span class="hidden lg:inline">Libro Mayor (ISO 55001)</span>
                 </a>
             </nav>
         </div>
-        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block font-mono text-[10px]">
-            <div class="font-bold text-theme-main">REPORTE EJECUTIVO</div>
-            <div class="text-theme-dim mt-0.5">Norma UNE-EN 15341</div>
+
+        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block space-y-2">
+            <div class="px-2 py-1.5 rounded bg-surface-1 border border-theme-dim">
+                <span class="text-[9.5px] font-mono text-theme-dim uppercase block">Sesión Activa</span>
+                <span class="font-bold text-theme-main text-[11px] truncate block" id="sidebar-user-name">Supervisor</span>
+            </div>
+            <a href="terminal.html" target="_blank" class="w-full py-1.5 px-3 rounded bg-surface-1 border border-theme-bright text-theme-main font-semibold text-center block hover:bg-surface-3 transition">
+                Vista Móvil de Terreno
+            </a>
+            <button onclick="cerrarSesion()" class="w-full py-1.5 px-3 rounded border border-theme-dim text-theme-muted hover:text-theme-main font-semibold text-center block transition">
+                Cerrar Sesión
+            </button>
         </div>
     </aside>
 
@@ -80,7 +86,6 @@
                             <div class="text-2xl font-bold font-mono text-theme-main" id="m-mttr">-- h</div>
                             <span class="text-[10px] font-semibold text-emerald-600">Meta: &le; 2.5 horas</span>
                         </div>
-                        <!-- Cuadro oculto que se abre al tocar (?) -->
                         <div id="ayuda-mttr" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
                             <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
                                 <strong>¿Qué significa en simple?</strong> Es el tiempo promedio que tarda nuestra cuadrilla en terreno en levantar un enlace caído o resolver una falla desde que se reporta.
@@ -103,7 +108,6 @@
                             <div class="text-2xl font-bold font-mono text-theme-main" id="m-mtbf">-- h</div>
                             <span class="text-[10px] font-semibold text-theme-dim">Base: 168h semanales</span>
                         </div>
-                        <!-- Cuadro oculto que se abre al tocar (?) -->
                         <div id="ayuda-mtbf" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
                             <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
                                 <strong>¿Qué significa en simple?</strong> Son las horas continuas que una torre, nodo de fibra o UPS funciona sin sufrir cortes ni requerir reparaciones de emergencia.
@@ -126,7 +130,6 @@
                             <div class="text-2xl font-bold font-mono text-emerald-600" id="m-ao">--%</div>
                             <span class="text-[10px] font-semibold text-emerald-600">Contrato: &ge; 98.0%</span>
                         </div>
-                        <!-- Cuadro oculto que se abre al tocar (?) -->
                         <div id="ayuda-ao" class="hidden pt-2 border-t border-theme-dim space-y-1.5">
                             <div class="bg-surface-2 rounded p-2.5 text-xs text-theme-main leading-relaxed">
                                 <strong>¿Qué significa en simple?</strong> Es el porcentaje del tiempo que la red del cliente mandante está 100% activa. Define si cumplimos el contrato sin multas.

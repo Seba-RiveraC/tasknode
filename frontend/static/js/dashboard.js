@@ -5,7 +5,30 @@ let rolVistaActual = 'SUPERVISOR';
 let hitosConstructor = [];
 let listaTecnicosBD = [];
 
+// Índice temporal para el arrastre Drag & Drop
+let dragSrcIndex = null;
+
+// Horas SLA según prioridad
+const SLA_HORAS_PRIORIDAD = {
+    ALTA: 24,
+    MEDIA: 72,
+    BAJA: 168
+};
+
+// Plantillas de cronograma
 const PLANTILLAS_PROTOCOLOS = {
+    SEMANA_7D: {
+        descripcion: "Faena zonal de mantenimiento integral: inspección previa, corte programado LOTO, intervención electromecánica, reemplazo de componentes, pruebas dinámicas, certificación final y entrega conforme.",
+        etapas: [
+            { dia: "Día 1", titulo: "Acceso al sitio, charla de seguridad, inspección de EPP y delimitación de faena" },
+            { dia: "Día 2", titulo: "Aislamiento eléctrico LOTO (0.0V / 0.0 bar) y desmontaje de partes gastadas" },
+            { dia: "Día 3", titulo: "Limpieza profunda de módulos, inspección de cables y chequeo térmico" },
+            { dia: "Día 4", titulo: "Montaje e instalación de repuestos nuevos con torque calibrado" },
+            { dia: "Día 5", titulo: "Retiro de candados LOTO, energización y calibración de parámetros en vacío" },
+            { dia: "Día 6", titulo: "Prueba de carga continua, monitoreo de vibraciones y captura fotográfica" },
+            { dia: "Día 7", titulo: "Limpieza final del área, cierre de minuta y firma del encargado en sitio" }
+        ]
+    },
     RF_MW: {
         descripcion: "Mantenimiento preventivo de enlace microondas: verificación de bloqueo LOTO, inspección de guía de onda y ajuste de acimut.",
         etapas: [
@@ -32,15 +55,6 @@ const PLANTILLAS_PROTOCOLOS = {
             { dia: "Etapa 3", titulo: "Montaje de unidad de reemplazo y torque calibrado de bornes" },
             { dia: "Etapa 4", titulo: "Prueba de transferencia en carga real y recepción conforme" }
         ]
-    },
-    TORRE_EST: {
-        descripcion: "Inspección estructural de torre de telecomunicaciones: control de tensión en riostras, verticalidad y estado de anclajes.",
-        etapas: [
-            { dia: "Etapa 1", titulo: "Verificación de arnés de altura, línea de vida y bloqueo perimetral" },
-            { dia: "Etapa 2", titulo: "Medición con tensiómetro en vientos de anclaje niveles 1, 2 y 3" },
-            { dia: "Etapa 3", titulo: "Reapriete de grilletes, aplicación de anticorrosivo y revisión de baliza" },
-            { dia: "Etapa 4", titulo: "Registro fotográfico de verticalidad y firma de encargado de planta" }
-        ]
     }
 };
 
@@ -56,6 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     actualizarMonitorCompleto();
     cargarCatalogosRelacionalesModal();
     setInterval(actualizarMonitorCompleto, 5000);
+
+    document.addEventListener('click', (e) => {
+        const popover = document.getElementById('popover-calendario-ot');
+        if (popover && !popover.contains(e.target) && !e.target.closest('.btn-trigger-calendario')) {
+            cerrarPopoverCalendario();
+        }
+    });
 });
 
 function configurarSesionSegunUsuario() {
@@ -118,27 +139,27 @@ function cambiarRolVista(nuevoRol) {
         if (btnCli) btnCli.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
         if (btnSup) btnSup.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
         if (btnNueva) btnNueva.classList.add('hidden');
-        if (sub) sub.innerText = "Vista Cliente Mandante: Seguimiento de cumplimiento SLA, etapas verificadas y recepción";
+        if (sub) sub.innerText = "Vista Cliente Mandante: Cronograma de etapas, SLA y actas de recepción";
     } else {
         if (btnSup) btnSup.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
         if (btnCli) btnCli.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
         if (btnNueva) btnNueva.classList.remove('hidden');
-        if (sub) sub.innerText = "Supervisión Operativa: Gestión de órdenes de trabajo, protocolos de terreno y cierre";
+        if (sub) sub.innerText = "Supervisión Operativa: Planificación de OTs, hitos de faena y control de cierre";
     }
     aplicarFiltrosLocal();
     if (ordenSeleccionada) poblarDatosInspector(ordenSeleccionada);
 }
 
 function cambiarTabInspector(tab) {
-    const tabs = ['HITOS', 'EVIDENCIA', 'FORENSE'];
+    const tabs = ['GANTT', 'HITOS', 'EVIDENCIA', 'FORENSE'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-btn-${t.toLowerCase()}`);
         const content = document.getElementById(`tab-content-${t.toLowerCase()}`);
         if (t === tab) {
-            btn.className = "py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1";
+            btn.className = "py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1 text-center truncate";
             content.classList.remove('hidden');
         } else {
-            btn.className = "py-2 px-2 rounded-t text-theme-muted hover:text-theme-main";
+            btn.className = "py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate";
             content.classList.add('hidden');
         }
     });
@@ -151,6 +172,13 @@ function abrirDrawerInspeccion(orden) {
     const backdrop = document.getElementById('backdrop-inspeccion');
     if (drawer) drawer.classList.remove('translate-x-full');
     if (backdrop) backdrop.classList.remove('hidden');
+}
+
+function abrirDrawerInspeccionPorCodigo(codigoOt) {
+    const orden = ordenesGlobal.find(o => o.codigo_ot === codigoOt);
+    if (orden) {
+        abrirDrawerInspeccion(orden);
+    }
 }
 
 function cerrarDrawerInspeccion() {
@@ -176,7 +204,7 @@ function resolverUrlEvidencia(url) {
 }
 
 function obtenerInfoEstado(estado, avanceReal) {
-    const pct = (avanceReal !== undefined && avanceReal !== null) ? avanceReal : 25;
+    const pct = (avanceReal !== undefined && avanceReal !== null) ? avanceReal : 0;
     switch (estado) {
         case "EMITIDA":
             return { pct, badge: "badge-emitida", colorBarra: "bg-amber-500" };
@@ -193,6 +221,182 @@ function obtenerInfoEstado(estado, avanceReal) {
     }
 }
 
+// =========================================================================
+// MINI CARTA GANTT Y CÁLCULO DINÁMICO DE HITOS
+// =========================================================================
+
+function calcularAvanceHitosDinamico(hitos, estadoActual) {
+    if (estadoActual === "OT COMPLETADA") return 100;
+    if (!hitos || hitos.length === 0) return 0;
+    const completados = hitos.filter(h => h.completado).length;
+    return Math.round((completados / hitos.length) * 100);
+}
+
+function renderizarMiniGanttTabla(hitos, estadoActual) {
+    const lista = hitos || [];
+    const total = lista.length;
+    const completados = estadoActual === "OT COMPLETADA" ? total : lista.filter(h => h.completado).length;
+    const pct = total > 0 ? Math.round((completados / total) * 100) : 0;
+
+    let bloquesHTML = '';
+    if (total === 0) {
+        bloquesHTML = `<div class="w-full h-2 rounded bg-surface-3"></div>`;
+    } else {
+        bloquesHTML = lista.map((h, i) => {
+            const estaCompletado = (estadoActual === "OT COMPLETADA") || h.completado;
+            const esElActual = !estaCompletado && (i === completados);
+            let color = "bg-surface-3 border border-theme-dim";
+            if (estaCompletado) color = "bg-emerald-600";
+            else if (esElActual) color = "bg-amber-500 animate-pulse";
+
+            return `<div class="flex-1 h-2 rounded-xs ${color}" title="${h.dia}: ${h.titulo}"></div>`;
+        }).join('');
+    }
+
+    return `
+        <div class="space-y-1">
+            <div class="flex justify-between text-[10px] font-mono">
+                <span class="text-theme-muted">${completados}/${total} días listos</span>
+                <span class="font-bold text-theme-main">${pct}%</span>
+            </div>
+            <div class="flex gap-0.5 w-full bg-surface-base p-0.5 rounded border border-theme-dim">
+                ${bloquesHTML}
+            </div>
+        </div>
+    `;
+}
+
+// =========================================================================
+// CÁLCULO DE TIEMPO SLA Y CALENDARIO
+// =========================================================================
+
+function calcularTiemposSLA(orden) {
+    const creacion = orden.created_at ? new Date(orden.created_at) : new Date();
+    const horasSLA = SLA_HORAS_PRIORIDAD[orden.prioridad] || 72;
+    const fechaLimite = new Date(creacion.getTime() + horasSLA * 60 * 60 * 1000);
+    const ahora = new Date();
+    const diferenciaMs = fechaLimite.getTime() - ahora.getTime();
+
+    const dias = Math.floor(Math.abs(diferenciaMs) / (1000 * 60 * 60 * 24));
+    const horas = Math.floor((Math.abs(diferenciaMs) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    let estadoSLA = "EN PLAZO";
+    let textoRestante = `${dias}d ${horas}h restantes`;
+    let colorTexto = "text-emerald-600";
+
+    if (orden.estado_actual === "OT COMPLETADA") {
+        estadoSLA = "CERRADA";
+        textoRestante = "Finalizada";
+        colorTexto = "text-emerald-600 font-semibold";
+    } else if (diferenciaMs < 0) {
+        estadoSLA = "VENCIDA";
+        textoRestante = `Vencida (${dias}d ${horas}h)`;
+        colorTexto = "text-red-600 font-bold";
+    } else if (diferenciaMs < 12 * 60 * 60 * 1000) {
+        estadoSLA = "POR VENCER";
+        textoRestante = `Urgente: ${horas}h restantes`;
+        colorTexto = "text-amber-600 font-bold";
+    }
+
+    return { creacion, fechaLimite, horasSLA, textoRestante, estadoSLA, colorTexto };
+}
+
+function desplegarMinicalendario(event, codigoOt) {
+    event.stopPropagation();
+    const orden = ordenesGlobal.find(o => o.codigo_ot === codigoOt);
+    if (!orden) return;
+
+    let popover = document.getElementById('popover-calendario-ot');
+    if (!popover) {
+        popover = document.createElement('div');
+        popover.id = 'popover-calendario-ot';
+        popover.className = 'fixed z-50 bg-surface-1 border-2 border-theme-bright rounded-lg shadow-2xl p-4 w-72 text-xs transition-opacity duration-150';
+        document.body.appendChild(popover);
+    }
+
+    const { creacion, fechaLimite, horasSLA, textoRestante, colorTexto } = calcularTiemposSLA(orden);
+
+    const mesNombre = fechaLimite.toLocaleString('es-CL', { month: 'long', year: 'numeric' });
+    const primerDiaSemana = new Date(fechaLimite.getFullYear(), fechaLimite.getMonth(), 1).getDay();
+    const diasEnMes = new Date(fechaLimite.getFullYear(), fechaLimite.getMonth() + 1, 0).getDate();
+
+    let celdasCalendario = '';
+    const offset = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+    for (let i = 0; i < offset; i++) {
+        celdasCalendario += `<div class="p-1 text-center text-theme-dim opacity-30">-</div>`;
+    }
+
+    for (let d = 1; d <= diasEnMes; d++) {
+        const esEmision = (d === creacion.getDate() && fechaLimite.getMonth() === creacion.getMonth());
+        const esLimite = (d === fechaLimite.getDate());
+        let clase = "p-1 text-center rounded text-[11px] font-mono ";
+
+        if (esLimite) {
+            clase += "bg-[#c2410c] text-white font-bold";
+        } else if (esEmision) {
+            clase += "bg-surface-2 border border-theme-bright text-accent font-bold";
+        } else {
+            clase += "text-theme-main hover:bg-surface-2";
+        }
+
+        celdasCalendario += `<div class="${clase}">${d}</div>`;
+    }
+
+    popover.innerHTML = `
+        <div class="flex justify-between items-center border-b border-theme-dim pb-2 mb-2.5">
+            <div class="flex items-center gap-1.5">
+                <span class="font-bold text-accent font-mono">${orden.codigo_ot}</span>
+                <span class="text-[10px] text-theme-dim font-semibold">(SLA ${horasSLA}h)</span>
+            </div>
+            <button onclick="cerrarPopoverCalendario()" class="text-theme-dim hover:text-theme-main font-bold text-xs px-1">✕</button>
+        </div>
+
+        <div class="bg-surface-2 border border-theme-dim rounded p-2.5 mb-3 space-y-1">
+            <div class="flex justify-between text-[11px]">
+                <span class="text-theme-dim">Emisión:</span>
+                <span class="font-mono text-theme-main">${creacion.toLocaleDateString('es-CL')} ${creacion.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div class="flex justify-between text-[11px]">
+                <span class="text-theme-dim">Plazo límite:</span>
+                <span class="font-mono font-bold text-theme-main">${fechaLimite.toLocaleDateString('es-CL')} ${fechaLimite.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div class="flex justify-between text-[11px] pt-1 border-t border-theme-dim">
+                <span class="text-theme-dim font-bold">Estado:</span>
+                <span class="font-mono ${colorTexto}">${textoRestante}</span>
+            </div>
+        </div>
+
+        <div class="border border-theme-dim rounded p-2 bg-surface-2">
+            <div class="text-center font-bold text-[11px] text-theme-main uppercase mb-1.5">${mesNombre}</div>
+            <div class="grid grid-cols-7 gap-1 text-[9px] font-mono text-theme-dim text-center border-b border-theme-dim pb-1 mb-1">
+                <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+            </div>
+            <div class="grid grid-cols-7 gap-1">
+                ${celdasCalendario}
+            </div>
+        </div>
+
+        <div class="mt-2.5 pt-2 border-t border-theme-dim flex justify-between items-center text-[10px] text-theme-dim">
+            <span>● Resaltado: Término SLA</span>
+            <button onclick="cerrarPopoverCalendario(); abrirDrawerInspeccionPorCodigo('${orden.codigo_ot}')" class="text-accent hover:underline font-bold">
+                Inspeccionar →
+            </button>
+        </div>
+    `;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    popover.style.top = `${Math.min(window.innerHeight - 340, rect.bottom + 6)}px`;
+    popover.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, rect.left))}px`;
+    popover.classList.remove('hidden');
+}
+
+function cerrarPopoverCalendario() {
+    const popover = document.getElementById('popover-calendario-ot');
+    if (popover) popover.classList.add('hidden');
+}
+
+// =========================================================================
+
 async function actualizarMonitorCompleto() {
     await cargarTablaBitacora();
 }
@@ -201,8 +405,8 @@ function actualizarKPIsDesdeLista(lista) {
     const total = lista.length;
     const detenidas = lista.filter(o => o.estado_actual === "DETENIDA POR ANOMALÍA").length;
     const completadas = lista.filter(o => o.estado_actual === "OT COMPLETADA").length;
-    const sumaAvance = lista.reduce((acc, o) => acc + (o.avance_pct || 0), 0);
-
+    
+    const sumaAvance = lista.reduce((acc, o) => acc + calcularAvanceHitosDinamico(o.hitos, o.estado_actual), 0);
     const promAvance = total > 0 ? Math.round(sumaAvance / total) : 0;
     const tasaRes = total > 0 ? ((completadas / total) * 100).toFixed(1) : "0.0";
 
@@ -280,25 +484,41 @@ function aplicarFiltrosLocal() {
 
     tbody.innerHTML = '';
     if (filtradas.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-theme-dim">Sin registros coincidentes.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-theme-dim">Sin registros coincidentes.</td></tr>`;
         return;
     }
 
     filtradas.forEach((r) => {
         const estado = r.estado_actual || 'EMITIDA';
-        const info = obtenerInfoEstado(estado, r.avance_pct);
-        const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Activo #${r.activo_id}`;
         const hitos = r.hitos || [];
-        const compHitos = hitos.filter(h => h.completado).length;
+        const avanceCalculado = calcularAvanceHitosDinamico(hitos, estado);
+        const info = obtenerInfoEstado(estado, avanceCalculado);
+        const nombreEquipo = (r.activo && r.activo.nombre) ? r.activo.nombre : `Activo #${r.activo_id}`;
+        const sla = calcularTiemposSLA(r);
 
         const tr = document.createElement('tr');
-        tr.className = "cursor-pointer border-b border-theme-dim hover:bg-surface-2 transition";
-        tr.onclick = () => abrirDrawerInspeccion(r);
+        tr.className = "border-b border-theme-dim hover:bg-surface-2 transition";
 
         tr.innerHTML = `
             <td class="px-4 py-3">
                 <div class="font-mono font-bold text-theme-main text-xs">${r.codigo_ot}</div>
-                <div class="text-[11px] text-theme-dim truncate max-w-[240px]">${nombreEquipo}</div>
+                <div class="text-[11px] text-theme-dim truncate max-w-[190px]">${nombreEquipo}</div>
+            </td>
+            <td class="px-4 py-3 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="desplegarMinicalendario(event, '${r.codigo_ot}')" class="btn-trigger-calendario flex items-center gap-1.5 px-2 py-1 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-accent font-mono text-[11px] font-semibold transition shadow-xs" title="Ver minicalendario">
+                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>${sla.horasSLA}h</span>
+                    </button>
+                    <div class="text-[10px] font-mono ${sla.colorTexto}">
+                        ${sla.textoRestante}
+                    </div>
+                </div>
+                <div class="text-[9.5px] font-mono text-theme-dim mt-0.5">
+                    Límite: ${sla.fechaLimite.toLocaleDateString('es-CL')}
+                </div>
             </td>
             <td class="px-4 py-3">
                 <span class="font-bold text-theme-main">${r.cliente_mandante || 'Austral Conectividad SpA'}</span>
@@ -309,13 +529,7 @@ function aplicarFiltrosLocal() {
                 <div class="text-[10px] font-mono text-theme-dim">${ofuscarRUTLey21719(r.rut_responsable)}</div>
             </td>
             <td class="px-4 py-3 w-48">
-                <div class="flex justify-between text-[10px] font-mono mb-1">
-                    <span class="text-theme-muted">${compHitos}/${hitos.length} etapas</span>
-                    <span class="font-bold text-theme-main">${info.pct}%</span>
-                </div>
-                <div class="w-full h-2 bg-surface-base rounded-sm overflow-hidden border border-theme-dim">
-                    <div class="h-full ${info.colorBarra}" style="width: ${info.pct}%"></div>
-                </div>
+                ${renderizarMiniGanttTabla(hitos, estado)}
             </td>
             <td class="px-4 py-3 whitespace-nowrap">
                 <span class="px-2.5 py-0.5 text-[10px] font-bold rounded ${info.badge}">
@@ -323,7 +537,7 @@ function aplicarFiltrosLocal() {
                 </span>
             </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button class="px-3 py-1 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-theme-main font-semibold text-[11px]">
+                <button type="button" onclick="abrirDrawerInspeccionPorCodigo('${r.codigo_ot}')" class="px-3 py-1.5 rounded border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main hover:text-accent font-bold text-[11px] transition shadow-xs cursor-pointer">
                     Inspeccionar
                 </button>
             </td>
@@ -334,9 +548,13 @@ function aplicarFiltrosLocal() {
 
 function poblarDatosInspector(orden) {
     const estado = orden.estado_actual || 'EMITIDA';
-    const info = obtenerInfoEstado(estado, orden.avance_pct);
+    const hitos = orden.hitos || [];
+    const avanceCalculado = calcularAvanceHitosDinamico(hitos, estado);
+    const info = obtenerInfoEstado(estado, avanceCalculado);
+
     const lat = (orden.activo && orden.activo.latitud_referencia) ? orden.activo.latitud_referencia.toFixed(4) : '-41.4870';
     const lon = (orden.activo && orden.activo.longitud_referencia) ? orden.activo.longitud_referencia.toFixed(4) : '-72.9550';
+    const sla = calcularTiemposSLA(orden);
 
     const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -351,20 +569,78 @@ function poblarDatosInspector(orden) {
 
     setTxt('inspect-ot-code', orden.codigo_ot);
     setTxt('inspect-cliente-mandante', `Empresa Mandante: ${orden.cliente_mandante || 'Austral Conectividad SpA'}`);
+    setTxt('inspect-sla-tiempo', `Plazo SLA: ${sla.textoRestante} (Límite: ${sla.fechaLimite.toLocaleDateString('es-CL')})`);
+
+    const btnCalInspect = document.getElementById('btn-inspect-calendar');
+    if (btnCalInspect) {
+        btnCalInspect.onclick = (e) => desplegarMinicalendario(e, orden.codigo_ot);
+    }
+
     setTxt('inspect-asset-tag', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Activo #${orden.activo_id}`);
     setTxt('inspect-ot-crew', `Especialista: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
     setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
-    setTxt('inspect-progress-txt', `${info.pct}% completado`);
+    setTxt('inspect-progress-txt', `${avanceCalculado}% completado (${hitos.filter(h => h.completado).length}/${hitos.length} etapas)`);
 
-    const bar = document.getElementById('inspect-progress-bar');
-    if (bar) {
-        bar.className = `h-full transition-all duration-300 ${info.colorBarra}`;
-        bar.style.width = `${info.pct}%`;
+    // Barra de segmentos Gantt
+    const barGantt = document.getElementById('inspect-gantt-segmentos');
+    if (barGantt) {
+        const total = hitos.length;
+        const comp = estado === "OT COMPLETADA" ? total : hitos.filter(h => h.completado).length;
+        barGantt.innerHTML = hitos.map((h, i) => {
+            const hecho = (estado === "OT COMPLETADA") || h.completado;
+            const esHoy = !hecho && (i === comp);
+            let cls = "bg-surface-3";
+            if (hecho) cls = "bg-emerald-600";
+            else if (esHoy) cls = "bg-amber-500 animate-pulse";
+            return `<div class="flex-1 h-full rounded-xs ${cls}" title="${h.dia}: ${h.titulo}"></div>`;
+        }).join('');
     }
 
+    // 1. Render de la Carta Gantt con ARRASTRE Y SOLTAR (Drag & Drop nativo)
+    const contGantt = document.getElementById('contenedor-carta-gantt');
+    if (contGantt) {
+        contGantt.innerHTML = hitos.map((h, idx) => {
+            const estaCompletado = (estado === "OT COMPLETADA") || h.completado;
+
+            return `
+                <div draggable="true" 
+                     ondragstart="manejarDragStart(event, ${idx})" 
+                     ondragover="manejarDragOver(event)" 
+                     ondragenter="manejarDragEnter(event)"
+                     ondragleave="manejarDragLeave(event)"
+                     ondrop="manejarDrop(event, ${idx})"
+                     ondragend="manejarDragEnd(event)"
+                     class="item-gantt-draggable p-2.5 rounded border border-theme-dim bg-surface-2 flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing hover:border-accent transition select-none">
+                    
+                    <!-- Indicador visual de arrastre con el mouse -->
+                    <div class="text-theme-dim hover:text-accent font-mono text-sm px-1 cursor-grab" title="Haz clic y arrastra para reordenar">
+                        ⠿
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-1 min-w-0 pointer-events-none">
+                        <span class="w-16 font-mono text-[10px] font-bold ${estaCompletado ? 'text-emerald-600' : 'text-accent'} bg-surface-1 px-1.5 py-0.5 rounded border border-theme-dim shrink-0 text-center">
+                            ${h.dia}
+                        </span>
+                        <div class="truncate text-xs ${estaCompletado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">
+                            ${h.titulo}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0 font-mono text-[10px]">
+                        <span class="${estaCompletado ? 'text-emerald-600 font-bold' : 'text-theme-dim'}">
+                            ${estaCompletado ? '✓ LISTO' : 'PENDIENTE'}
+                        </span>
+                        <button type="button" onclick="eliminarHitoDeOrdenExistente(${idx})" class="text-theme-dim hover:text-red-500 font-bold px-1" title="Eliminar este día">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 2. Render de Checklists de verificación
     const contHitos = document.getElementById('lista-hitos-inspector');
+    setTxt('conteo-etapas-inspector', `${hitos.length} etapas registradas`);
     if (contHitos) {
-        const hitos = orden.hitos || [];
         const bloqueadoEdicion = (rolVistaActual === 'CLIENTE' || estado === 'OT COMPLETADA');
         contHitos.innerHTML = hitos.map((h, i) => `
             <label class="flex items-start gap-2.5 p-2.5 rounded border border-theme-dim bg-surface-2 ${bloqueadoEdicion ? '' : 'cursor-pointer hover:bg-surface-3'} transition">
@@ -454,25 +730,148 @@ function poblarDatosInspector(orden) {
     }
 }
 
-async function toggleHitoDesdeConsola(idx, nuevoValor) {
-    if (!ordenSeleccionada || !ordenSeleccionada.hitos) return;
-    ordenSeleccionada.hitos[idx].completado = nuevoValor;
+// =========================================================================
+// DRAG AND DROP NATIVO PARA REORDENAR LA CARTA GANTT CON EL MOUSE
+// =========================================================================
 
+function manejarDragStart(e, index) {
+    dragSrcIndex = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index);
+    e.currentTarget.classList.add('opacity-40', 'border-accent');
+}
+
+function manejarDragOver(e) {
+    if (e.preventDefault) e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function manejarDragEnter(e) {
+    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
+    if (contenedor) {
+        contenedor.classList.add('bg-surface-3', 'border-accent', 'scale-[1.01]');
+    }
+}
+
+function manejarDragLeave(e) {
+    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
+    if (contenedor) {
+        contenedor.classList.remove('bg-surface-3', 'border-accent', 'scale-[1.01]');
+    }
+}
+
+async function manejarDrop(e, targetIndex) {
+    if (e.stopPropagation) e.stopPropagation();
+    
+    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
+    if (contenedor) {
+        contenedor.classList.remove('bg-surface-3', 'border-accent', 'scale-[1.01]');
+    }
+
+    if (dragSrcIndex !== null && dragSrcIndex !== targetIndex && ordenSeleccionada && ordenSeleccionada.hitos) {
+        const hitos = ordenSeleccionada.hitos;
+        
+        // Mover el elemento arrastrado a la nueva posición
+        const elementoMovido = hitos.splice(dragSrcIndex, 1)[0];
+        hitos.splice(targetIndex, 0, elementoMovido);
+
+        // Reenumerar id de secuencia
+        hitos.forEach((h, i) => { h.id = i + 1; });
+
+        await sincronizarHitosOrden(hitos);
+    }
+    return false;
+}
+
+function manejarDragEnd(e) {
+    dragSrcIndex = null;
+    document.querySelectorAll('.item-gantt-draggable').forEach(el => {
+        el.classList.remove('opacity-40', 'border-accent', 'bg-surface-3', 'scale-[1.01]');
+    });
+}
+
+// =========================================================================
+// GESTOR DE HITOS INTEGRADO (CERO ALERTAS)
+// =========================================================================
+
+function mostrarFormularioNuevoHito() {
+    const panel = document.getElementById('formulario-agregar-hito-panel');
+    const inputTag = document.getElementById('nuevo-hito-tag');
+    const inputTitulo = document.getElementById('nuevo-hito-titulo');
+
+    if (!panel || !ordenSeleccionada) return;
+
+    const siguienteNum = (ordenSeleccionada.hitos ? ordenSeleccionada.hitos.length : 0) + 1;
+    inputTag.value = `Día ${siguienteNum}`;
+    inputTitulo.value = '';
+
+    panel.classList.remove('hidden');
+    inputTitulo.focus();
+}
+
+function ocultarFormularioNuevoHito() {
+    const panel = document.getElementById('formulario-agregar-hito-panel');
+    if (panel) panel.classList.add('hidden');
+}
+
+async function guardarNuevoHitoDesdeFormulario() {
+    if (!ordenSeleccionada) return;
+
+    const tag = document.getElementById('nuevo-hito-tag').value.trim();
+    const titulo = document.getElementById('nuevo-hito-titulo').value.trim();
+
+    if (!titulo) {
+        mostrarToastScada("Debe ingresar una actividad planificada.", true);
+        return;
+    }
+
+    const hitosActuales = ordenSeleccionada.hitos || [];
+    hitosActuales.push({
+        id: hitosActuales.length + 1,
+        dia: tag || `Día ${hitosActuales.length + 1}`,
+        titulo: titulo,
+        completado: false
+    });
+
+    ocultarFormularioNuevoHito();
+    await sincronizarHitosOrden(hitosActuales);
+}
+
+async function eliminarHitoDeOrdenExistente(idx) {
+    if (!ordenSeleccionada || !ordenSeleccionada.hitos) return;
+    if (ordenSeleccionada.hitos.length <= 1) {
+        mostrarToastScada("La orden debe tener al menos una etapa.", true);
+        return;
+    }
+
+    ordenSeleccionada.hitos.splice(idx, 1);
+    ordenSeleccionada.hitos.forEach((h, i) => { h.id = i + 1; });
+    await sincronizarHitosOrden(ordenSeleccionada.hitos);
+}
+
+async function sincronizarHitosOrden(nuevosHitos) {
     try {
         const res = await fetch(`${API}/ordenes/${encodeURIComponent(ordenSeleccionada.codigo_ot)}/hitos`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ hitos: ordenSeleccionada.hitos })
+            body: JSON.stringify({ hitos: nuevosHitos })
         });
-        if (!res.ok) throw new Error("Error al guardar etapa");
+        if (!res.ok) throw new Error("Error al actualizar cronograma");
         const actualizada = await res.json();
         ordenSeleccionada = actualizada;
         poblarDatosInspector(actualizada);
         await actualizarMonitorCompleto();
-        mostrarToastScada(`Etapa #${idx + 1} actualizada en ${actualizada.codigo_ot}`);
+        mostrarToastScada(`Cronograma Gantt actualizado en ${actualizada.codigo_ot}`);
     } catch (e) {
-        mostrarToastScada("No se pudo actualizar la etapa", true);
+        mostrarToastScada("No se pudo actualizar el cronograma", true);
     }
+}
+
+async function toggleHitoDesdeConsola(idx, nuevoValor) {
+    if (!ordenSeleccionada || !ordenSeleccionada.hitos) return;
+    ordenSeleccionada.hitos[idx].completado = nuevoValor;
+    await sincronizarHitosOrden(ordenSeleccionada.hitos);
 }
 
 async function auditarOrdenActiva(accion) {
@@ -503,10 +902,6 @@ async function auditarOrdenActiva(accion) {
         mostrarToastScada(`Error de red: ${e.message}`, true);
     }
 }
-
-/* ==========================================================================
-   MODAL EMISIÓN Y CONSTRUCTOR HÍBRIDO DE HITOS (PLANTILLA + FILAS DINÁMICAS)
-   ========================================================================== */
 
 async function cargarCatalogosRelacionalesModal() {
     try {
@@ -554,11 +949,11 @@ function seleccionarTecnicoDesdeBD(idStr) {
 
 function aplicarPlantillaProtocolo(clave) {
     let key = clave;
-    if (clave === 'PREVENTIVO') key = 'RF_MW';
+    if (clave === 'PREVENTIVO') key = 'SEMANA_7D';
     if (clave === 'CORRECTIVO') key = 'FIBRA_OTDR';
-    if (clave === 'INSPECCION') key = 'TORRE_EST';
+    if (clave === 'INSPECCION') key = 'RF_MW';
 
-    const p = PLANTILLAS_PROTOCOLOS[key] || PLANTILLAS_PROTOCOLOS.RF_MW;
+    const p = PLANTILLAS_PROTOCOLOS[key] || PLANTILLAS_PROTOCOLOS.SEMANA_7D;
     const descInput = document.getElementById('form-descripcion');
     if (descInput) descInput.value = p.descripcion;
 
@@ -568,17 +963,20 @@ function aplicarPlantillaProtocolo(clave) {
 
 function renderizarFilasConstructorHitos() {
     const cont = document.getElementById('constructor-hitos-filas');
+    const labelTotal = document.getElementById('label-total-dias-constructor');
     if (!cont) return;
+
+    if (labelTotal) labelTotal.innerText = `Total: ${hitosConstructor.length} etapas planificadas`;
 
     cont.innerHTML = hitosConstructor.map((h, idx) => `
         <div class="flex items-center gap-2">
             <input type="text" value="${h.dia}" oninput="actualizarDatoHitoConstructor(${idx}, 'dia', this.value)"
-                class="w-24 border rounded px-2 py-1.5 text-[11px] font-mono font-bold shrink-0" placeholder="Etapa">
+                class="w-24 border rounded px-2 py-1.5 text-[11px] font-mono font-bold shrink-0" placeholder="Día/Etapa">
             <input type="text" value="${h.titulo}" oninput="actualizarDatoHitoConstructor(${idx}, 'titulo', this.value)"
-                class="flex-1 border rounded px-2.5 py-1.5 text-xs" placeholder="Descripción verificable de la etapa..." required>
+                class="flex-1 border rounded px-2.5 py-1.5 text-xs" placeholder="Actividad planificada..." required>
             <button type="button" onclick="eliminarFilaHitoConstructor(${idx})"
-                class="px-2 py-1 rounded border border-theme-dim hover:border-red-500 text-theme-dim hover:text-red-500 font-bold text-xs shrink-0" title="Eliminar etapa">
-                ×
+                class="px-2 py-1 rounded border border-theme-dim hover:border-red-500 text-theme-dim hover:text-red-500 font-bold text-xs shrink-0" title="Eliminar este día">
+                ✕
             </button>
         </div>
     `).join('');
@@ -593,7 +991,7 @@ function actualizarDatoHitoConstructor(idx, campo, valor) {
 function agregarFilaHitoConstructor() {
     const num = hitosConstructor.length + 1;
     hitosConstructor.push({
-        dia: `Etapa ${num}`,
+        dia: `Día ${num}`,
         titulo: ""
     });
     renderizarFilasConstructorHitos();
@@ -621,7 +1019,7 @@ function abrirModalOT() {
         document.getElementById('form-rut').value = '15.902.438-2';
     }
 
-    aplicarPlantillaProtocolo('RF_MW');
+    aplicarPlantillaProtocolo('SEMANA_7D');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -639,7 +1037,7 @@ async function enviarNuevaOT(e) {
         .filter(h => h.titulo && h.titulo.trim().length > 0)
         .map((h, idx) => ({
             id: idx + 1,
-            dia: (h.dia || `Etapa ${idx + 1}`).trim(),
+            dia: (h.dia || `Día ${idx + 1}`).trim(),
             titulo: h.titulo.trim(),
             completado: false
         }));
@@ -668,7 +1066,7 @@ async function enviarNuevaOT(e) {
             return;
         }
         cerrarModalOT();
-        mostrarToastScada(`Orden ${payload.codigo_ot} asignada a ${payload.operario_responsable}.`);
+        mostrarToastScada(`Orden ${payload.codigo_ot} planificada con ${hitosLimpios.length} días de faena.`);
         await actualizarMonitorCompleto();
     } catch (err) {
         mostrarToastScada(`Error de red: ${err.message}`, true);

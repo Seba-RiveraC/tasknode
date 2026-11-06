@@ -11,6 +11,10 @@ let dibujando = false;
 let firmaTactilRealizada = false;
 let credencialQRValidada = false;
 
+// CANDADO: Evita que el polling de 6s o el cambio de app/cámara reinicien la pantalla
+let modalFirmaAbierto = false;
+let enviandoTransicion = false;
+
 const FIRMA_ENCARGADO_DEMO = "data:image/svg+xml;utf8," + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
   <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
@@ -25,7 +29,29 @@ document.addEventListener('DOMContentLoaded', () => {
     inicializarCanvasFirma();
     actualizarContadorOutbox();
     cargarOrdenesEnTerminal();
+
+    // Sincronización periódica protegida por candado
+    setInterval(() => {
+        if (!modoOfflineSimulado && navigator.onLine && puedeSincronizar()) {
+            sincronizarHitosEnVivo();
+        }
+    }, 6000);
+
+    // Al regresar de tomar la foto (abrir cámara), NO recargar si el técnico tiene una foto cargada
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !modoOfflineSimulado && navigator.onLine && puedeSincronizar()) {
+            sincronizarHitosEnVivo();
+        }
+    });
 });
+
+// Comprueba si el técnico está interactuando para NO interrumpir su trabajo
+function puedeSincronizar() {
+    if (modalFirmaAbierto || enviandoTransicion) return false;
+    const inputFoto = document.getElementById('foto');
+    if (inputFoto && inputFoto.files && inputFoto.files.length > 0) return false;
+    return true;
+}
 
 function togglePanelDiagnosticoDefensa() {
     const panel = document.getElementById('panel-diagnostico-oculto');
@@ -39,7 +65,21 @@ function insertarChipMinuta(textoChip) {
     txt.value = actual ? `${actual} ${textoChip}` : textoChip;
 }
 
-function abrirModalFirma() {
+function abrirModalFirmaCondicional() {
+    const selectEstado = document.getElementById('estado_nuevo');
+    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
+
+    if (!todosListos) {
+        mostrarToastTerminal("Debe completar todos los hitos con fotografía antes de solicitar la firma.", true);
+        return;
+    }
+
+    if (selectEstado && selectEstado.value !== 'OT COMPLETADA') {
+        selectEstado.value = 'OT COMPLETADA';
+        manejarCambioEstado('OT COMPLETADA');
+    }
+
+    modalFirmaAbierto = true; // Bloquea el polling
     const modal = document.getElementById('modal-firma-terreno');
     if (modal) {
         modal.classList.remove('hidden');
@@ -48,12 +88,13 @@ function abrirModalFirma() {
 }
 
 function cerrarModalFirma() {
+    modalFirmaAbierto = false; // Libera el candado
     const modal = document.getElementById('modal-firma-terreno');
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
     }
-    actualizarBadgeFirma();
+    actualizarAspectoBotonesEvidencia();
 }
 
 function inicializarCanvasFirma() {
@@ -116,7 +157,7 @@ function trazar(e) {
     ctxFirma.lineTo(pos.x, pos.y);
     ctxFirma.stroke();
     firmaTactilRealizada = true;
-    actualizarBadgeFirma();
+    actualizarAspectoBotonesEvidencia();
 }
 
 function finalizarTrazo() {
@@ -133,7 +174,7 @@ function limpiarCanvasFirma() {
     credencialQRValidada = false;
     const res = document.getElementById('qr-resultado');
     if (res) res.classList.add('hidden');
-    actualizarBadgeFirma();
+    actualizarAspectoBotonesEvidencia();
 }
 
 function cargarFirmaRapidaPrueba() {
@@ -143,8 +184,8 @@ function cargarFirmaRapidaPrueba() {
     img.onload = () => {
         ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height);
         firmaTactilRealizada = true;
-        actualizarBadgeFirma();
-        mostrarToastTerminal("Rúbrica acreditada aplicada.");
+        actualizarAspectoBotonesEvidencia();
+        mostrarToastTerminal("Firma de supervisor cargada.");
     };
     img.src = FIRMA_ENCARGADO_DEMO;
 }
@@ -167,7 +208,7 @@ function seleccionarModoFirma(modo) {
         panelTactil.classList.add('hidden');
         panelQR.classList.remove('hidden');
     }
-    actualizarBadgeFirma();
+    actualizarAspectoBotonesEvidencia();
 }
 
 function simularEscaneoQR() {
@@ -175,28 +216,7 @@ function simularEscaneoQR() {
     const res = document.getElementById('qr-resultado');
     if (res) res.classList.remove('hidden');
     mostrarToastTerminal("Token QR verificado.");
-    actualizarBadgeFirma();
-}
-
-function actualizarBadgeFirma() {
-    const badge = document.getElementById('badge-tipo-firma');
-    if (!badge) return;
-
-    if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) {
-        badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
-        badge.innerText = "Rúbrica lista";
-    } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
-        badge.className = "text-[10px] font-mono text-emerald-600 font-bold mt-0.5";
-        badge.innerText = "Token QR listo";
-    } else {
-        badge.className = "text-[10px] font-mono text-theme-dim mt-0.5";
-        badge.innerText = "Firma / Token QR";
-    }
-}
-
-function manejarCambioEstado(nuevoEstado) {
-    autocompletarNovedad();
-    actualizarBadgeFirma();
+    actualizarAspectoBotonesEvidencia();
 }
 
 function mostrarToastTerminal(mensaje, esError = false) {
@@ -215,6 +235,113 @@ function mostrarToastTerminal(mensaje, esError = false) {
         toast.classList.remove('opacity-100', 'translate-y-0');
         toast.classList.add('opacity-0', 'translate-y-[-6px]');
     }, 3500);
+}
+
+function configurarOpcionesEstado(estadoActual) {
+    const selectEstado = document.getElementById('estado_nuevo');
+    if (!selectEstado) return;
+
+    const valorPrevio = selectEstado.value;
+    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
+    let opcionesHTML = '';
+
+    if (estadoActual === 'EMITIDA') {
+        opcionesHTML += `<option value="EN EJECUCIÓN">EN EJECUCIÓN (Iniciar faena en terreno)</option>`;
+    }
+
+    opcionesHTML += `<option value="EN VALIDACIÓN">EN VALIDACIÓN (Validar avance de hitos con foto)</option>`;
+    opcionesHTML += `<option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Pausa técnica / Espera repuesto)</option>`;
+
+    if (todosListos) {
+        opcionesHTML += `<option value="OT COMPLETADA">OT COMPLETADA (Cierre definitivo con firma/QR)</option>`;
+    } else {
+        opcionesHTML += `<option value="OT COMPLETADA" disabled>OT COMPLETADA (Bloqueado: faltan hitos por validar)</option>`;
+    }
+
+    selectEstado.innerHTML = opcionesHTML;
+    
+    // Mantener la selección actual si sigue siendo válida
+    if (valorPrevio && Array.from(selectEstado.options).some(o => o.value === valorPrevio && !o.disabled)) {
+        selectEstado.value = valorPrevio;
+    } else if (estadoActual === 'EMITIDA') {
+        selectEstado.value = 'EN EJECUCIÓN';
+    } else {
+        selectEstado.value = todosListos ? 'OT COMPLETADA' : 'EN VALIDACIÓN';
+    }
+
+    manejarCambioEstado(selectEstado.value);
+}
+
+function manejarCambioEstado(nuevoEstado) {
+    autocompletarNovedad();
+    actualizarAspectoBotonesEvidencia();
+}
+
+function actualizarAspectoBotonesEvidencia() {
+    const selectEstado = document.getElementById('estado_nuevo');
+    const estado = selectEstado ? selectEstado.value : 'EN VALIDACIÓN';
+
+    const btnContainerFoto = document.getElementById('btn-container-foto');
+    const lblFoto = document.getElementById('camera-label');
+    const subLblFoto = document.getElementById('camera-sublabel');
+
+    const btnAbrirFirma = document.getElementById('btn-abrir-firma');
+    const lblBtnFirma = document.getElementById('lbl-btn-firma');
+    const badgeFirma = document.getElementById('badge-tipo-firma');
+    const badgeInstruccion = document.getElementById('badge-instruccion-estado');
+
+    if (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN') {
+        if (badgeInstruccion) badgeInstruccion.innerText = "Foto obligatoria para validar avance";
+
+        if (btnContainerFoto) {
+            btnContainerFoto.className = "border-2 border-emerald-500 bg-emerald-950/20 rounded p-2.5 text-center cursor-pointer hover:bg-emerald-900/30 transition flex flex-col justify-center shadow-xs";
+        }
+        if (lblFoto) lblFoto.className = "text-xs font-bold text-emerald-400";
+        if (subLblFoto) {
+            subLblFoto.className = "text-[9.5px] text-emerald-300 font-semibold mt-0.5";
+            subLblFoto.innerText = "Obligatoria p/ validar";
+        }
+
+        if (btnAbrirFirma) {
+            btnAbrirFirma.className = "border border-theme-dim rounded p-2.5 text-center bg-surface-2 opacity-50 cursor-not-allowed transition flex flex-col justify-center";
+        }
+        if (lblBtnFirma) lblBtnFirma.className = "text-xs font-bold text-theme-muted";
+        if (badgeFirma) {
+            badgeFirma.className = "text-[9.5px] font-mono text-theme-dim mt-0.5";
+            badgeFirma.innerText = "Solo cierre final";
+        }
+    } else if (estado === 'OT COMPLETADA') {
+        if (badgeInstruccion) badgeInstruccion.innerText = "Firma o QR del supervisor requerido";
+
+        if (btnContainerFoto) {
+            btnContainerFoto.className = "border border-theme-dim bg-surface-2 rounded p-2.5 text-center cursor-pointer hover:bg-surface-3 transition flex flex-col justify-center opacity-70";
+        }
+        if (lblFoto) lblFoto.className = "text-xs font-bold text-theme-main";
+        if (subLblFoto) {
+            subLblFoto.className = "text-[9.5px] text-theme-dim mt-0.5";
+            subLblFoto.innerText = "Opcional en cierre";
+        }
+
+        if (btnAbrirFirma) {
+            btnAbrirFirma.className = "border-2 border-amber-600 bg-amber-950/20 rounded p-2.5 text-center hover:bg-amber-900/30 cursor-pointer transition flex flex-col justify-center shadow-xs";
+        }
+        if (lblBtnFirma) lblBtnFirma.className = "text-xs font-bold text-amber-500";
+
+        if (badgeFirma) {
+            if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) {
+                badgeFirma.className = "text-[9.5px] font-mono text-emerald-600 font-bold mt-0.5";
+                badgeFirma.innerText = "Firma en pantalla ✓";
+            } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
+                badgeFirma.className = "text-[9.5px] font-mono text-emerald-600 font-bold mt-0.5";
+                badgeFirma.innerText = "Token QR verificado ✓";
+            } else {
+                badgeFirma.className = "text-[9.5px] font-mono text-red-500 font-bold mt-0.5";
+                badgeFirma.innerText = "Pendiente de firma";
+            }
+        }
+    } else {
+        if (badgeInstruccion) badgeInstruccion.innerText = "Indique motivo de detención";
+    }
 }
 
 async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
@@ -257,43 +384,83 @@ function poblarDropdown(ots, codigoPreseleccionado = null) {
         return;
     }
 
-    select.innerHTML = listaFiltrada.map(o =>
-        `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'Austral Conectividad'} (${o.avance_pct || 0}%)</option>`
-    ).join('');
+    const valorPrevio = select.value;
+    select.innerHTML = listaFiltrada.map(o => {
+        const total = (o.hitos && o.hitos.length) || 0;
+        const comp = (o.hitos && o.hitos.filter(h => h.completado).length) || 0;
+        const pct = total > 0 ? Math.round((comp / total) * 100) : 0;
+        return `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'Austral Conectividad'} (${pct}%)</option>`;
+    }).join('');
 
-    if (codigoPreseleccionado && listaFiltrada.some(o => o.codigo_ot === codigoPreseleccionado)) {
-        select.value = codigoPreseleccionado;
+    const seleccionado = codigoPreseleccionado || valorPrevio;
+    if (seleccionado && listaFiltrada.some(o => o.codigo_ot === seleccionado)) {
+        select.value = seleccionado;
     }
     actualizarInfoOTSeleccionada();
 }
 
-function obtenerHitosPorDefecto(ot) {
-    const completado = (ot && ot.estado_actual === 'OT COMPLETADA');
-    return [
-        { id: 1, dia: "Etapa 1", titulo: "Permiso de acceso a sitio y bloqueo LOTO (D.S. 594)", completado },
-        { id: 2, dia: "Etapa 2", titulo: "Inspección física de infraestructura e intervención técnica", completado },
-        { id: 3, dia: "Etapa 3", titulo: "Ajuste de parámetros operativos y verificación de enlace", completado },
-        { id: 4, dia: "Etapa 4", titulo: "Captura de evidencia fotográfica y recepción en terreno", completado }
-    ];
+async function sincronizarHitosEnVivo() {
+    const select = document.getElementById('codigo_ot');
+    if (!select || !select.value) return;
+
+    const codigoActual = select.value;
+    try {
+        const res = await fetch(`${API}/ordenes/`);
+        if (!res.ok) return;
+        const data = await res.json();
+        listaOTsCache = data;
+        localStorage.setItem('tasknode_cached_ots', JSON.stringify(data));
+
+        const otActualizada = data.find(o => o.codigo_ot === codigoActual);
+        if (!otActualizada) return;
+
+        const hitosServidor = otActualizada.hitos || [];
+
+        // Comprobar si hubo cambios estructurales en el servidor (más días o reordenamiento)
+        const cambioEstructural = hitosServidor.length !== hitosActivosTerminal.length ||
+            hitosServidor.some((hs, idx) => !hitosActivosTerminal[idx] || hs.titulo !== hitosActivosTerminal[idx].titulo);
+
+        if (cambioEstructural) {
+            // Respeta los checks que el técnico tiene marcados localmente
+            const mapaChecksLocales = {};
+            hitosActivosTerminal.forEach(h => { mapaChecksLocales[h.dia] = h.completado; });
+
+            hitosActivosTerminal = hitosServidor.map(h => ({
+                ...h,
+                completado: mapaChecksLocales[h.dia] !== undefined ? mapaChecksLocales[h.dia] : h.completado
+            }));
+
+            renderizarChecklistTerminal();
+            configurarOpcionesEstado(otActualizada.estado_actual);
+            mostrarToastTerminal(`Cronograma de ${codigoActual} actualizado desde Supervisión.`);
+        }
+    } catch (e) {}
 }
 
 function renderizarChecklistTerminal() {
     const cont = document.getElementById('contenedor-hitos-terminal');
     const txtProg = document.getElementById('terminal-progreso-hitos');
     const barra = document.getElementById('terminal-barra-hitos');
+    const lblDias = document.getElementById('label-dias-terminal');
     if (!cont) return;
 
     const total = hitosActivosTerminal.length;
     const comp = hitosActivosTerminal.filter(h => h.completado).length;
     const pct = total > 0 ? Math.round((comp / total) * 100) : 0;
 
+    if (lblDias) lblDias.innerText = `${total} etapas planificadas (valida con foto)`;
     if (txtProg) txtProg.innerText = `${comp}/${total} (${pct}%)`;
     if (barra) barra.style.width = `${pct}%`;
 
+    if (total === 0) {
+        cont.innerHTML = `<div class="p-3 text-center text-theme-dim text-xs">Sin etapas definidas en la orden.</div>`;
+        return;
+    }
+
     cont.innerHTML = hitosActivosTerminal.map((h, idx) => `
-        <label class="flex items-start gap-2.5 p-2 rounded border border-theme-dim bg-surface-2 cursor-pointer">
+        <label class="flex items-start gap-2.5 p-2 rounded border border-theme-dim bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
             <input type="checkbox" ${h.completado ? 'checked' : ''} onchange="cambiarHitoEnTerminal(${idx}, this.checked)" class="mt-0.5 w-4 h-4 accent-[#c2410c]">
-            <div class="text-xs leading-snug">
+            <div class="text-xs leading-snug flex-1">
                 <span class="font-mono text-[10px] font-bold text-accent block">${h.dia}</span>
                 <span class="${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">${h.titulo}</span>
             </div>
@@ -306,11 +473,14 @@ function cambiarHitoEnTerminal(idx, marcado) {
     hitosActivosTerminal[idx].completado = marcado;
     renderizarChecklistTerminal();
 
-    const todosListos = hitosActivosTerminal.every(h => h.completado);
     const selectEstado = document.getElementById('estado_nuevo');
-    if (todosListos && selectEstado && selectEstado.value === 'EN EJECUCIÓN') {
-        selectEstado.value = 'EN VALIDACIÓN';
-        manejarCambioEstado('EN VALIDACIÓN');
+    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
+
+    configurarOpcionesEstado(document.getElementById('info-ot-estado').innerText);
+
+    if (todosListos && selectEstado) {
+        selectEstado.value = 'OT COMPLETADA';
+        manejarCambioEstado('OT COMPLETADA');
     }
 }
 
@@ -325,23 +495,13 @@ function actualizarInfoOTSeleccionada() {
     document.getElementById('info-ot-descripcion').innerText = ot.descripcion || 'Sin instrucciones.';
     document.getElementById('perfil-nombre').innerText = `${ot.operario_responsable} (${ot.rut_responsable})`;
 
-    const hitosBase = (ot.hitos && ot.hitos.length > 0) ? ot.hitos : obtenerHitosPorDefecto(ot);
-    hitosActivosTerminal = JSON.parse(JSON.stringify(hitosBase));
+    hitosActivosTerminal = JSON.parse(JSON.stringify(ot.hitos || []));
     renderizarChecklistTerminal();
+    configurarOpcionesEstado(estadoActual);
 
     gpsFueraDePlanta = false;
     actualizarCoordenadaGPS();
     limpiarCanvasFirma();
-
-    const selectEstado = document.getElementById('estado_nuevo');
-    if (estadoActual === 'EMITIDA' || estadoActual === 'DETENIDA POR ANOMALÍA') {
-        selectEstado.value = 'EN EJECUCIÓN';
-    } else if (estadoActual === 'EN EJECUCIÓN') {
-        selectEstado.value = 'EN VALIDACIÓN';
-    } else if (estadoActual === 'EN VALIDACIÓN') {
-        selectEstado.value = 'OT COMPLETADA';
-    }
-    manejarCambioEstado(selectEstado.value);
 }
 
 function actualizarCoordenadaGPS() {
@@ -375,15 +535,18 @@ function abrirPliegoPDFDesdeTerminal() {
 
 function actualizarNombreFoto(input) {
     const label = document.getElementById('camera-label');
+    const sublabel = document.getElementById('camera-sublabel');
     if (input.files && input.files[0]) {
         const file = input.files[0];
         const sizeKb = (file.size / 1024).toFixed(1);
-        label.innerHTML = `<span class="text-accent font-bold">${file.name} (${sizeKb} KB)</span>`;
+        label.innerHTML = `📷 Foto: ${file.name}`;
+        sublabel.innerHTML = `✓ Adjunta (${sizeKb} KB)`;
     }
 }
 
 async function procesarTransicionTerreno(e) {
     e.preventDefault();
+    enviandoTransicion = true; // Bloquea cualquier actualización en segundo plano
     const btn = document.getElementById('btnEnviar');
     btn.disabled = true;
 
@@ -393,8 +556,8 @@ async function procesarTransicionTerreno(e) {
     const gpsVal = document.getElementById('gps').value;
     let obsVal = document.getElementById('obs').value || '';
 
-    const nombreEncargado = document.getElementById('nombre_encargado').value.trim() || 'Carlos Valenzuela M.';
-    const rutEncargado = document.getElementById('rut_encargado').value.trim() || '14.285.631-8';
+    const inputFoto = document.getElementById('foto');
+    const tieneFoto = inputFoto && inputFoto.files && inputFoto.files.length > 0;
 
     let firmaPayload = "";
     if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada && canvasFirma) {
@@ -403,6 +566,25 @@ async function procesarTransicionTerreno(e) {
         firmaPayload = `TOKEN-QR-ENCARGADO-142856318-${Date.now().toString(36).toUpperCase()}`;
     }
 
+    // Validación estricta: EN VALIDACIÓN exige fotografía
+    if (estadoNuevo === 'EN VALIDACIÓN' && !tieneFoto) {
+        mostrarToastTerminal("Debe adjuntar una fotografía como evidencia para validar el hito.", true);
+        btn.disabled = false;
+        enviandoTransicion = false;
+        return;
+    }
+
+    // Validación estricta: OT COMPLETADA exige firma o QR
+    if (estadoNuevo === 'OT COMPLETADA' && !firmaPayload) {
+        mostrarToastTerminal("El cierre de la orden requiere la firma en pantalla o Token QR del supervisor.", true);
+        btn.disabled = false;
+        enviandoTransicion = false;
+        abrirModalFirmaCondicional();
+        return;
+    }
+
+    const nombreEncargado = document.getElementById('nombre_encargado').value.trim() || 'Carlos Valenzuela M.';
+    const rutEncargado = document.getElementById('rut_encargado').value.trim() || '14.285.631-8';
     const hitosSerializados = JSON.stringify(hitosActivosTerminal);
 
     if (modoOfflineSimulado || !navigator.onLine) {
@@ -423,6 +605,7 @@ async function procesarTransicionTerreno(e) {
         actualizarContadorOutbox();
         mostrarToastTerminal(`Almacenado en cola local (${cola.length} pendientes).`);
         btn.disabled = false;
+        enviandoTransicion = false;
         return;
     }
 
@@ -436,11 +619,7 @@ async function procesarTransicionTerreno(e) {
     formData.append('encargado_rut', rutEncargado);
     formData.append('hitos_json', hitosSerializados);
     if (firmaPayload) formData.append('firma_data', firmaPayload);
-
-    const inputFoto = document.getElementById('foto');
-    if (inputFoto && inputFoto.files && inputFoto.files.length > 0) {
-        formData.append('foto', inputFoto.files[0]);
-    }
+    if (tieneFoto) formData.append('foto', inputFoto.files[0]);
 
     try {
         const res = await fetch(`${API}/estados/`, { method: 'POST', body: formData });
@@ -451,13 +630,16 @@ async function procesarTransicionTerreno(e) {
         } else {
             mostrarToastTerminal(`Avance sincronizado en ${data.codigo_ot}.`);
             if (inputFoto) inputFoto.value = '';
-            document.getElementById('camera-label').innerText = "Fotografía en Sitio";
+            document.getElementById('camera-label').innerText = "📷 Tomar Foto Hito";
+            document.getElementById('camera-sublabel').innerText = "Obligatoria p/ validar";
+            limpiarCanvasFirma();
             await cargarOrdenesEnTerminal(codigoOT);
         }
     } catch (err) {
         mostrarToastTerminal(`Error de red: ${err.message}`, true);
     } finally {
         btn.disabled = false;
+        enviandoTransicion = false;
     }
 }
 
@@ -518,11 +700,12 @@ function autocompletarNovedad() {
     const estado = document.getElementById('estado_nuevo').value;
     const txt = document.getElementById('obs');
     const comp = hitosActivosTerminal.filter(h => h.completado).length;
+
     if (estado === 'DETENIDA POR ANOMALÍA') {
         txt.value = `Faena pausada con ${comp}/${hitosActivosTerminal.length} etapas completadas. Activo asegurado bajo bloqueo LOTO.`;
-    } else if (estado === 'EN VALIDACIÓN' || estado === 'OT COMPLETADA') {
-        txt.value = `Protocolo de ${hitosActivosTerminal.length} etapas completado al 100%. Parámetros verificados y recepción conforme.`;
+    } else if (estado === 'OT COMPLETADA') {
+        txt.value = `Protocolo de ${hitosActivosTerminal.length} etapas finalizado al 100%. Recepción conforme y firma del supervisor en faena.`;
     } else {
-        txt.value = `Avance operativo registrado (${comp}/${hitosActivosTerminal.length} etapas listas). Bloqueo LOTO y EPP verificados.`;
+        txt.value = `Avance operativo registrado con respaldo fotográfico (${comp}/${hitosActivosTerminal.length} etapas listas).`;
     }
 }
