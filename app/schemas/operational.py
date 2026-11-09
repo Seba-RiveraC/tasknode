@@ -8,6 +8,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class DemoCuentaRequest(BaseModel):
+    email: str
+
+
 class EmpresaMandanteOut(BaseModel):
     id: int
     rut_empresa: str
@@ -86,6 +90,13 @@ class OrdenTrabajoCreate(OrdenTrabajoBase):
     hitos: Optional[List[HitoSchema]] = None
 
 
+class ConstanciaTecnico(BaseModel):
+    usuario_id: int
+    nombre: str
+    fecha_dispositivo: str
+    fecha_recepcion: datetime
+
+
 class OrdenTrabajoOut(OrdenTrabajoBase):
     id: int
     empresa_id: Optional[int] = None
@@ -94,6 +105,7 @@ class OrdenTrabajoOut(OrdenTrabajoBase):
     avance_pct: int = 0
     hitos: List[HitoSchema] = []
     created_at: Optional[datetime] = None
+    fecha_limite: datetime
     activo: Optional[ActivoOut] = None
 
     hash_cadena: Optional[str] = None
@@ -102,6 +114,7 @@ class OrdenTrabajoOut(OrdenTrabajoBase):
     encargado_nombre: Optional[str] = None
     encargado_rut: Optional[str] = None
     firma_data: Optional[str] = None
+    constancia_tecnico: Optional[ConstanciaTecnico] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -124,6 +137,9 @@ class TransicionOut(BaseModel):
     hash_previo: str
     hash_cadena: str
     timestamp: datetime
+    tipo_registro: Optional[str] = None
+    fecha_dispositivo: Optional[str] = None
+    prueba_sin_geocerca: bool = False
     evidencia_url: Optional[str] = None
     laplacian_score: Optional[float] = None
     encargado_nombre: Optional[str] = None
@@ -138,6 +154,15 @@ TransicionResponse = TransicionOut
 BitacoraResponse = TransicionOut
 
 
+class ResumenClienteMetricas(BaseModel):
+    cliente: str
+    total_ots: int
+    completadas: int
+    detenidas: int
+    total_etapas: int
+    etapas_completadas: int
+
+
 class MetricasOut(BaseModel):
     volumen_total: int
     ejecucion_normal: int
@@ -145,11 +170,9 @@ class MetricasOut(BaseModel):
     completadas: int
     tasa_resolucion_pct: float
     avance_global_hitos_pct: float
-    mttr_estimado_horas: float
-    mtbf_estimado_horas: float
-    disponibilidad_operacional_pct: float
-    resumen_clientes: List[Dict[str, Any]] = []
-    cuellos_botella_hitos: List[Dict[str, Any]] = []
+    total_etapas: int
+    etapas_completadas: int
+    resumen_clientes: List[ResumenClienteMetricas]
     model_config = ConfigDict(from_attributes=True)
 
 

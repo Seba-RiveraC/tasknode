@@ -16,7 +16,12 @@ class Settings(BaseSettings):
     AZURE_CONTAINER_NAME: str = "evidencias-tasknode"
     
     # Tolerancia geodésica para frentes de trabajo (metros)
-    GEOCERCA_RADIO_METROS: float = 150.0
+    GEOCERCA_RADIO_METROS: float = 1000.0
+    PERMITIR_PRUEBA_SIN_GPS: bool = False
+    PERMITIR_PRUEBA_SIN_GEOCERCA: bool = False
+    TERMINAL_TRABAJADOR_PRUEBA_EMAIL: Optional[str] = None
+    PERMITIR_AUTOCOMPLETADO_DEMO: bool = False
+    DEMO_CREDENCIALES_JSON: Optional[str] = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

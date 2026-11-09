@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let cacheActivos = [];
+let radioGeocercaMetros = null;
 
 async function cargarCatalogoActivos() {
     const tbody = document.getElementById('tabla-activos');
@@ -12,8 +13,15 @@ async function cargarCatalogoActivos() {
     if (!tbody) return;
 
     try {
-        const res = await fetch(`${window.TaskNodeConfig.API_URL}/activos/`);
+        const [res, configRes] = await Promise.all([
+            fetch(`${window.TaskNodeConfig.API_URL}/activos/`),
+            fetch(`${window.TaskNodeConfig.API_URL}/estados/configuracion`)
+        ]);
         if (!res.ok) throw new Error("Error de red");
+        if (!configRes.ok) throw new Error("No se pudo consultar la geocerca");
+        const config = await configRes.json();
+        if (!Number.isFinite(config.radio_geocerca_metros)) throw new Error("Radio de geocerca inválido");
+        radioGeocercaMetros = config.radio_geocerca_metros;
         cacheActivos = await res.json();
 
         if (badge) badge.innerText = `${cacheActivos.length} EQUIPOS REGISTRADOS`;
@@ -50,7 +58,7 @@ function renderizarActivos(lista) {
             </td>
             <td class="px-4 py-3 font-mono text-[11px] text-theme-muted">
                 ${a.latitud_referencia.toFixed(4)}, ${a.longitud_referencia.toFixed(4)}
-                <span class="text-[10px] text-emerald-600 font-bold ml-1">(R &le; 500m)</span>
+                <span class="text-[10px] text-emerald-600 font-bold ml-1">(R &le; ${radioGeocercaMetros} m)</span>
             </td>
         `;
         tbody.appendChild(tr);

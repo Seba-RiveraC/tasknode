@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Catálogo de Equipos (ISO 55000)</title>
+    <title>TaskNode | Activos de red</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=2.7">
+    <link rel="stylesheet" href="static/css/styles.css?v=4.1">
 </head>
 <body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
@@ -14,26 +14,30 @@
         <div>
             <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
+                    <div class="w-9 h-9 rounded-lg bg-[#4f46e5] flex items-center justify-center text-white font-bold text-sm shrink-0">TN</div>
                     <div class="hidden lg:block">
-                        <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim" id="sidebar-rol-tag">OPERACIONES CMMS</span>
+                        <span class="font-bold tracking-tight text-theme-main text-base block leading-none">TaskNode</span>
+                        <span class="text-xs text-theme-dim" id="sidebar-rol-tag">Operaciones de red</span>
                     </div>
                 </div>
             </div>
 
             <nav class="p-2.5 space-y-1">
                 <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg>
+                    <span class="hidden lg:inline">Órdenes de trabajo</span>
                 </a>
                 <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Indicadores y SLA (BI)</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
+                    <span class="hidden lg:inline">Indicadores</span>
                 </a>
                 <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
-                    <span class="hidden lg:inline">Catálogo de Activos</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>
+                    <span class="hidden lg:inline">Activos de red</span>
                 </a>
                 <a href="auditoria.html" id="nav-link-auditoria" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Libro Mayor (ISO 55001)</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2m0-2a2 2 0 0 0 2 2h14M8 7h8M8 11h8"/></svg>
+                    <span class="hidden lg:inline">Auditoría</span>
                 </a>
             </nav>
         </div>
@@ -43,9 +47,6 @@
                 <span class="text-[9.5px] font-mono text-theme-dim uppercase block">Sesión Activa</span>
                 <span class="font-bold text-theme-main text-[11px] truncate block" id="sidebar-user-name">Supervisor</span>
             </div>
-            <a href="terminal.html" target="_blank" class="w-full py-1.5 px-3 rounded bg-surface-1 border border-theme-bright text-theme-main font-semibold text-center block hover:bg-surface-3 transition">
-                Vista Móvil de Terreno
-            </a>
             <button onclick="cerrarSesion()" class="w-full py-1.5 px-3 rounded border border-theme-dim text-theme-muted hover:text-theme-main font-semibold text-center block transition">
                 Cerrar Sesión
             </button>
@@ -56,8 +57,8 @@
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
-                <h1 class="font-bold text-sm sm:text-base text-theme-main tracking-tight">Catálogo de Equipos e Instalaciones (ISO 55000)</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block">Maquinaria registrada, nivel de criticidad y coordenadas GPS de referencia en planta</p>
+                <h1 class="font-bold text-lg text-theme-main tracking-tight">Activos de red</h1>
+                <p class="text-[11px] text-theme-dim hidden sm:block">Nodos ópticos, torres de radiofrecuencia y cabeceras registradas con geocerca GPS</p>
             </div>
             <div class="flex items-center gap-2">
                 <input type="text" id="input-busqueda-activos" placeholder="Buscar equipo o ubicación..." class="border border-theme-bright rounded px-3 py-1.5 text-xs w-52 bg-surface-1 text-theme-main focus:outline-none">
@@ -70,7 +71,7 @@
         <div class="flex-1 overflow-auto p-5">
             <div class="bg-surface-1 border border-theme-dim rounded overflow-hidden shadow-sm">
                 <div class="px-4 py-2.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center text-xs font-bold">
-                    <span class="text-theme-main uppercase tracking-wider">Unidades de Planta Registradas</span>
+                    <span class="text-theme-main uppercase tracking-wider">Infraestructura de Red Registrada</span>
                     <span class="text-accent font-mono" id="conteo-activos">Cargando...</span>
                 </div>
                 <div class="overflow-x-auto">
@@ -78,7 +79,7 @@
                         <thead>
                             <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
                                 <th class="px-4 py-2.5">Código TAG</th>
-                                <th class="px-4 py-2.5">Denominación del Equipo</th>
+                                <th class="px-4 py-2.5">Activo de Red</th>
                                 <th class="px-4 py-2.5">Ubicación Técnica</th>
                                 <th class="px-4 py-2.5">Criticidad</th>
                                 <th class="px-4 py-2.5">Coordenada GPS (Geocerca)</th>
@@ -94,6 +95,6 @@
     </main>
 
     <script src="static/js/config.js?v=2.7"></script>
-    <script src="static/js/activos.js?v=2.7"></script>
+    <script src="static/js/activos.js?v=2.8"></script>
 </body>
 </html>

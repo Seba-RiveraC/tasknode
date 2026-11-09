@@ -1,6 +1,8 @@
 import math
 from fastapi import HTTPException
 
+from app.core.config import settings
+
 # Matriz determinista de transiciones válidas bajo norma UNE-EN 13306
 TRANSICIONES_VALIDAS = {
     "BORRADOR": ["EMITIDA"],
@@ -9,10 +11,11 @@ TRANSICIONES_VALIDAS = {
     "EN EJECUCIÓN": ["DETENIDA POR ANOMALÍA", "EN VALIDACIÓN", "OT COMPLETADA"],
     "DETENIDA POR ANOMALÍA": ["EN EJECUCIÓN"],
     "EN VALIDACIÓN": ["OT COMPLETADA", "EN EJECUCIÓN"],
-    "OT COMPLETADA": []  # Estado terminal absorbente
+    "OT COMPLETADA": ["ORDEN FINALIZADA"],
+    "ORDEN FINALIZADA": []
 }
 
-RADIO_GEOCERCA_MAX_METROS = 500.0  # Tolerancia espacial en planta industrial (WGS84)
+RADIO_GEOCERCA_MAX_METROS = settings.GEOCERCA_RADIO_METROS
 
 def validar_transicion(estado_actual: str, estado_nuevo: str) -> bool:
     estado_actual = (estado_actual or "EMITIDA").strip().upper()
@@ -47,22 +50,23 @@ def calcular_distancia_haversine_metros(lat1: float, lon1: float, lat2: float, l
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
     return R * c
 
-def validar_geocerca_wgs84(coordenadas_str: str, lat_activo: float, lon_activo: float) -> float:
-    """
-    Verifica matemáticamente ST_DWithin: el operario debe encontrarse dentro del radio
-    admisible respecto a la ubicación técnica del activo físico.
-    """
+def parsear_coordenadas(coordenadas_str: str) -> tuple[float, float]:
     try:
-        partes = [ float(x.strip()) for x in coordenadas_str.split(",") ]
+        partes = [float(x.strip()) for x in coordenadas_str.split(",")]
         if len(partes) != 2:
             raise ValueError("Formato inválido")
-        lat_op, lon_op = partes[0], partes[1]
-    except Exception:
+        lat_op, lon_op = partes
+        if not math.isfinite(lat_op) or not math.isfinite(lon_op) or abs(lat_op) > 90 or abs(lon_op) > 180:
+            raise ValueError("Coordenadas fuera de rango")
+        return lat_op, lon_op
+    except ValueError:
         raise HTTPException(
             status_code=422,
             detail=f"Coordenadas GPS inválidas ('{coordenadas_str}'). Formato WGS84 requerido: 'latitud, longitud'."
         )
 
+def validar_geocerca_wgs84(coordenadas_str: str, lat_activo: float, lon_activo: float) -> float:
+    lat_op, lon_op = parsear_coordenadas(coordenadas_str)
     distancia_m = calcular_distancia_haversine_metros(lat_op, lon_op, lat_activo, lon_activo)
     if distancia_m > RADIO_GEOCERCA_MAX_METROS:
         raise HTTPException(

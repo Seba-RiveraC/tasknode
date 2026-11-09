@@ -71,6 +71,7 @@ class OrdenTrabajo(Base):
     estado_actual = Column(String(30), default="EMITIDA", nullable=False)
     descripcion = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    fecha_limite = Column(DateTime, nullable=True)
 
     empresa = relationship("EmpresaMandante", back_populates="ordenes")
     activo = relationship("ActivoIndustrial", back_populates="ordenes")
@@ -128,6 +129,7 @@ class BitacoraTransicion(Base):
         back_populates="transicion",
         order_by="EvidenciaMultimedia.id.asc()"
     )
+    registro_terreno = relationship("RegistroTerreno", uselist=False)
 
 
 class EvidenciaMultimedia(Base):
@@ -141,6 +143,29 @@ class EvidenciaMultimedia(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     transicion = relationship("BitacoraTransicion", back_populates="evidencias")
+
+
+class RegistroTerreno(Base):
+    __tablename__ = "registro_terreno"
+
+    id = Column(String(36), primary_key=True)
+    transicion_id = Column(Integer, ForeignKey("bitacora_transicion.id"), nullable=False, unique=True)
+    tipo = Column(String(30), nullable=False)
+    fecha_dispositivo = Column(String(40), nullable=False)
+
+
+class PruebaSinGeocerca(Base):
+    __tablename__ = "prueba_sin_geocerca"
+
+    transicion_id = Column(Integer, ForeignKey("bitacora_transicion.id"), primary_key=True)
+
+
+class SesionPanel(Base):
+    __tablename__ = "sesion_panel"
+
+    token_hash = Column(String(64), primary_key=True)
+    usuario_id = Column(Integer, ForeignKey("usuario.id"), nullable=False)
+    expira_en = Column(DateTime, nullable=False)
 
 
 # =====================================================================

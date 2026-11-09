@@ -4,66 +4,59 @@ let ordenSeleccionada = null;
 let rolVistaActual = 'SUPERVISOR';
 let hitosConstructor = [];
 let listaTecnicosBD = [];
+let plantillaAplicada = null;
+let contenidoPlantillaAplicada = null;
+let mostrarHistorial = false;
 
 // Índice temporal para el arrastre Drag & Drop
 let dragSrcIndex = null;
 
-// Horas SLA según prioridad
-const SLA_HORAS_PRIORIDAD = {
-    ALTA: 24,
-    MEDIA: 72,
-    BAJA: 168
-};
-
 // Plantillas de cronograma
 const PLANTILLAS_PROTOCOLOS = {
-    SEMANA_7D: {
-        descripcion: "Faena zonal de mantenimiento integral: inspección previa, corte programado LOTO, intervención electromecánica, reemplazo de componentes, pruebas dinámicas, certificación final y entrega conforme.",
+    ENLACE_RF: {
+        descripcion: "Mantenimiento preventivo de enlace microondas: inspección de guía de onda y conectores RF, alineación de parábola y verificación de potencia de recepción.",
         etapas: [
-            { dia: "Día 1", titulo: "Acceso al sitio, charla de seguridad, inspección de EPP y delimitación de faena" },
-            { dia: "Día 2", titulo: "Aislamiento eléctrico LOTO (0.0V / 0.0 bar) y desmontaje de partes gastadas" },
-            { dia: "Día 3", titulo: "Limpieza profunda de módulos, inspección de cables y chequeo térmico" },
-            { dia: "Día 4", titulo: "Montaje e instalación de repuestos nuevos con torque calibrado" },
-            { dia: "Día 5", titulo: "Retiro de candados LOTO, energización y calibración de parámetros en vacío" },
-            { dia: "Día 6", titulo: "Prueba de carga continua, monitoreo de vibraciones y captura fotográfica" },
-            { dia: "Día 7", titulo: "Limpieza final del área, cierre de minuta y firma del encargado en sitio" }
-        ]
-    },
-    RF_MW: {
-        descripcion: "Mantenimiento preventivo de enlace microondas: verificación de bloqueo LOTO, inspección de guía de onda y ajuste de acimut.",
-        etapas: [
-            { dia: "Etapa 1", titulo: "Permiso de trabajo seguro (PTS), bloqueo LOTO y ascenso acreditado" },
-            { dia: "Etapa 2", titulo: "Inspección de guía de onda, conectores RF y sellado vulcanizado" },
-            { dia: "Etapa 3", titulo: "Alineación de parábola MW y verificación de potencia (-48 dBm / VSWR)" },
-            { dia: "Etapa 4", titulo: "Captura de evidencia óptica nítida y firma de conformidad en sitio" }
+            { dia: "Etapa 1", titulo: "Acceso al sitio, charla de seguridad y ascenso acreditado a la torre" },
+            { dia: "Etapa 2", titulo: "Inspección de guía de onda, conectores RF y sellado contra humedad" },
+            { dia: "Etapa 3", titulo: "Alineación de parábola y verificación de potencia (-48 dBm / VSWR)" },
+            { dia: "Etapa 4", titulo: "Evidencia fotográfica nítida y firma de recepción en sitio" }
         ]
     },
     FIBRA_OTDR: {
-        descripcion: "Intervención en tramo troncal de fibra óptica: preparación de manguito, fusión por arco y certificación reflectométrica OTDR.",
+        descripcion: "Empalme y certificación de fibra óptica en tramo troncal: preparación de manguito, fusión por arco y medición reflectométrica OTDR bidireccional.",
         etapas: [
-            { dia: "Etapa 1", titulo: "Segregación de área de trabajo y apertura de cámara/mufa óptica" },
-            { dia: "Etapa 2", titulo: "Sangrado de buffer, limpieza de filamentos y preparación de casete" },
+            { dia: "Etapa 1", titulo: "Señalización del área de trabajo y apertura de cámara o mufa óptica" },
+            { dia: "Etapa 2", titulo: "Preparación de buffer, limpieza de filamentos y armado de casete" },
             { dia: "Etapa 3", titulo: "Fusión por arco de hilos asignados con atenuación < 0.05 dB" },
-            { dia: "Etapa 4", titulo: "Medición bidireccional OTDR, respaldo fotográfico y cierre de manguito" }
+            { dia: "Etapa 4", titulo: "Medición OTDR bidireccional, respaldo fotográfico y cierre de manguito" }
         ]
     },
-    UPS_LOTO: {
-        descripcion: "Intervención electromecánica en sistema de energía ininterrumpida (UPS) bajo protocolo de energía cero D.S. 594.",
+    ENERGIA_UPS: {
+        descripcion: "Respaldo de energía en nodo: revisión de banco de baterías, rectificadores y prueba de transferencia de la UPS bajo carga real.",
         etapas: [
-            { dia: "Etapa 1", titulo: "Seccionamiento eléctrico, bloqueo LOTO y comprobación de energía residual 0.0 V" },
-            { dia: "Etapa 2", titulo: "Diagnóstico de bancos de baterías y extracción de módulo rectificador" },
-            { dia: "Etapa 3", titulo: "Montaje de unidad de reemplazo y torque calibrado de bornes" },
+            { dia: "Etapa 1", titulo: "Verificación de alimentación DC y aislamiento seguro del banco de baterías" },
+            { dia: "Etapa 2", titulo: "Diagnóstico de baterías y revisión o reemplazo de módulos rectificadores" },
+            { dia: "Etapa 3", titulo: "Montaje de unidad de reemplazo y reapriete de bornes con torque calibrado" },
             { dia: "Etapa 4", titulo: "Prueba de transferencia en carga real y recepción conforme" }
+        ]
+    },
+    DUOC: {
+        descripcion: "Revisión de equipos y registro de actividades en Duoc UC Puerto Montt.",
+        etapas: [
+            { dia: "Etapa 1", titulo: "Revisar el área de trabajo" },
+            { dia: "Etapa 2", titulo: "Inspeccionar el equipo" },
+            { dia: "Etapa 3", titulo: "Registrar el resultado y la evidencia" }
         ]
     }
 };
 
-const FIRMA_ENCARGADO_PRECARGADA = "data:image/svg+xml;utf8," + encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
-  <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
-  <path d="M 85 45 Q 140 10 240 20" fill="none" stroke="#c2410c" stroke-width="2.2" stroke-linecap="round"/>
-  <text x="30" y="82" font-family="monospace" font-size="8.5" fill="#18181b" font-weight="bold">C. VALENZUELA · 14.285.631-8 (ENCARGADO TERRENO)</text>
-</svg>`);
+const PLANTILLA_SUGERIDA_POR_TIPO = {
+    PREVENTIVO: 'ENLACE_RF',
+    CORRECTIVO: 'FIBRA_OTDR',
+    INSPECCION: 'ENERGIA_UPS'
+};
+
+const PREFIJO_FOLIO = 'OT-2026-TL-';
 
 document.addEventListener('DOMContentLoaded', () => {
     configurarSesionSegunUsuario();
@@ -90,21 +83,21 @@ function configurarSesionSegunUsuario() {
 
     const sideTag = document.getElementById('sidebar-rol-tag');
     const sideName = document.getElementById('sidebar-user-name');
-    const switchCont = document.getElementById('contenedor-switch-rol');
     const navAudit = document.getElementById('nav-link-auditoria');
     const sub = document.getElementById('subtitulo-rol');
+    const btnNueva = document.getElementById('btn-nueva-ot-top');
 
     if (sideName) sideName.innerText = user.nombre_completo;
 
     if (user.rol === 'CLIENTE') {
-        cambiarRolVista('CLIENTE');
-        if (switchCont) switchCont.classList.add('hidden');
+        rolVistaActual = 'CLIENTE';
+        if (btnNueva) btnNueva.classList.add('hidden');
         if (navAudit) navAudit.classList.add('hidden');
-        if (sideTag) sideTag.innerText = 'PORTAL MANDANTE';
-        if (sub) sub.innerText = `Empresa Mandante: ${user.empresa_nombre || user.nombre_completo} · Monitoreo de SLA y Actas`;
+        if (sideTag) sideTag.innerText = 'Portal mandante';
+        if (sub) sub.innerText = `${user.empresa_nombre || user.nombre_completo} · Seguimiento de órdenes y actas`;
     } else {
-        cambiarRolVista('SUPERVISOR');
-        if (sideTag) sideTag.innerText = 'SUPERVISIÓN CMMS';
+        rolVistaActual = 'SUPERVISOR';
+        if (sideTag) sideTag.innerText = 'Supervisión';
         if (sub) sub.innerText = `${user.nombre_completo} · ${user.cargo}`;
     }
 }
@@ -126,43 +119,6 @@ function mostrarToastScada(mensaje, esError = false) {
         toast.classList.remove('opacity-100', 'translate-y-0');
         toast.classList.add('opacity-0', 'translate-y-[-8px]');
     }, 3500);
-}
-
-function cambiarRolVista(nuevoRol) {
-    rolVistaActual = nuevoRol;
-    const btnSup = document.getElementById('btn-rol-supervisor');
-    const btnCli = document.getElementById('btn-rol-cliente');
-    const btnNueva = document.getElementById('btn-nueva-ot-top');
-    const sub = document.getElementById('subtitulo-rol');
-
-    if (nuevoRol === 'CLIENTE') {
-        if (btnCli) btnCli.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
-        if (btnSup) btnSup.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
-        if (btnNueva) btnNueva.classList.add('hidden');
-        if (sub) sub.innerText = "Vista Cliente Mandante: Cronograma de etapas, SLA y actas de recepción";
-    } else {
-        if (btnSup) btnSup.className = "px-2.5 py-1 rounded bg-[#c2410c] text-white transition";
-        if (btnCli) btnCli.className = "px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition";
-        if (btnNueva) btnNueva.classList.remove('hidden');
-        if (sub) sub.innerText = "Supervisión Operativa: Planificación de OTs, hitos de faena y control de cierre";
-    }
-    aplicarFiltrosLocal();
-    if (ordenSeleccionada) poblarDatosInspector(ordenSeleccionada);
-}
-
-function cambiarTabInspector(tab) {
-    const tabs = ['GANTT', 'HITOS', 'EVIDENCIA', 'FORENSE'];
-    tabs.forEach(t => {
-        const btn = document.getElementById(`tab-btn-${t.toLowerCase()}`);
-        const content = document.getElementById(`tab-content-${t.toLowerCase()}`);
-        if (t === tab) {
-            btn.className = "py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1 text-center truncate";
-            content.classList.remove('hidden');
-        } else {
-            btn.className = "py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate";
-            content.classList.add('hidden');
-        }
-    });
 }
 
 function abrirDrawerInspeccion(orden) {
@@ -207,18 +163,23 @@ function obtenerInfoEstado(estado, avanceReal) {
     const pct = (avanceReal !== undefined && avanceReal !== null) ? avanceReal : 0;
     switch (estado) {
         case "EMITIDA":
-            return { pct, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+            return { pct, badge: "badge-emitida", colorBarra: "bg-slate-400" };
         case "EN EJECUCIÓN":
-            return { pct, badge: "badge-ejecucion", colorBarra: "bg-orange-600" };
+            return { pct, badge: "badge-ejecucion", colorBarra: "bg-cyan-600" };
         case "EN VALIDACIÓN":
             return { pct, badge: "badge-validacion", colorBarra: "bg-indigo-600" };
         case "OT COMPLETADA":
+        case "ORDEN FINALIZADA":
             return { pct: 100, badge: "badge-completada", colorBarra: "bg-emerald-600" };
         case "DETENIDA POR ANOMALÍA":
             return { pct, badge: "badge-detenida", colorBarra: "bg-red-600" };
         default:
-            return { pct, badge: "badge-emitida", colorBarra: "bg-amber-500" };
+            return { pct, badge: "badge-emitida", colorBarra: "bg-slate-400" };
     }
+}
+
+function etiquetaEstado(estado) {
+    return estado === 'OT COMPLETADA' ? 'Pendiente de firma' : estado;
 }
 
 // =========================================================================
@@ -226,7 +187,7 @@ function obtenerInfoEstado(estado, avanceReal) {
 // =========================================================================
 
 function calcularAvanceHitosDinamico(hitos, estadoActual) {
-    if (estadoActual === "OT COMPLETADA") return 100;
+    if (["OT COMPLETADA", "ORDEN FINALIZADA"].includes(estadoActual)) return 100;
     if (!hitos || hitos.length === 0) return 0;
     const completados = hitos.filter(h => h.completado).length;
     return Math.round((completados / hitos.length) * 100);
@@ -235,32 +196,17 @@ function calcularAvanceHitosDinamico(hitos, estadoActual) {
 function renderizarMiniGanttTabla(hitos, estadoActual) {
     const lista = hitos || [];
     const total = lista.length;
-    const completados = estadoActual === "OT COMPLETADA" ? total : lista.filter(h => h.completado).length;
+    const completados = ["OT COMPLETADA", "ORDEN FINALIZADA"].includes(estadoActual) ? total : lista.filter(h => h.completado).length;
     const pct = total > 0 ? Math.round((completados / total) * 100) : 0;
 
-    let bloquesHTML = '';
-    if (total === 0) {
-        bloquesHTML = `<div class="w-full h-2 rounded bg-surface-3"></div>`;
-    } else {
-        bloquesHTML = lista.map((h, i) => {
-            const estaCompletado = (estadoActual === "OT COMPLETADA") || h.completado;
-            const esElActual = !estaCompletado && (i === completados);
-            let color = "bg-surface-3 border border-theme-dim";
-            if (estaCompletado) color = "bg-emerald-600";
-            else if (esElActual) color = "bg-amber-500 animate-pulse";
-
-            return `<div class="flex-1 h-2 rounded-xs ${color}" title="${h.dia}: ${h.titulo}"></div>`;
-        }).join('');
-    }
-
     return `
-        <div class="space-y-1">
-            <div class="flex justify-between text-[10px] font-mono">
-                <span class="text-theme-muted">${completados}/${total} días listos</span>
-                <span class="font-bold text-theme-main">${pct}%</span>
+        <div class="space-y-1.5">
+            <div class="flex justify-between text-xs">
+                <span class="text-theme-muted">${completados}/${total} etapas</span>
+                <span class="font-semibold text-theme-main">${pct}%</span>
             </div>
-            <div class="flex gap-0.5 w-full bg-surface-base p-0.5 rounded border border-theme-dim">
-                ${bloquesHTML}
+            <div class="h-2 w-full rounded-full bg-surface-3 overflow-hidden">
+                <div class="h-full rounded-full ${pct === 100 ? 'bg-emerald-500' : 'bg-[#4f46e5]'}" style="width:${pct}%"></div>
             </div>
         </div>
     `;
@@ -271,9 +217,11 @@ function renderizarMiniGanttTabla(hitos, estadoActual) {
 // =========================================================================
 
 function calcularTiemposSLA(orden) {
-    const creacion = orden.created_at ? new Date(orden.created_at) : new Date();
-    const horasSLA = SLA_HORAS_PRIORIDAD[orden.prioridad] || 72;
-    const fechaLimite = new Date(creacion.getTime() + horasSLA * 60 * 60 * 1000);
+    const creacion = new Date(orden.created_at);
+    const fechaLimite = new Date(orden.fecha_limite);
+    if (!orden.created_at || !orden.fecha_limite || isNaN(creacion.getTime()) || isNaN(fechaLimite.getTime())) {
+        throw new Error(`Fechas inválidas en la orden ${orden.codigo_ot}`);
+    }
     const ahora = new Date();
     const diferenciaMs = fechaLimite.getTime() - ahora.getTime();
 
@@ -284,9 +232,9 @@ function calcularTiemposSLA(orden) {
     let textoRestante = `${dias}d ${horas}h restantes`;
     let colorTexto = "text-emerald-600";
 
-    if (orden.estado_actual === "OT COMPLETADA") {
+    if (["OT COMPLETADA", "ORDEN FINALIZADA"].includes(orden.estado_actual)) {
         estadoSLA = "CERRADA";
-        textoRestante = "Finalizada";
+        textoRestante = orden.estado_actual === "ORDEN FINALIZADA" ? "Finalizada" : "Pendiente de firma";
         colorTexto = "text-emerald-600 font-semibold";
     } else if (diferenciaMs < 0) {
         estadoSLA = "VENCIDA";
@@ -298,7 +246,7 @@ function calcularTiemposSLA(orden) {
         colorTexto = "text-amber-600 font-bold";
     }
 
-    return { creacion, fechaLimite, horasSLA, textoRestante, estadoSLA, colorTexto };
+    return { creacion, fechaLimite, textoRestante, estadoSLA, colorTexto };
 }
 
 function desplegarMinicalendario(event, codigoOt) {
@@ -314,7 +262,7 @@ function desplegarMinicalendario(event, codigoOt) {
         document.body.appendChild(popover);
     }
 
-    const { creacion, fechaLimite, horasSLA, textoRestante, colorTexto } = calcularTiemposSLA(orden);
+    const { creacion, fechaLimite, textoRestante, colorTexto } = calcularTiemposSLA(orden);
 
     const mesNombre = fechaLimite.toLocaleString('es-CL', { month: 'long', year: 'numeric' });
     const primerDiaSemana = new Date(fechaLimite.getFullYear(), fechaLimite.getMonth(), 1).getDay();
@@ -327,12 +275,12 @@ function desplegarMinicalendario(event, codigoOt) {
     }
 
     for (let d = 1; d <= diasEnMes; d++) {
-        const esEmision = (d === creacion.getDate() && fechaLimite.getMonth() === creacion.getMonth());
+        const esEmision = (d === creacion.getDate() && fechaLimite.getMonth() === creacion.getMonth() && fechaLimite.getFullYear() === creacion.getFullYear());
         const esLimite = (d === fechaLimite.getDate());
         let clase = "p-1 text-center rounded text-[11px] font-mono ";
 
         if (esLimite) {
-            clase += "bg-[#c2410c] text-white font-bold";
+            clase += "bg-[#4f46e5] text-white font-bold";
         } else if (esEmision) {
             clase += "bg-surface-2 border border-theme-bright text-accent font-bold";
         } else {
@@ -346,7 +294,6 @@ function desplegarMinicalendario(event, codigoOt) {
         <div class="flex justify-between items-center border-b border-theme-dim pb-2 mb-2.5">
             <div class="flex items-center gap-1.5">
                 <span class="font-bold text-accent font-mono">${orden.codigo_ot}</span>
-                <span class="text-[10px] text-theme-dim font-semibold">(SLA ${horasSLA}h)</span>
             </div>
             <button onclick="cerrarPopoverCalendario()" class="text-theme-dim hover:text-theme-main font-bold text-xs px-1">✕</button>
         </div>
@@ -404,7 +351,7 @@ async function actualizarMonitorCompleto() {
 function actualizarKPIsDesdeLista(lista) {
     const total = lista.length;
     const detenidas = lista.filter(o => o.estado_actual === "DETENIDA POR ANOMALÍA").length;
-    const completadas = lista.filter(o => o.estado_actual === "OT COMPLETADA").length;
+    const completadas = lista.filter(o => ["OT COMPLETADA", "ORDEN FINALIZADA"].includes(o.estado_actual)).length;
     
     const sumaAvance = lista.reduce((acc, o) => acc + calcularAvanceHitosDinamico(o.hitos, o.estado_actual), 0);
     const promAvance = total > 0 ? Math.round(sumaAvance / total) : 0;
@@ -442,14 +389,14 @@ async function cargarTablaBitacora() {
         if (selectCli) {
             const valorActual = selectCli.value;
             const clientesUnicos = [...new Set(ordenesGlobal.map(o => o.cliente_mandante || 'Austral Conectividad SpA'))];
-            selectCli.innerHTML = `<option value="TODOS">Todas las Empresas Mandantes (${clientesUnicos.length})</option>` +
+            selectCli.innerHTML = `<option value="TODOS">Todos los clientes</option>` +
                 clientesUnicos.map(c => `<option value="${c}">${c}</option>`).join('');
             if (clientesUnicos.includes(valorActual)) selectCli.value = valorActual;
         }
 
         aplicarFiltrosLocal();
 
-        if (ordenSeleccionada) {
+        if (ordenSeleccionada && dragSrcIndex === null) {
             const actualizada = ordenesGlobal.find(o => o.codigo_ot === ordenSeleccionada.codigo_ot);
             if (actualizada) {
                 ordenSeleccionada = actualizada;
@@ -463,11 +410,20 @@ function aplicarFiltrosLocal() {
     const tbody = document.getElementById('tabla-body');
     if (!tbody) return;
 
+    const filtroEstado = document.getElementById('filtro-estado');
+    if (filtroEstado) {
+        for (const opcion of filtroEstado.options) {
+            if (opcion.value === 'OT COMPLETADA') opcion.disabled = mostrarHistorial;
+            if (opcion.value === 'ORDEN FINALIZADA') opcion.disabled = !mostrarHistorial;
+        }
+        if (filtroEstado.selectedOptions[0]?.disabled) filtroEstado.value = 'TODOS';
+    }
     const q = (document.getElementById('filtro-texto')?.value || '').toLowerCase().trim();
     const cliFiltro = document.getElementById('filtro-cliente')?.value || 'TODOS';
-    const estFiltro = document.getElementById('filtro-estado')?.value || 'TODOS';
+    const estFiltro = filtroEstado?.value || 'TODOS';
 
     const filtradas = ordenesGlobal.filter(o => {
+        const historica = o.estado_actual === 'ORDEN FINALIZADA';
         const coincideTexto = !q ||
             o.codigo_ot.toLowerCase().includes(q) ||
             (o.cliente_mandante || '').toLowerCase().includes(q) ||
@@ -476,11 +432,12 @@ function aplicarFiltrosLocal() {
             (o.activo && o.activo.nombre.toLowerCase().includes(q));
         const coincideCli = (cliFiltro === 'TODOS') || (o.cliente_mandante === cliFiltro);
         const coincideEst = (estFiltro === 'TODOS') || (o.estado_actual === estFiltro);
-        return coincideTexto && coincideCli && coincideEst;
+        return historica === mostrarHistorial && coincideTexto && coincideCli && coincideEst;
     });
 
     const cont = document.getElementById('contador-resultados');
-    if (cont) cont.innerText = `${filtradas.length} de ${ordenesGlobal.length} órdenes`;
+    const totalVista = ordenesGlobal.filter(o => (o.estado_actual === 'ORDEN FINALIZADA') === mostrarHistorial).length;
+    if (cont) cont.innerText = `${filtradas.length} de ${totalVista} órdenes`;
 
     tbody.innerHTML = '';
     if (filtradas.length === 0) {
@@ -500,45 +457,43 @@ function aplicarFiltrosLocal() {
         tr.className = "border-b border-theme-dim hover:bg-surface-2 transition";
 
         tr.innerHTML = `
-            <td class="px-4 py-3">
-                <div class="font-mono font-bold text-theme-main text-xs">${r.codigo_ot}</div>
-                <div class="text-[11px] text-theme-dim truncate max-w-[190px]">${nombreEquipo}</div>
+            <td class="px-4 py-4">
+                <div class="font-mono font-semibold text-theme-main text-sm">${r.codigo_ot}</div>
+                <div class="text-xs text-theme-dim truncate max-w-[230px] mt-0.5">${nombreEquipo}</div>
             </td>
-            <td class="px-4 py-3 whitespace-nowrap">
-                <div class="flex items-center gap-2">
-                    <button type="button" onclick="desplegarMinicalendario(event, '${r.codigo_ot}')" class="btn-trigger-calendario flex items-center gap-1.5 px-2 py-1 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-accent font-mono text-[11px] font-semibold transition shadow-xs" title="Ver minicalendario">
-                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span>${sla.horasSLA}h</span>
-                    </button>
-                    <div class="text-[10px] font-mono ${sla.colorTexto}">
-                        ${sla.textoRestante}
-                    </div>
-                </div>
-                <div class="text-[9.5px] font-mono text-theme-dim mt-0.5">
-                    Límite: ${sla.fechaLimite.toLocaleDateString('es-CL')}
-                </div>
+            <td class="px-4 py-4">
+                <div class="font-semibold text-theme-main text-sm">${r.cliente_mandante || 'Austral Conectividad SpA'}</div>
+                <div class="text-xs text-theme-dim mt-0.5">${r.tipo_mantenimiento} · Prioridad ${r.prioridad}</div>
             </td>
-            <td class="px-4 py-3">
-                <span class="font-bold text-theme-main">${r.cliente_mandante || 'Austral Conectividad SpA'}</span>
-                <span class="block text-[10px] font-mono text-theme-dim">${r.tipo_mantenimiento} · Prioridad ${r.prioridad}</span>
+            <td class="px-4 py-4">
+                <div class="font-medium text-theme-main text-sm">${r.operario_responsable}</div>
+                <div class="text-xs text-theme-dim mt-0.5">${ofuscarRUTLey21719(r.rut_responsable)}</div>
             </td>
-            <td class="px-4 py-3">
-                <div class="font-semibold text-theme-main">${r.operario_responsable}</div>
-                <div class="text-[10px] font-mono text-theme-dim">${ofuscarRUTLey21719(r.rut_responsable)}</div>
-            </td>
-            <td class="px-4 py-3 w-48">
+            <td class="px-4 py-4 w-36">
                 ${renderizarMiniGanttTabla(hitos, estado)}
             </td>
-            <td class="px-4 py-3 whitespace-nowrap">
-                <span class="px-2.5 py-0.5 text-[10px] font-bold rounded ${info.badge}">
-                    ${estado}
+            <td class="px-4 py-4 whitespace-nowrap">
+                <button type="button" onclick="desplegarMinicalendario(event, '${r.codigo_ot}')" class="btn-trigger-calendario inline-flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-theme-bright bg-surface-2 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500" title="Ver calendario del plazo">
+                    <span class="p-1.5 rounded-md bg-surface-1 border border-theme-dim text-accent">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </span>
+                    <span>
+                        <span class="block text-sm font-medium ${sla.colorTexto}">${sla.textoRestante}</span>
+                        <span class="block text-xs text-theme-dim mt-0.5">Límite ${sla.fechaLimite.toLocaleDateString('es-CL')}</span>
+                    </span>
+                </button>
+            </td>
+            <td class="px-4 py-4 whitespace-nowrap">
+                <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full ${info.badge}">
+                    ${etiquetaEstado(estado)}
                 </span>
             </td>
-            <td class="px-4 py-3 text-right whitespace-nowrap">
-                <button type="button" onclick="abrirDrawerInspeccionPorCodigo('${r.codigo_ot}')" class="px-3 py-1.5 rounded border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main hover:text-accent font-bold text-[11px] transition shadow-xs cursor-pointer">
-                    Inspeccionar
+            <td class="px-4 py-4 text-right whitespace-nowrap">
+                <a href="orden_pdf.html?codigo=${encodeURIComponent(r.codigo_ot)}&modo=COMPLETA" target="_blank"                 class="inline-block px-3 py-2 rounded-lg border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main font-medium text-sm transition mr-1">Ver OT</a>
+                                <button type="button" onclick="abrirDrawerInspeccionPorCodigo('${r.codigo_ot}')" class="btn-primary px-3 py-2 rounded-lg font-medium text-sm transition cursor-pointer">
+                    Gestionar
                 </button>
             </td>
         `;
@@ -564,12 +519,12 @@ function poblarDatosInspector(orden) {
     const pill = document.getElementById('inspect-fsm-pill');
     if (pill) {
         pill.className = `text-[10px] font-bold px-2.5 py-0.5 rounded ${info.badge}`;
-        pill.innerText = estado;
+        pill.innerText = etiquetaEstado(estado);
     }
 
     setTxt('inspect-ot-code', orden.codigo_ot);
-    setTxt('inspect-cliente-mandante', `Empresa Mandante: ${orden.cliente_mandante || 'Austral Conectividad SpA'}`);
-    setTxt('inspect-sla-tiempo', `Plazo SLA: ${sla.textoRestante} (Límite: ${sla.fechaLimite.toLocaleDateString('es-CL')})`);
+    setTxt('inspect-cliente-mandante', orden.cliente_mandante || 'Austral Conectividad SpA');
+    setTxt('inspect-sla-tiempo', `Plazo: ${sla.textoRestante} · límite ${sla.fechaLimite.toLocaleDateString('es-CL')}`);
 
     const btnCalInspect = document.getElementById('btn-inspect-calendar');
     if (btnCalInspect) {
@@ -577,86 +532,58 @@ function poblarDatosInspector(orden) {
     }
 
     setTxt('inspect-asset-tag', orden.activo ? `${orden.activo.codigo_activo} · ${orden.activo.nombre}` : `Activo #${orden.activo_id}`);
-    setTxt('inspect-ot-crew', `Especialista: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
+    setTxt('inspect-asset-loc', orden.activo && orden.activo.ubicacion_tecnica ? orden.activo.ubicacion_tecnica : '');
+    setTxt('inspect-ot-crew', `Técnico: ${orden.operario_responsable} (${ofuscarRUTLey21719(orden.rut_responsable)})`);
     setTxt('inspect-ot-desc', orden.descripcion || 'Sin descripción.');
-    setTxt('inspect-progress-txt', `${avanceCalculado}% completado (${hitos.filter(h => h.completado).length}/${hitos.length} etapas)`);
+    setTxt('inspect-progress-txt', `${avanceCalculado}% · ${hitos.filter(h => h.completado || estado === 'OT COMPLETADA').length}/${hitos.length} etapas`);
 
-    // Barra de segmentos Gantt
-    const barGantt = document.getElementById('inspect-gantt-segmentos');
-    if (barGantt) {
-        const total = hitos.length;
-        const comp = estado === "OT COMPLETADA" ? total : hitos.filter(h => h.completado).length;
-        barGantt.innerHTML = hitos.map((h, i) => {
-            const hecho = (estado === "OT COMPLETADA") || h.completado;
-            const esHoy = !hecho && (i === comp);
-            let cls = "bg-surface-3";
-            if (hecho) cls = "bg-emerald-600";
-            else if (esHoy) cls = "bg-amber-500 animate-pulse";
-            return `<div class="flex-1 h-full rounded-xs ${cls}" title="${h.dia}: ${h.titulo}"></div>`;
-        }).join('');
+    const barProg = document.getElementById('inspect-progress-bar');
+    if (barProg) {
+        barProg.style.width = `${avanceCalculado}%`;
+        barProg.className = `h-full rounded-full transition-all ${avanceCalculado === 100 ? 'bg-emerald-500' : 'bg-[#4f46e5]'}`;
     }
 
-    // 1. Render de la Carta Gantt con ARRASTRE Y SOLTAR (Drag & Drop nativo)
-    const contGantt = document.getElementById('contenedor-carta-gantt');
-    if (contGantt) {
-        contGantt.innerHTML = hitos.map((h, idx) => {
-            const estaCompletado = (estado === "OT COMPLETADA") || h.completado;
-
-            return `
-                <div draggable="true" 
-                     ondragstart="manejarDragStart(event, ${idx})" 
-                     ondragover="manejarDragOver(event)" 
+    // Lista única de etapas: checkbox + arrastre en la misma fila
+    const contEtapas = document.getElementById('lista-etapas-inspector');
+    setTxt('conteo-etapas-inspector', `${hitos.filter(h => h.completado || estado === 'OT COMPLETADA').length} de ${hitos.length} completadas`);
+    if (contEtapas) {
+        const soloLectura = (rolVistaActual === 'CLIENTE' || ['OT COMPLETADA', 'ORDEN FINALIZADA'].includes(estado));
+        contEtapas.innerHTML = hitos.map((h, idx) => {
+            const hecho = (estado === "OT COMPLETADA") || h.completado;
+            const dragAttrs = soloLectura ? '' : `draggable="true"
+                     ondragstart="manejarDragStart(event, ${idx})"
+                     ondragover="manejarDragOver(event)"
                      ondragenter="manejarDragEnter(event)"
                      ondragleave="manejarDragLeave(event)"
                      ondrop="manejarDrop(event, ${idx})"
-                     ondragend="manejarDragEnd(event)"
-                     class="item-gantt-draggable p-2.5 rounded border border-theme-dim bg-surface-2 flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing hover:border-accent transition select-none">
-                    
-                    <!-- Indicador visual de arrastre con el mouse -->
-                    <div class="text-theme-dim hover:text-accent font-mono text-sm px-1 cursor-grab" title="Haz clic y arrastra para reordenar">
-                        ⠿
+                     ondragend="manejarDragEnd(event)"`;
+            return `
+                <div ${dragAttrs}
+                     class="item-gantt-draggable flex items-center gap-3 p-3.5 rounded-lg border border-theme-dim bg-surface-1 hover:border-theme-bright transition select-none">
+                    ${soloLectura ? '' : '<span class="text-theme-dim cursor-grab active:cursor-grabbing text-base leading-none" title="Arrastra para reordenar">⠿</span>'}
+                    <input type="checkbox" ${hecho ? 'checked' : ''} ${soloLectura ? 'disabled' : ''}
+                        onchange="toggleHitoDesdeConsola(${idx}, this.checked)"
+                        class="w-5 h-5 shrink-0 accent-[#4f46e5] cursor-pointer">
+                    <div class="flex-1 min-w-0">
+                        <span class="block text-xs font-medium text-theme-dim">${h.dia}</span>
+                        <span class="block text-sm ${hecho ? 'line-through text-theme-dim' : 'text-theme-main'}">${h.titulo}</span>
                     </div>
-
-                    <div class="flex items-center gap-2 flex-1 min-w-0 pointer-events-none">
-                        <span class="w-16 font-mono text-[10px] font-bold ${estaCompletado ? 'text-emerald-600' : 'text-accent'} bg-surface-1 px-1.5 py-0.5 rounded border border-theme-dim shrink-0 text-center">
-                            ${h.dia}
-                        </span>
-                        <div class="truncate text-xs ${estaCompletado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">
-                            ${h.titulo}
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 shrink-0 font-mono text-[10px]">
-                        <span class="${estaCompletado ? 'text-emerald-600 font-bold' : 'text-theme-dim'}">
-                            ${estaCompletado ? '✓ LISTO' : 'PENDIENTE'}
-                        </span>
-                        <button type="button" onclick="eliminarHitoDeOrdenExistente(${idx})" class="text-theme-dim hover:text-red-500 font-bold px-1" title="Eliminar este día">✕</button>
-                    </div>
+                    ${soloLectura ? '' : `<button type="button" onclick="eliminarHitoDeOrdenExistente(${idx})" class="text-theme-dim hover:text-red-500 px-1.5 text-sm" title="Quitar etapa">✕</button>`}
                 </div>
             `;
         }).join('');
     }
 
-    // 2. Render de Checklists de verificación
-    const contHitos = document.getElementById('lista-hitos-inspector');
-    setTxt('conteo-etapas-inspector', `${hitos.length} etapas registradas`);
-    if (contHitos) {
-        const bloqueadoEdicion = (rolVistaActual === 'CLIENTE' || estado === 'OT COMPLETADA');
-        contHitos.innerHTML = hitos.map((h, i) => `
-            <label class="flex items-start gap-2.5 p-2.5 rounded border border-theme-dim bg-surface-2 ${bloqueadoEdicion ? '' : 'cursor-pointer hover:bg-surface-3'} transition">
-                <input type="checkbox" ${h.completado ? 'checked' : ''} ${bloqueadoEdicion ? 'disabled' : ''}
-                    onchange="toggleHitoDesdeConsola(${i}, this.checked)"
-                    class="mt-0.5 w-4 h-4 accent-[#c2410c]">
-                <div class="flex-1 text-xs">
-                    <span class="font-mono text-[10px] font-bold text-accent uppercase block">${h.dia}</span>
-                    <span class="${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">${h.titulo}</span>
-                </div>
-            </label>
-        `).join('');
-    }
+    const btnAddEtapa = document.getElementById('btn-agregar-etapa');
+    if (btnAddEtapa) btnAddEtapa.classList.toggle('hidden', rolVistaActual === 'CLIENTE' || ['OT COMPLETADA', 'ORDEN FINALIZADA'].includes(estado));
 
-    setTxt('inspect-laplacian-score', orden.laplacian_score ? `Nitidez Verificada (Score: ${orden.laplacian_score})` : 'Sin captura óptica');
-    setTxt('inspect-gps-val', `${lat}, ${lon} (Radio <= 500m OK)`);
+    setTxt('inspect-laplacian-score', orden.laplacian_score ? `Nitidez verificada · ${orden.laplacian_score}` : 'Sin captura');
+    const constancia = orden.constancia_tecnico;
+    const fechaConstancia = constancia ? new Date(constancia.fecha_dispositivo) : null;
+    setTxt('inspect-constancia-tecnico', constancia
+        ? `${constancia.nombre} · ${fechaConstancia && !Number.isNaN(fechaConstancia.getTime()) ? fechaConstancia.toLocaleString('es-CL') : 'Fecha no disponible'}`
+        : 'No hay constancia de término registrada.');
+    setTxt('inspect-gps-val', `${lat}, ${lon}`);
     setTxt('inspect-hash-val', orden.hash_cadena || 'Pendiente de primera transición');
 
     const imgView = document.getElementById('inspect-img-view');
@@ -681,37 +608,36 @@ function poblarDatosInspector(orden) {
     const elEncargadoNom = document.getElementById('inspect-encargado-nombre');
     const elEncargadoRut = document.getElementById('inspect-encargado-rut');
 
-    let datoFirma = orden.firma_data || localStorage.getItem(`tasknode_signature_encargado_${orden.codigo_ot}`);
-    const tokenQR = (datoFirma && datoFirma.startsWith('TOKEN-QR')) ? datoFirma : localStorage.getItem(`tasknode_qr_encargado_${orden.codigo_ot}`);
-    const nomEncargado = orden.encargado_nombre || 'Carlos Valenzuela M.';
-    const rutEncargado = orden.encargado_rut || '14.285.631-8';
+    const datoFirma = orden.firma_data;
+    const recepcionAnterior = document.getElementById('inspect-recepcion-anterior');
+    recepcionAnterior.classList.toggle('hidden', !datoFirma);
+    recepcionAnterior.classList.toggle('flex', !!datoFirma);
+    const tokenQR = (datoFirma && datoFirma.startsWith('TOKEN-QR')) ? datoFirma : null;
+    const nomEncargado = orden.encargado_nombre || 'Pendiente';
+    const rutEncargado = orden.encargado_rut || '-';
 
-    if (elEncargadoNom) elEncargadoNom.innerText = `Receptor: ${nomEncargado}`;
-    if (elEncargadoRut) elEncargadoRut.innerText = `RUT: ${rutEncargado}`;
-
-    if (!datoFirma && !tokenQR && orden.codigo_ot === 'OT-1001') {
-        datoFirma = FIRMA_ENCARGADO_PRECARGADA;
-    }
+    if (elEncargadoNom) elEncargadoNom.innerText = nomEncargado;
+    if (elEncargadoRut) elEncargadoRut.innerText = `RUT ${rutEncargado}`;
 
     if (sigImg && sigPlaceholder && sigStatus) {
         if (datoFirma && datoFirma.startsWith('data:image')) {
             sigImg.src = datoFirma;
             sigImg.classList.remove('hidden');
             sigPlaceholder.classList.add('hidden');
-            sigStatus.innerText = "RÚBRICA ACREDITADA";
-            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
+            sigStatus.innerText = "Firmada";
+            sigStatus.className = "text-xs px-2.5 py-0.5 rounded-full badge-completada font-semibold";
         } else if (tokenQR) {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
-            sigPlaceholder.innerHTML = `<span class="text-emerald-500 font-bold font-mono text-[10px]">TOKEN QR VERIFICADO<br><span class="text-theme-dim text-[9px]">${tokenQR}</span></span>`;
-            sigStatus.innerText = "TOKEN QR OK";
-            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-emerald-500 border-emerald-600 font-mono font-bold";
+            sigPlaceholder.innerHTML = `<span class="text-theme-dim font-semibold text-xs">Registro QR anterior (no verificado)</span>`;
+            sigStatus.innerText = "Token QR";
+            sigStatus.className = "text-xs px-2.5 py-0.5 rounded-full badge-completada font-semibold";
         } else {
             sigImg.classList.add('hidden');
             sigPlaceholder.classList.remove('hidden');
             sigPlaceholder.innerHTML = `<span>Pendiente de firma en terreno</span>`;
-            sigStatus.innerText = "PENDIENTE";
-            sigStatus.className = "code-pill text-[9px] px-2 py-0.5 rounded text-theme-dim font-mono";
+            sigStatus.innerText = "Pendiente";
+            sigStatus.className = "text-xs px-2.5 py-0.5 rounded-full badge-emitida font-semibold";
         }
     }
 
@@ -721,24 +647,23 @@ function poblarDatosInspector(orden) {
             btnAprobar.classList.add('hidden');
         } else {
             btnAprobar.classList.remove('hidden');
-            const yaCerrada = (estado === 'OT COMPLETADA');
-            btnAprobar.disabled = yaCerrada;
-            btnAprobar.innerText = yaCerrada
-                ? 'Orden Cerrada y Auditada'
-                : 'Visar Protocolo y Cerrar Orden';
+            btnAprobar.disabled = estado !== 'OT COMPLETADA';
+            btnAprobar.innerText = estado === 'ORDEN FINALIZADA'
+                ? 'Orden finalizada'
+                : estado === 'OT COMPLETADA' ? 'Firmar y finalizar' : 'Pendiente de término técnico';
         }
     }
 }
 
 // =========================================================================
-// DRAG AND DROP NATIVO PARA REORDENAR LA CARTA GANTT CON EL MOUSE
+// DRAG AND DROP NATIVO PARA REORDENAR LAS ETAPAS
 // =========================================================================
 
 function manejarDragStart(e, index) {
     dragSrcIndex = index;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', index);
-    e.currentTarget.classList.add('opacity-40', 'border-accent');
+    e.currentTarget.classList.add('dragging');
 }
 
 function manejarDragOver(e) {
@@ -748,46 +673,36 @@ function manejarDragOver(e) {
 }
 
 function manejarDragEnter(e) {
-    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
-    if (contenedor) {
-        contenedor.classList.add('bg-surface-3', 'border-accent', 'scale-[1.01]');
-    }
+    e.currentTarget.classList.add('drag-over');
 }
 
 function manejarDragLeave(e) {
-    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
-    if (contenedor) {
-        contenedor.classList.remove('bg-surface-3', 'border-accent', 'scale-[1.01]');
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
     }
 }
 
 async function manejarDrop(e, targetIndex) {
     if (e.stopPropagation) e.stopPropagation();
-    
-    const contenedor = e.currentTarget.closest('.item-gantt-draggable');
-    if (contenedor) {
-        contenedor.classList.remove('bg-surface-3', 'border-accent', 'scale-[1.01]');
-    }
+    e.currentTarget.classList.remove('drag-over');
 
     if (dragSrcIndex !== null && dragSrcIndex !== targetIndex && ordenSeleccionada && ordenSeleccionada.hitos) {
         const hitos = ordenSeleccionada.hitos;
-        
-        // Mover el elemento arrastrado a la nueva posición
+
         const elementoMovido = hitos.splice(dragSrcIndex, 1)[0];
         hitos.splice(targetIndex, 0, elementoMovido);
-
-        // Reenumerar id de secuencia
         hitos.forEach((h, i) => { h.id = i + 1; });
 
+        dragSrcIndex = null;
         await sincronizarHitosOrden(hitos);
     }
     return false;
 }
 
-function manejarDragEnd(e) {
+function manejarDragEnd() {
     dragSrcIndex = null;
     document.querySelectorAll('.item-gantt-draggable').forEach(el => {
-        el.classList.remove('opacity-40', 'border-accent', 'bg-surface-3', 'scale-[1.01]');
+        el.classList.remove('dragging', 'drag-over');
     });
 }
 
@@ -803,7 +718,7 @@ function mostrarFormularioNuevoHito() {
     if (!panel || !ordenSeleccionada) return;
 
     const siguienteNum = (ordenSeleccionada.hitos ? ordenSeleccionada.hitos.length : 0) + 1;
-    inputTag.value = `Día ${siguienteNum}`;
+    inputTag.value = `Etapa ${siguienteNum}`;
     inputTitulo.value = '';
 
     panel.classList.remove('hidden');
@@ -829,7 +744,7 @@ async function guardarNuevoHitoDesdeFormulario() {
     const hitosActuales = ordenSeleccionada.hitos || [];
     hitosActuales.push({
         id: hitosActuales.length + 1,
-        dia: tag || `Día ${hitosActuales.length + 1}`,
+        dia: tag || `Etapa ${hitosActuales.length + 1}`,
         titulo: titulo,
         completado: false
     });
@@ -862,7 +777,7 @@ async function sincronizarHitosOrden(nuevosHitos) {
         ordenSeleccionada = actualizada;
         poblarDatosInspector(actualizada);
         await actualizarMonitorCompleto();
-        mostrarToastScada(`Cronograma Gantt actualizado en ${actualizada.codigo_ot}`);
+        mostrarToastScada(`Etapas actualizadas en ${actualizada.codigo_ot}`);
     } catch (e) {
         mostrarToastScada("No se pudo actualizar el cronograma", true);
     }
@@ -876,31 +791,36 @@ async function toggleHitoDesdeConsola(idx, nuevoValor) {
 
 async function auditarOrdenActiva(accion) {
     if (!ordenSeleccionada) return;
-    const nuevoEstado = (accion === 'COMPLETAR') ? 'OT COMPLETADA' : 'EN EJECUCIÓN';
-    const obs = 'Protocolo de etapas verificado y visado conforme por Supervisión. Orden cerrada.';
-
-    const lat = (ordenSeleccionada.activo && ordenSeleccionada.activo.latitud_referencia) ? ordenSeleccionada.activo.latitud_referencia : -41.4870;
-    const lon = (ordenSeleccionada.activo && ordenSeleccionada.activo.longitud_referencia) ? ordenSeleccionada.activo.longitud_referencia : -72.9550;
-
-    const fd = new FormData();
-    fd.append('codigo_ot', ordenSeleccionada.codigo_ot);
-    fd.append('operario_id', '1');
-    fd.append('estado_nuevo', nuevoEstado);
-    fd.append('coordenadas_gps', `${lat}, ${lon}`);
-    fd.append('observacion', obs);
+    if (!window.confirm(`¿Confirma la firma de ${ordenSeleccionada.codigo_ot}? La orden quedará finalizada y esta acción no se puede deshacer.`)) return;
 
     try {
-        const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
+        const token = localStorage.getItem('tasknode_token');
+        const res = await fetch(`${API}/estados/${encodeURIComponent(ordenSeleccionada.codigo_ot)}/finalizar`, {
+            method: 'POST', headers: { Authorization: `Bearer ${token || ''}` }
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
+            if (res.status === 401) {
+                mostrarToastScada('Tu sesión no es válida o expiró. Inicia sesión nuevamente.', true);
+                if (window.confirm('Tu sesión no es válida o expiró. ¿Deseas iniciar sesión ahora?')) {
+                    window.location.href = 'login.html';
+                }
+                return;
+            }
             mostrarToastScada(data.detail || 'No se pudo cerrar la orden', true);
             return;
         }
-        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} visada y cerrada.`);
+        mostrarToastScada(`Orden ${ordenSeleccionada.codigo_ot} firmada y finalizada. El documento está disponible.`);
         await actualizarMonitorCompleto();
     } catch (e) {
         mostrarToastScada(`Error de red: ${e.message}`, true);
     }
+}
+
+function alternarHistorial() {
+    mostrarHistorial = !mostrarHistorial;
+    document.getElementById('btn-historial').textContent = mostrarHistorial ? 'Ver órdenes activas' : 'Ver historial de órdenes';
+    aplicarFiltrosLocal();
 }
 
 async function cargarCatalogosRelacionalesModal() {
@@ -947,18 +867,81 @@ function seleccionarTecnicoDesdeBD(idStr) {
     }
 }
 
-function aplicarPlantillaProtocolo(clave) {
-    let key = clave;
-    if (clave === 'PREVENTIVO') key = 'SEMANA_7D';
-    if (clave === 'CORRECTIVO') key = 'FIBRA_OTDR';
-    if (clave === 'INSPECCION') key = 'RF_MW';
+function actualizarSugerenciaPlantilla(tipo) {
+    const clave = PLANTILLA_SUGERIDA_POR_TIPO[tipo];
+    const sugerencia = document.getElementById('sugerencia-plantilla');
+    const boton = document.getElementById('btn-aplicar-plantilla-sugerida');
+    const selector = document.getElementById('selector-plantilla-hitos');
+    const opcion = selector && Array.from(selector.options).find(o => o.value === clave);
 
-    const p = PLANTILLAS_PROTOCOLOS[key] || PLANTILLAS_PROTOCOLOS.SEMANA_7D;
+    if (!sugerencia || !boton) return;
+    if (!opcion) {
+        sugerencia.textContent = 'No hay una plantilla sugerida para este tipo de intervención.';
+        boton.hidden = true;
+        return;
+    }
+    sugerencia.textContent = `Sugerencia por tipo: ${opcion.textContent}. Comprueba que corresponda al activo.`;
+    boton.hidden = false;
+}
+
+function aplicarPlantillaSugerida() {
+    const tipo = document.getElementById('form-tipo').value;
+    const clave = PLANTILLA_SUGERIDA_POR_TIPO[tipo];
+    if (!clave) {
+        mostrarToastScada('No hay una plantilla sugerida para este tipo de intervención.', true);
+        return;
+    }
+    aplicarPlantillaProtocolo(clave);
+}
+
+function obtenerContenidoConstructor() {
+    return JSON.stringify({
+        descripcion: document.getElementById('form-descripcion').value,
+        hitos: hitosConstructor
+    });
+}
+
+function aplicarPlantillaProtocolo(clave, inicializar = false) {
+    const p = PLANTILLAS_PROTOCOLOS[clave];
+    const selPlantilla = document.getElementById('selector-plantilla-hitos');
+    if (!p) {
+        if (selPlantilla && plantillaAplicada) selPlantilla.value = plantillaAplicada;
+        mostrarToastScada('La plantilla seleccionada no está disponible.', true);
+        return;
+    }
+    if (!inicializar && contenidoPlantillaAplicada !== null &&
+        obtenerContenidoConstructor() !== contenidoPlantillaAplicada &&
+        !window.confirm('Se reemplazarán la descripción y las etapas editadas. ¿Deseas continuar?')) {
+        if (selPlantilla && plantillaAplicada) selPlantilla.value = plantillaAplicada;
+        return;
+    }
+
     const descInput = document.getElementById('form-descripcion');
     if (descInput) descInput.value = p.descripcion;
-
+    if (selPlantilla) selPlantilla.value = clave;
+    if (clave === 'DUOC') {
+        const activo = document.getElementById('form-activo');
+        const opcion = Array.from(activo.options).find(o => o.textContent.startsWith('DUOC-PM-PRUEBA '));
+        const tecnico = listaTecnicosBD.find(u => u.nombre_completo === 'Carlos Valenzuela M.');
+        document.getElementById('form-tipo').value = 'INSPECCION';
+        document.getElementById('form-prioridad').value = 'MEDIA';
+        actualizarSugerenciaPlantilla('INSPECCION');
+        if (opcion) activo.value = opcion.value;
+        if (tecnico) {
+            document.getElementById('selector-tecnico-bd').value = String(tecnico.id);
+            seleccionarTecnicoDesdeBD(tecnico.id);
+        }
+        if (!opcion || !tecnico) mostrarToastScada('Revisa el activo y el técnico: no se encontraron los datos de Duoc.', true);
+    }
     hitosConstructor = p.etapas.map(e => ({ dia: e.dia, titulo: e.titulo }));
+    plantillaAplicada = clave;
+    contenidoPlantillaAplicada = obtenerContenidoConstructor();
     renderizarFilasConstructorHitos();
+}
+
+function escaparAtributoConstructor(valor) {
+    return String(valor).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function renderizarFilasConstructorHitos() {
@@ -970,9 +953,9 @@ function renderizarFilasConstructorHitos() {
 
     cont.innerHTML = hitosConstructor.map((h, idx) => `
         <div class="flex items-center gap-2">
-            <input type="text" value="${h.dia}" oninput="actualizarDatoHitoConstructor(${idx}, 'dia', this.value)"
+            <input type="text" value="${escaparAtributoConstructor(h.dia)}" oninput="actualizarDatoHitoConstructor(${idx}, 'dia', this.value)"
                 class="w-24 border rounded px-2 py-1.5 text-[11px] font-mono font-bold shrink-0" placeholder="Día/Etapa">
-            <input type="text" value="${h.titulo}" oninput="actualizarDatoHitoConstructor(${idx}, 'titulo', this.value)"
+            <input type="text" value="${escaparAtributoConstructor(h.titulo)}" oninput="actualizarDatoHitoConstructor(${idx}, 'titulo', this.value)"
                 class="flex-1 border rounded px-2.5 py-1.5 text-xs" placeholder="Actividad planificada..." required>
             <button type="button" onclick="eliminarFilaHitoConstructor(${idx})"
                 class="px-2 py-1 rounded border border-theme-dim hover:border-red-500 text-theme-dim hover:text-red-500 font-bold text-xs shrink-0" title="Eliminar este día">
@@ -991,7 +974,7 @@ function actualizarDatoHitoConstructor(idx, campo, valor) {
 function agregarFilaHitoConstructor() {
     const num = hitosConstructor.length + 1;
     hitosConstructor.push({
-        dia: `Día ${num}`,
+        dia: `Etapa ${num}`,
         titulo: ""
     });
     renderizarFilasConstructorHitos();
@@ -1003,12 +986,19 @@ function eliminarFilaHitoConstructor(idx) {
     renderizarFilasConstructorHitos();
 }
 
+function generarFolioOT() {
+    const maxNum = ordenesGlobal.reduce((max, o) => {
+        const m = /^OT-2026-[A-Z]{2}-(\d{4})$/.exec(o.codigo_ot || '');
+        return m ? Math.max(max, parseInt(m[1], 10)) : max;
+    }, 100);
+    return `${PREFIJO_FOLIO}${String(maxNum + 1).padStart(4, '0')}`;
+}
+
 function abrirModalOT() {
     const modal = document.getElementById('modal-ot');
     if (!modal) return;
 
-    const siguienteNum = 1001 + ordenesGlobal.length;
-    document.getElementById('form-codigo').value = `OT-${siguienteNum}`;
+    document.getElementById('form-codigo').value = generarFolioOT();
     document.getElementById('form-cliente').value = 'Austral Conectividad SpA';
 
     if (listaTecnicosBD.length > 0) {
@@ -1019,7 +1009,10 @@ function abrirModalOT() {
         document.getElementById('form-rut').value = '15.902.438-2';
     }
 
-    aplicarPlantillaProtocolo('SEMANA_7D');
+    const tipo = document.getElementById('form-tipo');
+    tipo.value = 'PREVENTIVO';
+    aplicarPlantillaProtocolo('ENLACE_RF', true);
+    actualizarSugerenciaPlantilla(tipo.value);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
@@ -1037,7 +1030,7 @@ async function enviarNuevaOT(e) {
         .filter(h => h.titulo && h.titulo.trim().length > 0)
         .map((h, idx) => ({
             id: idx + 1,
-            dia: (h.dia || `Día ${idx + 1}`).trim(),
+            dia: (h.dia || `Etapa ${idx + 1}`).trim(),
             titulo: h.titulo.trim(),
             completado: false
         }));
@@ -1066,7 +1059,7 @@ async function enviarNuevaOT(e) {
             return;
         }
         cerrarModalOT();
-        mostrarToastScada(`Orden ${payload.codigo_ot} planificada con ${hitosLimpios.length} días de faena.`);
+        mostrarToastScada(`Orden ${payload.codigo_ot} emitida con ${hitosLimpios.length} etapas.`);
         await actualizarMonitorCompleto();
     } catch (err) {
         mostrarToastScada(`Error de red: ${err.message}`, true);
@@ -1075,6 +1068,6 @@ async function enviarNuevaOT(e) {
 
 function abrirPliegoDesdeConsola() {
     if (!ordenSeleccionada) return;
-    const modo = (ordenSeleccionada.estado_actual === 'EMITIDA') ? 'ORIGINAL' : 'COMPLETA';
+    const modo = (ordenSeleccionada.estado_actual === 'ORDEN FINALIZADA') ? 'COMPLETA' : 'ORIGINAL';
     window.open(`orden_pdf.html?codigo=${encodeURIComponent(ordenSeleccionada.codigo_ot)}&modo=${modo}`, '_blank');
 }

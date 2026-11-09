@@ -2,7 +2,6 @@ const API = window.TaskNodeConfig.API_URL;
 let listaOTsCache = [];
 let hitosActivosTerminal = [];
 let modoOfflineSimulado = false;
-let gpsFueraDePlanta = false;
 
 let modoFirmaActivo = 'TACTIL';
 let canvasFirma = null;
@@ -10,25 +9,32 @@ let ctxFirma = null;
 let dibujando = false;
 let firmaTactilRealizada = false;
 let credencialQRValidada = false;
+let fotoPreviewUrl = null;
 
 // CANDADO: Evita que el polling de 6s o el cambio de app/cámara reinicien la pantalla
 let modalFirmaAbierto = false;
 let enviandoTransicion = false;
 
+const ESTADO_ANOMALIA = 'DETENIDA POR ANOMALÍA';
+const GPS_PRUEBA = 'PRUEBA_SIN_GPS';
+let permitirPruebaSinGps = false;
+let trabajadorPrueba = null;
+
 const FIRMA_ENCARGADO_DEMO = "data:image/svg+xml;utf8," + encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90" viewBox="0 0 300 90">
   <path d="M 25 65 Q 45 15 70 35 T 115 50 T 150 25 T 195 65 Q 220 75 270 45" fill="none" stroke="#c2410c" stroke-width="2.8" stroke-linecap="round"/>
   <path d="M 85 45 Q 140 10 240 20" fill="none" stroke="#c2410c" stroke-width="2.2" stroke-linecap="round"/>
-  <text x="30" y="82" font-family="monospace" font-size="8.5" fill="#18181b" font-weight="bold">C. VALENZUELA · 14.285.631-8 (ENCARGADO TERRENO)</text>
 </svg>`);
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const form = document.getElementById('formularioEstado');
-    if (form) form.addEventListener('submit', procesarTransicionTerreno);
+    if (form) form.addEventListener('submit', (e) => procesarTransicionTerreno(e));
 
     inicializarCanvasFirma();
     actualizarContadorOutbox();
-    cargarOrdenesEnTerminal();
+    actualizarIndicadorRed();
+    await cargarConfiguracionTerminal();
+    await cargarOrdenesEnTerminal();
 
     // Sincronización periódica protegida por candado
     setInterval(() => {
@@ -37,12 +43,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, 6000);
 
-    // Al regresar de tomar la foto (abrir cámara), NO recargar si el técnico tiene una foto cargada
+    // Al regresar de la cámara, NO recargar si el técnico tiene una foto cargada (puedeSincronizar lo evita)
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden && !modoOfflineSimulado && navigator.onLine && puedeSincronizar()) {
             sincronizarHitosEnVivo();
         }
     });
+
+    window.addEventListener('offline', actualizarIndicadorRed);
+    window.addEventListener('online', async () => {
+        actualizarIndicadorRed();
+        if (!modoOfflineSimulado) await sincronizarColaOutbox();
+    });
+    if (navigator.onLine) sincronizarColaOutbox();
 });
 
 // Comprueba si el técnico está interactuando para NO interrumpir su trabajo
@@ -53,9 +66,40 @@ function puedeSincronizar() {
     return true;
 }
 
-function togglePanelDiagnosticoDefensa() {
-    const panel = document.getElementById('panel-diagnostico-oculto');
-    if (panel) panel.classList.toggle('hidden');
+function escaparHTML(valor) {
+    return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function setTexto(id, texto) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = texto;
+}
+
+function todasLasEtapasListas() {
+    return hitosActivosTerminal.every(h => h.completado);
+}
+
+function firmaDisponible() {
+    return (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) ||
+        (modoFirmaActivo === 'QR' && credencialQRValidada);
+}
+
+function obtenerOTSeleccionada() {
+    const select = document.getElementById('codigo_ot');
+    if (!select) return null;
+    return listaOTsCache.find(o => o.codigo_ot === select.value) || null;
+}
+
+function obtenerTrabajadorTerminal() {
+    const usuario = window.obtenerUsuarioActual ? window.obtenerUsuarioActual() : null;
+    if (usuario && usuario.rol === 'TRABAJADOR' && usuario.id) {
+        return { id: usuario.id, nombre: usuario.nombre_completo, prueba: false };
+    }
+    return trabajadorPrueba ? { ...trabajadorPrueba, prueba: true } : null;
 }
 
 function insertarChipMinuta(textoChip) {
@@ -65,19 +109,11 @@ function insertarChipMinuta(textoChip) {
     txt.value = actual ? `${actual} ${textoChip}` : textoChip;
 }
 
+/* ---------- Firma ---------- */
+
 function abrirModalFirmaCondicional() {
-    const selectEstado = document.getElementById('estado_nuevo');
-    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
-
-    if (!todosListos) {
-        mostrarToastTerminal("Debe completar todos los hitos con fotografía antes de solicitar la firma.", true);
-        return;
-    }
-
-    if (selectEstado && selectEstado.value !== 'OT COMPLETADA') {
-        selectEstado.value = 'OT COMPLETADA';
-        manejarCambioEstado('OT COMPLETADA');
-    }
+    const ot = obtenerOTSeleccionada();
+    if (ot && ot.estado_actual === 'OT COMPLETADA') return;
 
     modalFirmaAbierto = true; // Bloquea el polling
     const modal = document.getElementById('modal-firma-terreno');
@@ -97,12 +133,24 @@ function cerrarModalFirma() {
     actualizarAspectoBotonesEvidencia();
 }
 
+function confirmarFirma() {
+    if (!firmaDisponible()) {
+        mostrarToastTerminal(modoFirmaActivo === 'QR' ? 'Escanee el código QR para continuar.' : 'Falta la firma en el recuadro.', true);
+        return;
+    }
+    if (!document.getElementById('nombre_encargado').value.trim() || !document.getElementById('rut_encargado').value.trim()) {
+        mostrarToastTerminal('Indica el nombre y RUT de quien recibe.', true);
+        return;
+    }
+    cerrarModalFirma();
+}
+
 function inicializarCanvasFirma() {
     canvasFirma = document.getElementById('signature-canvas');
     if (!canvasFirma) return;
 
     ctxFirma = canvasFirma.getContext('2d');
-    ctxFirma.lineWidth = 2.4;
+    ctxFirma.lineWidth = 2.8;
     ctxFirma.lineCap = 'round';
     ctxFirma.lineJoin = 'round';
     ajustarColorTrazo();
@@ -157,19 +205,20 @@ function trazar(e) {
     ctxFirma.lineTo(pos.x, pos.y);
     ctxFirma.stroke();
     firmaTactilRealizada = true;
-    actualizarAspectoBotonesEvidencia();
 }
 
 function finalizarTrazo() {
     if (dibujando) {
         ctxFirma.closePath();
         dibujando = false;
+        actualizarAspectoBotonesEvidencia();
     }
 }
 
 function limpiarCanvasFirma() {
-    if (!ctxFirma || !canvasFirma) return;
-    ctxFirma.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
+    if (ctxFirma && canvasFirma) {
+        ctxFirma.clearRect(0, 0, canvasFirma.width, canvasFirma.height);
+    }
     firmaTactilRealizada = false;
     credencialQRValidada = false;
     const res = document.getElementById('qr-resultado');
@@ -185,7 +234,7 @@ function cargarFirmaRapidaPrueba() {
         ctxFirma.drawImage(img, 0, 0, canvasFirma.width, canvasFirma.height);
         firmaTactilRealizada = true;
         actualizarAspectoBotonesEvidencia();
-        mostrarToastTerminal("Firma de supervisor cargada.");
+        mostrarToastTerminal('Firma de prueba cargada.');
     };
     img.src = FIRMA_ENCARGADO_DEMO;
 }
@@ -196,15 +245,19 @@ function seleccionarModoFirma(modo) {
     const btnQR = document.getElementById('btn-tab-qr');
     const panelTactil = document.getElementById('panel-firma-tactil');
     const panelQR = document.getElementById('panel-firma-qr');
+    if (!btnTactil || !btnQR || !panelTactil || !panelQR) return;
+
+    const claseActiva = "min-h-[48px] px-2 rounded-lg font-bold text-sm border border-accent text-accent bg-surface-2";
+    const claseInactiva = "min-h-[48px] px-2 rounded-lg font-bold text-sm border border-theme-dim text-theme-muted bg-surface-2";
 
     if (modo === 'TACTIL') {
-        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2";
-        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2";
+        btnTactil.className = claseActiva;
+        btnQR.className = claseInactiva;
         panelTactil.classList.remove('hidden');
         panelQR.classList.add('hidden');
     } else {
-        btnQR.className = "py-1.5 px-2 rounded font-bold text-xs border border-accent text-accent bg-surface-2";
-        btnTactil.className = "py-1.5 px-2 rounded font-bold text-xs border border-theme-dim text-theme-muted bg-surface-2";
+        btnQR.className = claseActiva;
+        btnTactil.className = claseInactiva;
         panelTactil.classList.add('hidden');
         panelQR.classList.remove('hidden');
     }
@@ -215,7 +268,7 @@ function simularEscaneoQR() {
     credencialQRValidada = true;
     const res = document.getElementById('qr-resultado');
     if (res) res.classList.remove('hidden');
-    mostrarToastTerminal("Token QR verificado.");
+    mostrarToastTerminal('Código QR verificado.');
     actualizarAspectoBotonesEvidencia();
 }
 
@@ -226,7 +279,9 @@ function mostrarToastTerminal(mensaje, esError = false) {
     if (!toast || !msg) return;
 
     msg.innerText = mensaje;
-    led.className = esError ? 'w-2 h-2 rounded-full bg-red-500 shrink-0' : 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
+    if (led) {
+        led.className = esError ? 'w-2.5 h-2.5 rounded-full bg-red-500 shrink-0' : 'w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0';
+    }
 
     toast.classList.remove('opacity-0', 'translate-y-[-6px]');
     toast.classList.add('opacity-100', 'translate-y-0');
@@ -237,112 +292,77 @@ function mostrarToastTerminal(mensaje, esError = false) {
     }, 3500);
 }
 
-function configurarOpcionesEstado(estadoActual) {
-    const selectEstado = document.getElementById('estado_nuevo');
-    if (!selectEstado) return;
+/* ---------- Aspecto de acciones ---------- */
 
-    const valorPrevio = selectEstado.value;
-    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
-    let opcionesHTML = '';
-
-    if (estadoActual === 'EMITIDA') {
-        opcionesHTML += `<option value="EN EJECUCIÓN">EN EJECUCIÓN (Iniciar faena en terreno)</option>`;
+function actualizarAspectoBotonesEvidencia() {
+    const contFoto = document.getElementById('btn-container-foto');
+    const inputFoto = document.getElementById('foto');
+    const tieneFoto = !!(inputFoto && inputFoto.files && inputFoto.files.length > 0);
+    if (contFoto) {
+        contFoto.className = tieneFoto
+            ? "border-2 border-emerald-500 bg-emerald-950/20 rounded-lg px-4 min-h-[56px] py-2 cursor-pointer flex items-center gap-3 transition"
+            : "border-2 border-theme-bright bg-surface-2 rounded-lg px-4 min-h-[56px] py-2 cursor-pointer flex items-center gap-3 transition";
     }
 
-    opcionesHTML += `<option value="EN VALIDACIÓN">EN VALIDACIÓN (Validar avance de hitos con foto)</option>`;
-    opcionesHTML += `<option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA (Pausa técnica / Espera repuesto)</option>`;
-
-    if (todosListos) {
-        opcionesHTML += `<option value="OT COMPLETADA">OT COMPLETADA (Cierre definitivo con firma/QR)</option>`;
-    } else {
-        opcionesHTML += `<option value="OT COMPLETADA" disabled>OT COMPLETADA (Bloqueado: faltan hitos por validar)</option>`;
+    const btnFirma = document.getElementById('btn-abrir-firma');
+    const badgeFirma = document.getElementById('badge-tipo-firma');
+    const firmada = firmaDisponible();
+    if (btnFirma) {
+        btnFirma.className = firmada
+            ? "w-full border-2 border-emerald-500 bg-emerald-950/20 rounded-lg px-4 min-h-[56px] py-2 text-left flex flex-col justify-center transition"
+            : "w-full border-2 border-theme-bright bg-surface-2 rounded-lg px-4 min-h-[56px] py-2 text-left flex flex-col justify-center transition";
     }
-
-    selectEstado.innerHTML = opcionesHTML;
-    
-    // Mantener la selección actual si sigue siendo válida
-    if (valorPrevio && Array.from(selectEstado.options).some(o => o.value === valorPrevio && !o.disabled)) {
-        selectEstado.value = valorPrevio;
-    } else if (estadoActual === 'EMITIDA') {
-        selectEstado.value = 'EN EJECUCIÓN';
-    } else {
-        selectEstado.value = todosListos ? 'OT COMPLETADA' : 'EN VALIDACIÓN';
+    if (badgeFirma) {
+        badgeFirma.className = firmada ? "text-xs text-emerald-600 font-bold" : "text-xs text-theme-dim";
+        badgeFirma.innerText = firmada ? 'Firma lista ✓' : 'Completa las etapas y cierra la orden';
     }
-
-    manejarCambioEstado(selectEstado.value);
 }
 
-function manejarCambioEstado(nuevoEstado) {
-    autocompletarNovedad();
+function actualizarNombreFoto(input) {
+    const label = document.getElementById('camera-label');
+    const sublabel = document.getElementById('camera-sublabel');
+    const preview = document.getElementById('foto-preview');
+
+    if (fotoPreviewUrl) {
+        URL.revokeObjectURL(fotoPreviewUrl);
+        fotoPreviewUrl = null;
+    }
+
+    if (input && input.files && input.files[0]) {
+        const file = input.files[0];
+        const sizeKb = (file.size / 1024).toFixed(0);
+        if (label) label.innerText = '📷 Foto lista ✓';
+        if (sublabel) sublabel.innerText = `${file.name} · ${sizeKb} KB`;
+        if (preview) {
+            fotoPreviewUrl = URL.createObjectURL(file);
+            preview.src = fotoPreviewUrl;
+            preview.classList.remove('hidden');
+        }
+    } else {
+        if (label) label.innerText = '📷 Tomar / Subir Foto';
+        if (sublabel) sublabel.innerText = 'Evidencia del trabajo';
+        if (preview) {
+            preview.removeAttribute('src');
+            preview.classList.add('hidden');
+        }
+    }
     actualizarAspectoBotonesEvidencia();
 }
 
-function actualizarAspectoBotonesEvidencia() {
-    const selectEstado = document.getElementById('estado_nuevo');
-    const estado = selectEstado ? selectEstado.value : 'EN VALIDACIÓN';
-
-    const btnContainerFoto = document.getElementById('btn-container-foto');
-    const lblFoto = document.getElementById('camera-label');
-    const subLblFoto = document.getElementById('camera-sublabel');
-
-    const btnAbrirFirma = document.getElementById('btn-abrir-firma');
-    const lblBtnFirma = document.getElementById('lbl-btn-firma');
-    const badgeFirma = document.getElementById('badge-tipo-firma');
-    const badgeInstruccion = document.getElementById('badge-instruccion-estado');
-
-    if (estado === 'EN VALIDACIÓN' || estado === 'EN EJECUCIÓN') {
-        if (badgeInstruccion) badgeInstruccion.innerText = "Foto obligatoria para validar avance";
-
-        if (btnContainerFoto) {
-            btnContainerFoto.className = "border-2 border-emerald-500 bg-emerald-950/20 rounded p-2.5 text-center cursor-pointer hover:bg-emerald-900/30 transition flex flex-col justify-center shadow-xs";
-        }
-        if (lblFoto) lblFoto.className = "text-xs font-bold text-emerald-400";
-        if (subLblFoto) {
-            subLblFoto.className = "text-[9.5px] text-emerald-300 font-semibold mt-0.5";
-            subLblFoto.innerText = "Obligatoria p/ validar";
-        }
-
-        if (btnAbrirFirma) {
-            btnAbrirFirma.className = "border border-theme-dim rounded p-2.5 text-center bg-surface-2 opacity-50 cursor-not-allowed transition flex flex-col justify-center";
-        }
-        if (lblBtnFirma) lblBtnFirma.className = "text-xs font-bold text-theme-muted";
-        if (badgeFirma) {
-            badgeFirma.className = "text-[9.5px] font-mono text-theme-dim mt-0.5";
-            badgeFirma.innerText = "Solo cierre final";
-        }
-    } else if (estado === 'OT COMPLETADA') {
-        if (badgeInstruccion) badgeInstruccion.innerText = "Firma o QR del supervisor requerido";
-
-        if (btnContainerFoto) {
-            btnContainerFoto.className = "border border-theme-dim bg-surface-2 rounded p-2.5 text-center cursor-pointer hover:bg-surface-3 transition flex flex-col justify-center opacity-70";
-        }
-        if (lblFoto) lblFoto.className = "text-xs font-bold text-theme-main";
-        if (subLblFoto) {
-            subLblFoto.className = "text-[9.5px] text-theme-dim mt-0.5";
-            subLblFoto.innerText = "Opcional en cierre";
-        }
-
-        if (btnAbrirFirma) {
-            btnAbrirFirma.className = "border-2 border-amber-600 bg-amber-950/20 rounded p-2.5 text-center hover:bg-amber-900/30 cursor-pointer transition flex flex-col justify-center shadow-xs";
-        }
-        if (lblBtnFirma) lblBtnFirma.className = "text-xs font-bold text-amber-500";
-
-        if (badgeFirma) {
-            if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada) {
-                badgeFirma.className = "text-[9.5px] font-mono text-emerald-600 font-bold mt-0.5";
-                badgeFirma.innerText = "Firma en pantalla ✓";
-            } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
-                badgeFirma.className = "text-[9.5px] font-mono text-emerald-600 font-bold mt-0.5";
-                badgeFirma.innerText = "Token QR verificado ✓";
-            } else {
-                badgeFirma.className = "text-[9.5px] font-mono text-red-500 font-bold mt-0.5";
-                badgeFirma.innerText = "Pendiente de firma";
-            }
-        }
-    } else {
-        if (badgeInstruccion) badgeInstruccion.innerText = "Indique motivo de detención";
-    }
+function limpiarEvidencias() {
+    const inputFoto = document.getElementById('foto');
+    if (inputFoto) inputFoto.value = '';
+    actualizarNombreFoto(inputFoto);
+    limpiarCanvasFirma();
+    const obs = document.getElementById('obs');
+    if (obs) obs.value = '';
+    const nombre = document.getElementById('nombre_encargado');
+    const rut = document.getElementById('rut_encargado');
+    if (nombre) nombre.value = '';
+    if (rut) rut.value = '';
 }
+
+/* ---------- Órdenes ---------- */
 
 async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
     const select = document.getElementById('codigo_ot');
@@ -367,29 +387,29 @@ async function cargarOrdenesEnTerminal(codigoPreseleccionado = null) {
 
 function poblarDropdown(ots, codigoPreseleccionado = null) {
     const select = document.getElementById('codigo_ot');
-    const verTodas = document.getElementById('chk-ver-todas')?.checked;
-    const userLog = window.obtenerUsuarioActual ? window.obtenerUsuarioActual() : null;
-
-    let listaFiltrada = ots || [];
-    if (!verTodas && userLog && userLog.rol === 'TRABAJADOR') {
-        const propias = listaFiltrada.filter(o =>
-            (o.operario_id && o.operario_id === userLog.id) ||
-            (o.rut_responsable && o.rut_responsable === userLog.rut)
-        );
-        if (propias.length > 0) listaFiltrada = propias;
-    }
+    if (!select) return;
+    const trabajador = obtenerTrabajadorTerminal();
+    const listaFiltrada = trabajador ? (ots || []).filter(o => o.operario_id === trabajador.id && !['OT COMPLETADA', 'ORDEN FINALIZADA'].includes(o.estado_actual)) : [];
+    setTexto('perfil-nombre', trabajador
+        ? `${trabajador.nombre}${trabajador.prueba ? ' · usuario de prueba' : ''}`
+        : 'Sin trabajador identificado');
 
     if (listaFiltrada.length === 0) {
-        select.innerHTML = '<option value="">No hay órdenes asignadas</option>';
+        select.innerHTML = `<option value="">${trabajador ? 'No hay órdenes asignadas' : 'No hay trabajador identificado'}</option>`;
+        for (const id of ['info-ot-activo', 'info-ot-ubicacion', 'info-ot-cliente', 'info-ot-descripcion', 'info-ot-estado']) setTexto(id, '—');
+        hitosActivosTerminal = [];
+        renderizarChecklistTerminal();
+        const fs = document.getElementById('fs-trabajo');
+        if (fs) fs.disabled = true;
+        const barra = document.getElementById('barra-cierre');
+        if (barra) barra.hidden = true;
         return;
     }
 
     const valorPrevio = select.value;
     select.innerHTML = listaFiltrada.map(o => {
-        const total = (o.hitos && o.hitos.length) || 0;
-        const comp = (o.hitos && o.hitos.filter(h => h.completado).length) || 0;
-        const pct = total > 0 ? Math.round((comp / total) * 100) : 0;
-        return `<option value="${o.codigo_ot}">${o.codigo_ot} — ${o.cliente_mandante || 'Austral Conectividad'} (${pct}%)</option>`;
+        const activo = (o.activo && o.activo.nombre) ? o.activo.nombre : (o.cliente_mandante || 'Austral Conectividad SpA');
+        return `<option value="${escaparHTML(o.codigo_ot)}">${escaparHTML(o.codigo_ot)} · ${escaparHTML(activo)}</option>`;
     }).join('');
 
     const seleccionado = codigoPreseleccionado || valorPrevio;
@@ -397,6 +417,56 @@ function poblarDropdown(ots, codigoPreseleccionado = null) {
         select.value = seleccionado;
     }
     actualizarInfoOTSeleccionada();
+}
+
+function claseBadgeEstado(estado) {
+    switch (estado) {
+        case 'EN EJECUCIÓN': return 'badge-ejecucion';
+        case 'EN VALIDACIÓN': return 'badge-validacion';
+        case 'OT COMPLETADA': return 'badge-completada';
+        case ESTADO_ANOMALIA: return 'badge-detenida';
+        default: return 'badge-emitida';
+    }
+}
+
+// Pinta etiqueta de estado y bloquea acciones si la orden ya está cerrada
+function pintarCabeceraOT(ot) {
+    const estado = (ot && ot.estado_actual) || 'EMITIDA';
+    const badge = document.getElementById('info-ot-estado');
+    if (badge) {
+        badge.innerText = estado;
+        badge.className = `text-xs font-bold px-2.5 py-1 rounded shrink-0 ${claseBadgeEstado(estado)}`;
+    }
+
+    const completada = ['OT COMPLETADA', 'ORDEN FINALIZADA'].includes(estado);
+    const puedeCerrar = ['EN EJECUCIÓN', 'EN VALIDACIÓN'].includes(estado);
+    const btnFirma = document.getElementById('btn-abrir-firma');
+    if (btnFirma) btnFirma.hidden = !puedeCerrar;
+    const barraCierre = document.getElementById('barra-cierre');
+    if (barraCierre) barraCierre.hidden = !puedeCerrar;
+    const fs = document.getElementById('fs-trabajo');
+    if (fs) {
+        fs.disabled = completada;
+        fs.classList.toggle('opacity-60', completada);
+    }
+    const btnEnviar = document.getElementById('btnEnviar');
+    if (btnEnviar) btnEnviar.disabled = completada || enviandoTransicion || !puedeCerrar;
+    const acciones = {
+        'btn-iniciar': ['EMITIDA', 'ASIGNADA'],
+        'btn-reanudar': [ESTADO_ANOMALIA, 'EN VALIDACIÓN'],
+        'btn-jornada': ['EN EJECUCIÓN', ESTADO_ANOMALIA],
+        'btn-reportar-anomalia': ['EMITIDA', 'ASIGNADA', 'EN EJECUCIÓN']
+    };
+    for (const [id, estados] of Object.entries(acciones)) {
+        const boton = document.getElementById(id);
+        if (boton) boton.hidden = !estados.includes(estado);
+    }
+    const seccionAnomalia = document.getElementById('seccion-anomalia');
+    if (seccionAnomalia) seccionAnomalia.hidden = !acciones['btn-reportar-anomalia'].includes(estado);
+    const ayudaJornada = document.getElementById('ayuda-jornada');
+    if (ayudaJornada) ayudaJornada.hidden = !acciones['btn-jornada'].includes(estado);
+    const aviso = document.getElementById('aviso-completada');
+    if (aviso) aviso.classList.toggle('hidden', !completada);
 }
 
 async function sincronizarHitosEnVivo() {
@@ -413,6 +483,8 @@ async function sincronizarHitosEnVivo() {
 
         const otActualizada = data.find(o => o.codigo_ot === codigoActual);
         if (!otActualizada) return;
+
+        pintarCabeceraOT(otActualizada);
 
         const hitosServidor = otActualizada.hitos || [];
 
@@ -431,38 +503,39 @@ async function sincronizarHitosEnVivo() {
             }));
 
             renderizarChecklistTerminal();
-            configurarOpcionesEstado(otActualizada.estado_actual);
-            mostrarToastTerminal(`Cronograma de ${codigoActual} actualizado desde Supervisión.`);
+            mostrarToastTerminal(`Etapas de ${codigoActual} actualizadas.`);
         }
     } catch (e) {}
+}
+
+function etiquetaDia(dia) {
+    return /^\d+$/.test(String(dia)) ? `Día ${dia}` : String(dia == null ? '' : dia);
 }
 
 function renderizarChecklistTerminal() {
     const cont = document.getElementById('contenedor-hitos-terminal');
     const txtProg = document.getElementById('terminal-progreso-hitos');
     const barra = document.getElementById('terminal-barra-hitos');
-    const lblDias = document.getElementById('label-dias-terminal');
     if (!cont) return;
 
     const total = hitosActivosTerminal.length;
     const comp = hitosActivosTerminal.filter(h => h.completado).length;
     const pct = total > 0 ? Math.round((comp / total) * 100) : 0;
 
-    if (lblDias) lblDias.innerText = `${total} etapas planificadas (valida con foto)`;
-    if (txtProg) txtProg.innerText = `${comp}/${total} (${pct}%)`;
+    if (txtProg) txtProg.innerText = `${comp} de ${total}`;
     if (barra) barra.style.width = `${pct}%`;
 
     if (total === 0) {
-        cont.innerHTML = `<div class="p-3 text-center text-theme-dim text-xs">Sin etapas definidas en la orden.</div>`;
+        cont.innerHTML = `<div class="p-3 text-center text-theme-dim text-sm">Esta orden no tiene etapas.</div>`;
         return;
     }
 
     cont.innerHTML = hitosActivosTerminal.map((h, idx) => `
-        <label class="flex items-start gap-2.5 p-2 rounded border border-theme-dim bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
-            <input type="checkbox" ${h.completado ? 'checked' : ''} onchange="cambiarHitoEnTerminal(${idx}, this.checked)" class="mt-0.5 w-4 h-4 accent-[#c2410c]">
-            <div class="text-xs leading-snug flex-1">
-                <span class="font-mono text-[10px] font-bold text-accent block">${h.dia}</span>
-                <span class="${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-medium'}">${h.titulo}</span>
+        <label class="flex items-center gap-3 px-3 min-h-[56px] py-2 rounded-lg border border-theme-dim bg-surface-2 cursor-pointer hover:bg-surface-3 transition">
+            <input type="checkbox" ${h.completado ? 'checked' : ''} onchange="cambiarHitoEnTerminal(${idx}, this.checked)" class="w-7 h-7 shrink-0" style="accent-color: var(--accent-primary, #c2410c)">
+            <div class="leading-snug flex-1 min-w-0">
+                <span class="text-xs text-theme-dim block">${escaparHTML(etiquetaDia(h.dia))}</span>
+                <span class="text-base ${h.completado ? 'line-through text-theme-dim' : 'text-theme-main font-semibold'}">${escaparHTML(h.titulo)}</span>
             </div>
         </label>
     `).join('');
@@ -472,212 +545,368 @@ function cambiarHitoEnTerminal(idx, marcado) {
     if (!hitosActivosTerminal[idx]) return;
     hitosActivosTerminal[idx].completado = marcado;
     renderizarChecklistTerminal();
-
-    const selectEstado = document.getElementById('estado_nuevo');
-    const todosListos = hitosActivosTerminal.length > 0 && hitosActivosTerminal.every(h => h.completado);
-
-    configurarOpcionesEstado(document.getElementById('info-ot-estado').innerText);
-
-    if (todosListos && selectEstado) {
-        selectEstado.value = 'OT COMPLETADA';
-        manejarCambioEstado('OT COMPLETADA');
-    }
 }
 
 function actualizarInfoOTSeleccionada() {
-    const codigo = document.getElementById('codigo_ot').value;
-    const ot = listaOTsCache.find(o => o.codigo_ot === codigo);
+    const ot = obtenerOTSeleccionada();
     if (!ot) return;
 
-    const estadoActual = ot.estado_actual || 'EMITIDA';
-    document.getElementById('info-ot-estado').innerText = estadoActual;
-    document.getElementById('info-ot-cliente').innerText = `Mandante: ${ot.cliente_mandante || 'Austral Conectividad SpA'}`;
-    document.getElementById('info-ot-descripcion').innerText = ot.descripcion || 'Sin instrucciones.';
-    document.getElementById('perfil-nombre').innerText = `${ot.operario_responsable} (${ot.rut_responsable})`;
+    setTexto('info-ot-activo', (ot.activo && ot.activo.nombre) ? ot.activo.nombre : 'Activo sin nombre');
+    setTexto('info-ot-ubicacion', (ot.activo && ot.activo.ubicacion_tecnica) ? ot.activo.ubicacion_tecnica : 'Ubicación no indicada');
+    setTexto('info-ot-cliente', ot.cliente_mandante || 'Austral Conectividad SpA');
+    setTexto('info-ot-descripcion', ot.descripcion || 'Sin instrucciones.');
+    pintarCabeceraOT(ot);
 
     hitosActivosTerminal = JSON.parse(JSON.stringify(ot.hitos || []));
     renderizarChecklistTerminal();
-    configurarOpcionesEstado(estadoActual);
 
-    gpsFueraDePlanta = false;
-    actualizarCoordenadaGPS();
-    limpiarCanvasFirma();
+    setTexto('badge-geocerca', 'Ubicación: se solicitará al guardar');
+    limpiarEvidencias();
 }
 
-function actualizarCoordenadaGPS() {
-    const codigo = document.getElementById('codigo_ot').value;
-    const ot = listaOTsCache.find(o => o.codigo_ot === codigo);
-    const badge = document.getElementById('badge-geocerca');
+function obtenerUbicacionActual() {
+    if (!window.isSecureContext || !navigator.geolocation) {
+        return Promise.reject(new Error('La ubicación requiere HTTPS o localhost y un dispositivo compatible.'));
+    }
+    return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+            (posicion) => {
+                const { latitude, longitude } = posicion.coords;
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+                    Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+                    reject(new Error('El dispositivo entregó coordenadas inválidas.'));
+                    return;
+                }
+                resolve(`${latitude}, ${longitude}`);
+            },
+            (error) => {
+                const mensaje = error.code === 1
+                    ? 'Permite el acceso a la ubicación para guardar.'
+                    : 'No se pudo obtener la ubicación. Activa el GPS e inténtalo nuevamente.';
+                reject(new Error(mensaje));
+            },
+            { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
+    });
+}
 
-    if (gpsFueraDePlanta) {
-        document.getElementById('gps').value = "-41.4950, -72.9900";
-        badge.className = "font-mono font-bold text-red-600";
-        badge.innerText = "DESVIACIÓN GPS (>4 KM)";
-    } else {
-        const lat = (ot && ot.activo && ot.activo.latitud_referencia) ? ot.activo.latitud_referencia.toFixed(4) : '-41.4870';
-        const lon = (ot && ot.activo && ot.activo.longitud_referencia) ? ot.activo.longitud_referencia.toFixed(4) : '-72.9550';
-        document.getElementById('gps').value = `${lat}, ${lon}`;
-        badge.className = "font-mono font-bold text-emerald-600";
-        badge.innerText = `WGS84 EN SITIO (${lat}, ${lon})`;
+async function cargarConfiguracionTerminal() {
+    try {
+        const res = await fetch(`${API}/estados/configuracion`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const config = await res.json();
+        permitirPruebaSinGps = config.permitir_prueba_sin_gps === true;
+        trabajadorPrueba = config.trabajador_prueba || null;
+        const opcion = document.getElementById('opcion-prueba-ubicacion');
+        if (opcion) {
+            opcion.hidden = !permitirPruebaSinGps;
+            opcion.classList.toggle('flex', permitirPruebaSinGps);
+            if (!permitirPruebaSinGps) document.getElementById('chk-prueba-ubicacion').checked = false;
+        }
+    } catch (error) {
+        permitirPruebaSinGps = false;
+        trabajadorPrueba = null;
+        const opcion = document.getElementById('opcion-prueba-ubicacion');
+        if (opcion) opcion.hidden = true;
+        const check = document.getElementById('chk-prueba-ubicacion');
+        if (check) check.checked = false;
+        mostrarToastTerminal('No se pudo cargar la configuración de la terminal.', true);
+        console.error('No se pudo consultar la configuración de prueba GPS:', error);
     }
 }
 
-function alternarSimulacionGPS() {
-    gpsFueraDePlanta = !gpsFueraDePlanta;
-    actualizarCoordenadaGPS();
+function cambiarPruebaUbicacion(input) {
+    if (input.checked && !window.confirm('Prueba: se guardará sin solicitar ubicación. El registro no acreditará presencia. ¿Activar?')) {
+        input.checked = false;
+    }
+    setTexto('badge-geocerca', input.checked ? 'Prueba sin ubicación: presencia no verificada' : 'Ubicación: se solicitará al guardar');
 }
 
 function abrirPliegoPDFDesdeTerminal() {
-    const codigo = document.getElementById('codigo_ot').value;
+    const select = document.getElementById('codigo_ot');
+    const codigo = select ? select.value : '';
     if (!codigo) return;
     window.open(`orden_pdf.html?codigo=${encodeURIComponent(codigo)}&modo=COMPLETA`, '_blank');
 }
 
-function actualizarNombreFoto(input) {
-    const label = document.getElementById('camera-label');
-    const sublabel = document.getElementById('camera-sublabel');
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        const sizeKb = (file.size / 1024).toFixed(1);
-        label.innerHTML = `📷 Foto: ${file.name}`;
-        sublabel.innerHTML = `✓ Adjunta (${sizeKb} KB)`;
-    }
+/* ---------- Guardado ---------- */
+
+function generarNovedad(estado) {
+    const total = hitosActivosTerminal.length;
+    const comp = hitosActivosTerminal.filter(h => h.completado).length;
+    if (estado === 'OT COMPLETADA') return `Trabajo terminado. ${comp} de ${total} etapas completadas. Pendiente de aprobación.`;
+    if (estado === 'EN VALIDACIÓN') return `Avance con foto de respaldo. ${comp} de ${total} etapas completadas.`;
+    return `Trabajo en curso. ${comp} de ${total} etapas completadas.`;
 }
 
-async function procesarTransicionTerreno(e) {
-    e.preventDefault();
-    enviandoTransicion = true; // Bloquea cualquier actualización en segundo plano
-    const btn = document.getElementById('btnEnviar');
-    btn.disabled = true;
+function reportarAnomalia() {
+    const ot = obtenerOTSeleccionada();
+    if (!ot) return;
+    const obs = document.getElementById('obs');
+    if (!obs || !obs.value.trim()) {
+        mostrarToastTerminal('Escribe en Observación qué ocurrió y vuelve a pulsar "Reportar anomalía".', true);
+        if (obs) obs.focus();
+        return;
+    }
+    registrarAccionTerreno('ANOMALIA');
+}
+
+function registrarAccionTerreno(tipo) {
+    return procesarTransicionTerreno(null, tipo);
+}
+
+async function procesarTransicionTerreno(e, tipo = 'CIERRE') {
+    if (e) e.preventDefault();
+    if (enviandoTransicion) return;
 
     const codigoOT = document.getElementById('codigo_ot').value;
-    const operarioId = document.getElementById('operario_id').value || '45';
-    const estadoNuevo = document.getElementById('estado_nuevo').value;
-    const gpsVal = document.getElementById('gps').value;
-    let obsVal = document.getElementById('obs').value || '';
+    if (!codigoOT) {
+        mostrarToastTerminal('Seleccione una orden.', true);
+        return;
+    }
 
+    const otActual = obtenerOTSeleccionada();
+    const trabajador = obtenerTrabajadorTerminal();
+    if (!otActual || !trabajador || otActual.operario_id !== trabajador.id) {
+        mostrarToastTerminal('No hay una orden asignada al trabajador identificado.', true);
+        return;
+    }
+    if (otActual && otActual.estado_actual === 'OT COMPLETADA') {
+        mostrarToastTerminal('Esta orden ya está completada.', true);
+        return;
+    }
     const inputFoto = document.getElementById('foto');
-    const tieneFoto = inputFoto && inputFoto.files && inputFoto.files.length > 0;
-
-    let firmaPayload = "";
-    if (modoFirmaActivo === 'TACTIL' && firmaTactilRealizada && canvasFirma) {
-        firmaPayload = canvasFirma.toDataURL('image/png');
-    } else if (modoFirmaActivo === 'QR' && credencialQRValidada) {
-        firmaPayload = `TOKEN-QR-ENCARGADO-142856318-${Date.now().toString(36).toUpperCase()}`;
+    const foto = inputFoto && inputFoto.files && inputFoto.files[0];
+    const obsTexto = (document.getElementById('obs').value || '').trim();
+    if (tipo !== 'REANUDACION' && !foto) {
+        mostrarToastTerminal('Adjunta una foto para registrar esta acción.', true);
+        return;
     }
-
-    // Validación estricta: EN VALIDACIÓN exige fotografía
-    if (estadoNuevo === 'EN VALIDACIÓN' && !tieneFoto) {
-        mostrarToastTerminal("Debe adjuntar una fotografía como evidencia para validar el hito.", true);
-        btn.disabled = false;
-        enviandoTransicion = false;
+    if (foto && foto.size > 5 * 1024 * 1024) {
+        mostrarToastTerminal('La foto supera el máximo de 5 MB.', true);
+        return;
+    }
+    if (['FIN_JORNADA', 'ANOMALIA'].includes(tipo) && !obsTexto) {
+        mostrarToastTerminal('Describe brevemente el avance o el motivo en Observación.', true);
+        document.getElementById('obs').focus();
+        return;
+    }
+    if (tipo === 'CIERRE' && (!hitosActivosTerminal.length || !todasLasEtapasListas())) {
+        mostrarToastTerminal('Completa todas las etapas antes de terminar el trabajo.', true);
         return;
     }
 
-    // Validación estricta: OT COMPLETADA exige firma o QR
-    if (estadoNuevo === 'OT COMPLETADA' && !firmaPayload) {
-        mostrarToastTerminal("El cierre de la orden requiere la firma en pantalla o Token QR del supervisor.", true);
-        btn.disabled = false;
+    enviandoTransicion = true; // Bloquea cualquier actualización en segundo plano
+    const btn = document.getElementById('btnEnviar');
+    const selectOrden = document.getElementById('codigo_ot');
+    const fs = document.getElementById('fs-trabajo');
+    if (btn) btn.disabled = true;
+    if (selectOrden) selectOrden.disabled = true;
+    if (fs) fs.disabled = true;
+    const liberar = () => {
         enviandoTransicion = false;
-        abrirModalFirmaCondicional();
+        const ot = obtenerOTSeleccionada();
+        if (selectOrden) selectOrden.disabled = false;
+        if (fs) fs.disabled = !!(ot && ot.estado_actual === 'OT COMPLETADA');
+        if (ot) pintarCabeceraOT(ot);
+    };
+
+    const operarioId = trabajador.id;
+    if (!operarioId) {
+        mostrarToastTerminal('No se pudo identificar al técnico. Inicia sesión e inténtalo nuevamente.', true);
+        liberar();
         return;
     }
 
-    const nombreEncargado = document.getElementById('nombre_encargado').value.trim() || 'Carlos Valenzuela M.';
-    const rutEncargado = document.getElementById('rut_encargado').value.trim() || '14.285.631-8';
+    const estados = { LLEGADA: 'EN EJECUCIÓN', REANUDACION: 'EN EJECUCIÓN', ANOMALIA: ESTADO_ANOMALIA, FIN_JORNADA: 'EN VALIDACIÓN', CIERRE: 'OT COMPLETADA' };
+    const estadoNuevo = estados[tipo];
+    const sinConexion = modoOfflineSimulado || !navigator.onLine;
+    try {
+        const pendientes = await listarOutboxNuevo();
+        if (pendientes.some(item => item.codigo_ot === codigoOT)) {
+            mostrarToastTerminal('Esta orden tiene un registro pendiente. Sincronízalo antes de continuar.', true);
+            liberar();
+            return;
+        }
+    } catch (error) {
+        mostrarToastTerminal(`No se puede acceder a los registros pendientes: ${error.message}`, true);
+        liberar();
+        return;
+    }
+
+    let gpsVal;
+    let sinGpsPrueba = false;
+    const omitirUbicacion = permitirPruebaSinGps && document.getElementById('chk-prueba-ubicacion').checked;
+    if (omitirUbicacion) {
+        gpsVal = GPS_PRUEBA;
+        sinGpsPrueba = true;
+        setTexto('badge-geocerca', 'Prueba sin ubicación: presencia no verificada');
+    } else try {
+        setTexto('badge-geocerca', 'Ubicación: obteniendo GPS...');
+        gpsVal = await obtenerUbicacionActual();
+        setTexto('badge-geocerca', 'Ubicación obtenida; se validará al sincronizar');
+    } catch (error) {
+        setTexto('badge-geocerca', 'Ubicación no disponible');
+        if (!permitirPruebaSinGps || !window.confirm(`${error.message}\n\nModo de prueba: ¿guardar sin ubicación? El registro no acreditará presencia.`)) {
+            mostrarToastTerminal(error.message, true);
+            liberar();
+            return;
+        }
+        gpsVal = GPS_PRUEBA;
+        sinGpsPrueba = true;
+        setTexto('badge-geocerca', 'Prueba sin GPS: presencia no verificada');
+    }
+
+    const obsVal = obsTexto || generarNovedad(estadoNuevo);
     const hitosSerializados = JSON.stringify(hitosActivosTerminal);
 
-    if (modoOfflineSimulado || !navigator.onLine) {
-        const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
-        cola.push({
-            codigo_ot: codigoOT,
-            operario_id: operarioId,
-            estado_nuevo: estadoNuevo,
-            coordenadas_gps: gpsVal,
-            observacion: obsVal || 'Avance registrado en cola local (Store-and-Forward).',
-            encargado_nombre: nombreEncargado,
-            encargado_rut: rutEncargado,
-            firma_data: firmaPayload,
-            hitos_json: hitosSerializados,
-            timestamp: new Date().toISOString()
-        });
-        localStorage.setItem('tasknode_outbox', JSON.stringify(cola));
-        actualizarContadorOutbox();
-        mostrarToastTerminal(`Almacenado en cola local (${cola.length} pendientes).`);
-        btn.disabled = false;
-        enviandoTransicion = false;
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('codigo_ot', codigoOT);
-    formData.append('operario_id', operarioId);
-    formData.append('estado_nuevo', estadoNuevo);
-    formData.append('coordenadas_gps', gpsVal);
-    formData.append('observacion', obsVal);
-    formData.append('encargado_nombre', nombreEncargado);
-    formData.append('encargado_rut', rutEncargado);
-    formData.append('hitos_json', hitosSerializados);
-    if (firmaPayload) formData.append('firma_data', firmaPayload);
-    if (tieneFoto) formData.append('foto', inputFoto.files[0]);
-
     try {
-        const res = await fetch(`${API}/estados/`, { method: 'POST', body: formData });
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-            mostrarToastTerminal(data.detail || `Error HTTP ${res.status}`, true);
-        } else {
-            mostrarToastTerminal(`Avance sincronizado en ${data.codigo_ot}.`);
-            if (inputFoto) inputFoto.value = '';
-            document.getElementById('camera-label').innerText = "📷 Tomar Foto Hito";
-            document.getElementById('camera-sublabel').innerText = "Obligatoria p/ validar";
-            limpiarCanvasFirma();
-            await cargarOrdenesEnTerminal(codigoOT);
-        }
+        const bytes = crypto.getRandomValues(new Uint8Array(16));
+        bytes[6] = (bytes[6] & 15) | 64;
+        bytes[8] = (bytes[8] & 63) | 128;
+        const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        const registroId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        await guardarOutboxNuevo({
+            registro_id: registroId, tipo_registro: tipo, fecha_dispositivo: new Date().toISOString(),
+            codigo_ot: codigoOT, operario_id: operarioId, estado_nuevo: estadoNuevo,
+            coordenadas_gps: gpsVal, sin_gps_prueba: sinGpsPrueba,
+            observacion: obsVal, hitos_json: hitosSerializados, foto: foto || null
+        });
+        limpiarEvidencias();
+        await actualizarContadorOutbox();
+        if (sinConexion) mostrarToastTerminal('Guardado en el dispositivo. Pendiente de sincronización.');
+        else await sincronizarRegistrosNuevos();
     } catch (err) {
-        mostrarToastTerminal(`Error de red: ${err.message}`, true);
+        mostrarToastTerminal(`No se pudo guardar en el dispositivo: ${err.message}`, true);
     } finally {
-        btn.disabled = false;
-        enviandoTransicion = false;
+        liberar();
     }
 }
 
-async function conmutarModoRed() {
-    modoOfflineSimulado = !modoOfflineSimulado;
+/* ---------- Red y cola offline ---------- */
+
+function actualizarIndicadorRed() {
     const dot = document.getElementById('dot-red');
     const label = document.getElementById('txt-red');
+    const sinConexion = modoOfflineSimulado || !navigator.onLine;
+    if (dot) dot.className = sinConexion ? 'w-2 h-2 rounded-full bg-amber-500' : 'w-2 h-2 rounded-full bg-emerald-500';
+    if (label) label.innerText = sinConexion ? 'Sin señal' : 'En línea';
+}
+
+async function conmutarModoRed(valor) {
+    modoOfflineSimulado = typeof valor === 'boolean' ? valor : !modoOfflineSimulado;
+    const chk = document.getElementById('chk-sim-offline');
+    if (chk) chk.checked = modoOfflineSimulado;
+    actualizarIndicadorRed();
 
     if (modoOfflineSimulado) {
-        dot.className = 'w-2 h-2 rounded-full bg-amber-500';
-        label.innerText = 'OFFLINE';
-        mostrarToastTerminal('Modo almacenamiento local (Sin señal) activo.');
+        mostrarToastTerminal('Modo sin señal: los avances quedan en el equipo.');
     } else {
-        dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
-        label.innerText = 'ONLINE';
         await sincronizarColaOutbox();
     }
 }
 
-function actualizarContadorOutbox() {
-    const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
-    const contador = document.getElementById('outbox-count');
-    if (contador) contador.innerText = cola.length;
+async function actualizarContadorOutbox() {
+    try {
+        const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
+        const nuevos = await listarOutboxNuevo();
+        setTexto('outbox-count', String(cola.length + nuevos.length));
+        const lista = document.getElementById('registros-pendientes');
+        if (lista) {
+            lista.replaceChildren();
+            for (const item of nuevos) {
+                const fila = document.createElement('div');
+                fila.className = 'p-2 rounded border border-theme-dim bg-surface-2';
+                const descripcion = document.createElement('span');
+                descripcion.textContent = `${item.codigo_ot} · ${item.tipo_registro} · pendiente`;
+                const eliminar = document.createElement('button');
+                eliminar.type = 'button';
+                eliminar.className = 'block text-red-600 underline font-semibold mt-1';
+                eliminar.textContent = 'Descartar registro pendiente';
+                eliminar.onclick = async () => {
+                    if (!window.confirm('Se eliminarán del dispositivo este registro y su foto. ¿Deseas descartarlos?')) return;
+                    try {
+                        await eliminarOutboxNuevo(item.registro_id);
+                        await actualizarContadorOutbox();
+                        mostrarToastTerminal('Registro pendiente descartado.');
+                    } catch (error) {
+                        mostrarToastTerminal(`No se pudo descartar: ${error.message}`, true);
+                    }
+                };
+                fila.append(descripcion, eliminar);
+                lista.appendChild(fila);
+            }
+        }
+    } catch (error) {
+        setTexto('outbox-count', '?');
+        mostrarToastTerminal(`No se puede consultar la cola local: ${error.message}`, true);
+    }
+}
+
+async function sincronizarRegistrosNuevos() {
+    if (sincronizandoOutbox || modoOfflineSimulado || !navigator.onLine) return;
+    sincronizandoOutbox = true;
+    try {
+        const cola = await listarOutboxNuevo();
+        let sincronizados = 0;
+        cola.sort((a, b) => a.fecha_dispositivo.localeCompare(b.fecha_dispositivo));
+        for (const item of cola) {
+            const fd = new FormData();
+            for (const campo of ['registro_id', 'tipo_registro', 'fecha_dispositivo', 'codigo_ot', 'operario_id', 'estado_nuevo', 'coordenadas_gps', 'observacion', 'encargado_nombre', 'encargado_rut', 'firma_data', 'hitos_json']) {
+                if (item[campo] !== null && item[campo] !== undefined && item[campo] !== '') fd.append(campo, item[campo]);
+            }
+            if (item.sin_gps_prueba) fd.append('sin_gps_prueba', 'true');
+            if (item.sin_geocerca_prueba) fd.append('sin_geocerca_prueba', 'true');
+            if (item.foto) fd.append('foto', item.foto, item.foto.name || 'evidencia.jpg');
+            let res;
+            try {
+                res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
+            } catch (error) {
+                mostrarToastTerminal('Sin conexión: el registro y la foto quedan pendientes en el dispositivo.', true);
+                break;
+            }
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                mostrarToastTerminal(`Pendiente: ${typeof data.detail === 'string' ? data.detail : `error ${res.status}`}`, true);
+                break;
+            }
+            await eliminarOutboxNuevo(item.registro_id);
+            sincronizados++;
+            mostrarToastTerminal('Registro sincronizado correctamente.');
+        }
+        await actualizarContadorOutbox();
+        if (sincronizados) {
+            if (enviandoTransicion) await cargarOrdenesEnTerminal(document.getElementById('codigo_ot').value);
+            else await sincronizarHitosEnVivo();
+        }
+    } catch (error) {
+        mostrarToastTerminal(`No se pudo sincronizar la cola local: ${error.message}`, true);
+    } finally {
+        sincronizandoOutbox = false;
+    }
 }
 
 async function sincronizarColaOutbox() {
+    await sincronizarRegistrosNuevos();
     const cola = JSON.parse(localStorage.getItem('tasknode_outbox') || '[]');
     if (cola.length === 0) return;
 
+    const select = document.getElementById('codigo_ot');
+    const codigoActual = select ? select.value : null;
     let sincronizados = 0;
-    const codigoActual = document.getElementById('codigo_ot').value;
+    let fallo = '';
 
     for (const item of cola) {
+        if (item.ubicacion_capturada !== true) {
+            fallo = 'Hay un registro anterior con ubicación no verificable. Se conserva pendiente y no se enviará automáticamente.';
+            break;
+        }
         const fd = new FormData();
         fd.append('codigo_ot', item.codigo_ot);
         fd.append('operario_id', item.operario_id || '45');
         fd.append('estado_nuevo', item.estado_nuevo);
         fd.append('coordenadas_gps', item.coordenadas_gps);
+        if (item.sin_gps_prueba === true) fd.append('sin_gps_prueba', 'true');
         fd.append('observacion', item.observacion);
         if (item.hitos_json) fd.append('hitos_json', item.hitos_json);
         if (item.encargado_nombre) fd.append('encargado_nombre', item.encargado_nombre);
@@ -686,26 +915,21 @@ async function sincronizarColaOutbox() {
 
         try {
             const res = await fetch(`${API}/estados/`, { method: 'POST', body: fd });
-            if (res.ok) sincronizados++;
-        } catch (err) {}
+            if (!res.ok) {
+                fallo = `El servidor rechazó un registro pendiente (error ${res.status}). Se conservó para revisión.`;
+                break;
+            }
+            sincronizados++;
+        } catch (err) {
+            fallo = `No se pudo sincronizar: ${err.message}. Los registros restantes se conservaron.`;
+            break;
+        }
     }
 
-    localStorage.removeItem('tasknode_outbox');
+    const pendientes = cola.slice(sincronizados);
+    if (pendientes.length > 0) localStorage.setItem('tasknode_outbox', JSON.stringify(pendientes));
+    else localStorage.removeItem('tasknode_outbox');
     actualizarContadorOutbox();
     await cargarOrdenesEnTerminal(codigoActual);
-    mostrarToastTerminal(`Sincronizados ${sincronizados}/${cola.length} registros pendientes.`);
-}
-
-function autocompletarNovedad() {
-    const estado = document.getElementById('estado_nuevo').value;
-    const txt = document.getElementById('obs');
-    const comp = hitosActivosTerminal.filter(h => h.completado).length;
-
-    if (estado === 'DETENIDA POR ANOMALÍA') {
-        txt.value = `Faena pausada con ${comp}/${hitosActivosTerminal.length} etapas completadas. Activo asegurado bajo bloqueo LOTO.`;
-    } else if (estado === 'OT COMPLETADA') {
-        txt.value = `Protocolo de ${hitosActivosTerminal.length} etapas finalizado al 100%. Recepción conforme y firma del supervisor en faena.`;
-    } else {
-        txt.value = `Avance operativo registrado con respaldo fotográfico (${comp}/${hitosActivosTerminal.length} etapas listas).`;
-    }
+    mostrarToastTerminal(fallo || `Sincronizados ${sincronizados} de ${cola.length} pendientes.`, !!fallo);
 }

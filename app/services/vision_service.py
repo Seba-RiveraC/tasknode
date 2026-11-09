@@ -2,11 +2,13 @@ import io
 import numpy as np
 from PIL import Image, ExifTags
 
+UMBRAL_NITIDEZ = 25.0
+
 def calcular_nitidez_laplaciana(archivo_bytes: bytes) -> tuple[float, bool]:
     """
     Calcula la derivada espacial de 2do orden mediante convolución con el kernel Laplaciano:
     [[0, 1, 0], [1, -4, 1], [0, 1, 0]]
-    Score >= 100 indica nitidez conforme a requerimientos técnicos.
+    El umbral es un criterio orientativo, no una garantía de calidad visual.
     """
     try:
         img = Image.open(io.BytesIO(archivo_bytes)).convert("L")
@@ -28,7 +30,7 @@ def calcular_nitidez_laplaciana(archivo_bytes: bytes) -> tuple[float, bool]:
             4 * img_np[1:-1, 1:-1]
         )
         score = float(np.var(sub))
-        return round(score, 2), (score >= 100.0)
+        return round(score, 2), (score >= UMBRAL_NITIDEZ)
     except Exception:
         return 0.0, False
 

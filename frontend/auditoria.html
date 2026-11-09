@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskNode | Registro de Auditoría</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=3.1">
+    <link rel="stylesheet" href="static/css/styles.css?v=4.1">
 </head>
 <body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
 
@@ -14,26 +14,30 @@
         <div>
             <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
+                    <div class="w-9 h-9 rounded-lg bg-[#4f46e5] flex items-center justify-center text-white font-bold text-sm shrink-0">TN</div>
                     <div class="hidden lg:block">
-                        <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim" id="sidebar-rol-tag">OPERACIONES CMMS</span>
+                        <span class="font-bold tracking-tight text-theme-main text-base block leading-none">TaskNode</span>
+                        <span class="text-xs text-theme-dim" id="sidebar-rol-tag">Operaciones de red</span>
                     </div>
                 </div>
             </div>
 
             <nav class="p-2.5 space-y-1">
                 <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg>
+                    <span class="hidden lg:inline">Órdenes de trabajo</span>
                 </a>
                 <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Indicadores y SLA (BI)</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
+                    <span class="hidden lg:inline">Indicadores</span>
                 </a>
                 <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Catálogo de Activos</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>
+                    <span class="hidden lg:inline">Activos de red</span>
                 </a>
                 <a href="auditoria.html" id="nav-link-auditoria" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
-                    <span class="hidden lg:inline">Libro Mayor (ISO 55001)</span>
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2m0-2a2 2 0 0 0 2 2h14M8 7h8M8 11h8"/></svg>
+                    <span class="hidden lg:inline">Auditoría</span>
                 </a>
             </nav>
         </div>
@@ -43,9 +47,6 @@
                 <span class="text-[9.5px] font-mono text-theme-dim uppercase block">Sesión Activa</span>
                 <span class="font-bold text-theme-main text-[11px] truncate block" id="sidebar-user-name">Supervisor</span>
             </div>
-            <a href="terminal.html" target="_blank" class="w-full py-1.5 px-3 rounded bg-surface-1 border border-theme-bright text-theme-main font-semibold text-center block hover:bg-surface-3 transition">
-                Vista Móvil de Terreno
-            </a>
             <button onclick="cerrarSesion()" class="w-full py-1.5 px-3 rounded border border-theme-dim text-theme-muted hover:text-theme-main font-semibold text-center block transition">
                 Cerrar Sesión
             </button>
@@ -57,7 +58,7 @@
         <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
             <div>
                 <h1 class="font-bold text-sm sm:text-base text-theme-main tracking-tight">Historial de Cambios y Verificación de Integridad</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block">Registro cronológico protegido contra modificaciones. Haga clic en "Ver información de auditoría" para revisar el sello criptográfico</p>
+                <p class="text-[11px] text-theme-dim hidden sm:block">Revisa los cambios registrados y la integridad de los datos incluidos en la cadena.</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <button onclick="ejecutarAuditoriaCriptografica()" class="btn-primary font-bold text-xs px-3.5 py-2 rounded transition shadow-sm">
@@ -106,7 +107,7 @@
             <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center">
                 <div>
                     <span class="font-bold text-theme-main text-sm block" id="modal-hash-titulo">Información de Auditoría Criptográfica</span>
-                    <span class="text-[10px] font-mono text-theme-dim">Garantía de No Repudio ISO 55001 / Ley N° 19.799</span>
+                    <span class="text-xs text-theme-dim">Datos de la transición y su verificación</span>
                 </div>
                 <button onclick="cerrarModalHash()" class="px-2.5 py-1 rounded border border-theme-dim bg-surface-1 text-theme-main font-bold text-xs">✕</button>
             </div>
@@ -138,7 +139,7 @@
                 </div>
 
                 <div class="bg-surface-2 border border-theme-dim rounded p-2.5 text-[11px] text-theme-muted leading-relaxed">
-                    <strong>¿Cómo funciona este candado?</strong> Este código de 64 caracteres se calcula uniendo el hash previo, el folio de la OT, el RUT del técnico, el GPS y la hora exacta. Si alguien altera un solo dato en la base de datos, el código cambia por completo y el sistema detecta la adulteración.
+                    <strong>¿Cómo funciona este candado?</strong> El hash enlaza el registro anterior con el folio, los estados, el RUT del técnico, el GPS y la hora del servidor. La verificación detecta alteraciones en esos datos, pero no cubre la foto, la observación, la firma, la fecha del dispositivo ni la marca de prueba sin geocerca.
                 </div>
             </div>
             <div class="px-5 py-3 border-t border-theme-dim bg-surface-2 flex justify-end">
@@ -148,6 +149,6 @@
     </div>
 
     <script src="static/js/config.js?v=3.1"></script>
-    <script src="static/js/auditoria.js?v=3.1"></script>
+    <script src="static/js/auditoria.js?v=3.5"></script>
 </body>
 </html>

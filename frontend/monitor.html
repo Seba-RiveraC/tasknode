@@ -3,325 +3,293 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskNode | Consola de Supervisión y Operaciones</title>
+    <title>TaskNode | Órdenes de Trabajo</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="static/css/styles.css?v=3.5">
+    <link rel="stylesheet" href="static/css/styles.css?v=4.1">
 </head>
-<body class="h-full flex overflow-hidden font-sans text-xs bg-surface-base top-accent-line">
+<body class="h-full flex overflow-hidden font-sans bg-surface-base">
 
-    <!-- Notificación Flotante -->
+    <!-- Notificación flotante -->
     <div id="hud-toast" class="fixed top-4 right-4 z-50 pointer-events-none opacity-0 translate-y-[-8px] transition-all duration-300">
-        <div class="bg-surface-1 border-2 border-theme-bright shadow-2xl px-4 py-2.5 rounded flex items-center gap-2.5">
-            <span id="toast-led" class="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span id="toast-msg" class="font-semibold text-xs text-theme-main">Actualización aplicada</span>
+        <div class="bg-surface-1 border border-theme-bright shadow-xl px-4 py-3 rounded-lg flex items-center gap-2.5">
+            <span id="toast-led" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span id="toast-msg" class="font-medium text-sm text-theme-main">Actualización aplicada</span>
         </div>
     </div>
 
-    <!-- Navegación Lateral -->
-    <aside class="w-14 lg:w-56 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0 z-20">
+    <!-- Navegación lateral -->
+    <aside class="w-16 lg:w-60 bg-surface-1 border-r border-theme-dim flex flex-col justify-between shrink-0 z-20">
         <div>
-            <div class="h-14 flex items-center px-3.5 lg:px-4 border-b border-theme-dim">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded bg-[#18181b] border border-amber-500/50 flex items-center justify-center text-amber-400 font-bold font-mono text-xs shrink-0">TN</div>
+            <div class="h-16 flex items-center px-4 lg:px-5 border-b border-theme-dim">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-[#4f46e5] flex items-center justify-center text-white font-bold text-sm shrink-0">TN</div>
                     <div class="hidden lg:block">
-                        <span class="font-bold tracking-tight text-theme-main text-sm block leading-none">TASKNODE</span>
-                        <span class="text-[10px] font-mono text-theme-dim" id="sidebar-rol-tag">OPERACIONES CMMS</span>
+                        <span class="font-bold tracking-tight text-theme-main text-base block leading-none">TaskNode</span>
+                        <span class="text-xs text-theme-dim" id="sidebar-rol-tag">Operaciones de red</span>
                     </div>
                 </div>
             </div>
 
-            <nav class="p-2.5 space-y-1">
-                <a href="monitor.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded nav-active">
-                    <span class="hidden lg:inline">Órdenes de Trabajo</span>
+            <nav class="p-3 space-y-1">
+                <a href="monitor.html" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm nav-active">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H5v16h14V5h-4M9 3h6v4H9zM8 12h8M8 16h8"/></svg>
+                    <span class="hidden lg:inline">Órdenes de trabajo</span>
                 </a>
-                <a href="metricas.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Indicadores y SLA (BI)</span>
+                <a href="metricas.html" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20V10m6 10V4m6 16v-7m4 7H2"/></svg>
+                    <span class="hidden lg:inline">Indicadores</span>
                 </a>
-                <a href="activos.html" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Catálogo de Activos</span>
+                <a href="activos.html" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 3 8l9 5 9-5-9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>
+                    <span class="hidden lg:inline">Activos de red</span>
                 </a>
-                <a href="auditoria.html" id="nav-link-auditoria" class="flex items-center gap-2.5 px-3 py-2.5 rounded text-theme-muted hover:bg-surface-2 transition">
-                    <span class="hidden lg:inline">Libro Mayor (ISO 55001)</span>
+                <a href="auditoria.html" id="nav-link-auditoria" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-theme-muted hover:bg-surface-2 transition">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2m0-2a2 2 0 0 0 2 2h14M8 7h8M8 11h8"/></svg>
+                    <span class="hidden lg:inline">Auditoría</span>
                 </a>
             </nav>
         </div>
 
-        <div class="p-3 border-t border-theme-dim bg-surface-2 hidden lg:block space-y-2">
-            <div class="px-2 py-1.5 rounded bg-surface-1 border border-theme-dim">
-                <span class="text-[9.5px] font-mono text-theme-dim uppercase block">Sesión Activa</span>
-                <span class="font-bold text-theme-main text-[11px] truncate block" id="sidebar-user-name">Supervisor</span>
+        <div class="p-4 border-t border-theme-dim hidden lg:block space-y-2.5">
+            <div class="px-3 py-2 rounded-lg bg-surface-2">
+                <span class="text-xs text-theme-dim block">Sesión activa</span>
+                <span class="font-semibold text-theme-main text-sm truncate block" id="sidebar-user-name">Supervisor</span>
             </div>
-            <a href="terminal.html" target="_blank" class="w-full py-1.5 px-3 rounded bg-surface-1 border border-theme-bright text-theme-main font-semibold text-center block hover:bg-surface-3 transition">
-                Vista Móvil de Terreno
-            </a>
-            <button onclick="cerrarSesion()" class="w-full py-1.5 px-3 rounded border border-theme-dim text-theme-muted hover:text-theme-main font-semibold text-center block transition">
-                Cerrar Sesión
+            <button onclick="cerrarSesion()" class="w-full py-2 px-3 rounded-lg text-theme-muted hover:text-theme-main text-sm font-medium text-center block transition">
+                Cerrar sesión
             </button>
         </div>
     </aside>
 
-    <!-- Área de Trabajo Principal -->
+    <!-- Área principal -->
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-        
-        <header class="h-14 bg-surface-1 border-b border-theme-dim px-5 flex items-center justify-between shrink-0 gap-3">
-            <div>
-                <h1 class="font-bold text-theme-main text-sm sm:text-base tracking-tight">Gestión de Órdenes de Trabajo y Cronograma de Faenas</h1>
-                <p class="text-[11px] text-theme-dim hidden sm:block" id="subtitulo-rol">Supervisión operativa, control multidía y seguimiento de hitos de terreno</p>
+
+        <header class="h-16 bg-surface-1 border-b border-theme-dim px-6 flex items-center justify-between shrink-0 gap-4">
+            <div class="min-w-0">
+                <h1 class="font-bold text-theme-main text-lg tracking-tight truncate">Órdenes de trabajo</h1>
+                <p class="text-sm text-theme-dim hidden sm:block truncate" id="subtitulo-rol">Planificación de órdenes, seguimiento de etapas y cierre</p>
             </div>
 
-            <div class="flex items-center gap-2 shrink-0">
-                <div id="contenedor-switch-rol" class="inline-flex rounded border border-theme-bright bg-surface-2 p-0.5 text-[11px] font-bold">
-                    <button id="btn-rol-supervisor" onclick="cambiarRolVista('SUPERVISOR')" class="px-2.5 py-1 rounded bg-[#c2410c] text-white transition">
-                        Supervisión
-                    </button>
-                    <button id="btn-rol-cliente" onclick="cambiarRolVista('CLIENTE')" class="px-2.5 py-1 rounded text-theme-muted hover:text-theme-main transition">
-                        Vista Mandante
-                    </button>
-                </div>
-
-                <button id="btn-nueva-ot-top" onclick="abrirModalOT()" class="btn-primary font-semibold text-xs px-3.5 py-1.5 rounded shadow-sm">
-                    + Nueva Orden de Trabajo
+            <div class="flex items-center gap-2.5 shrink-0">
+                <button id="btn-nueva-ot-top" onclick="abrirModalOT()" class="btn-primary font-semibold text-sm px-4 py-2 rounded-lg shadow-sm">
+                    + Nueva orden
                 </button>
 
-                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-semibold text-xs px-2.5 py-1.5 rounded transition">
-                    Tema Oscuro
+                <button id="btn-theme-toggle" onclick="toggleTheme()" class="bg-surface-2 hover:bg-surface-3 border border-theme-bright text-theme-main font-medium text-sm px-3 py-2 rounded-lg transition">
+                    Tema oscuro
                 </button>
 
-                <button onclick="cerrarSesion()" class="lg:hidden bg-surface-2 border border-theme-bright text-theme-main font-semibold text-xs px-2.5 py-1.5 rounded">
+                <button onclick="cerrarSesion()" class="lg:hidden bg-surface-2 border border-theme-bright text-theme-main font-medium text-sm px-3 py-2 rounded-lg">
                     Salir
                 </button>
             </div>
         </header>
 
-        <!-- Cinta de Indicadores Operativos -->
-        <section class="grid grid-cols-2 sm:grid-cols-4 border-b border-theme-dim bg-surface-2 shrink-0 divide-x divide-theme-dim">
-            <div class="px-5 py-3">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Órdenes Activas / Total</span>
-                <span class="text-xl font-bold font-mono text-theme-main" id="kpi-volumen">-</span>
+        <!-- Indicadores -->
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-4 px-6 pt-5 shrink-0">
+            <div class="bg-surface-1 border border-theme-dim rounded-xl px-5 py-4">
+                <span class="text-sm text-theme-dim block">Órdenes</span>
+                <span class="text-3xl font-bold text-theme-main" id="kpi-volumen">-</span>
             </div>
-            <div class="px-5 py-3">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Cumplimiento Global Hitos</span>
-                <span class="text-xl font-bold font-mono text-accent" id="kpi-avance-hitos">-%</span>
+            <div class="bg-surface-1 border border-theme-dim rounded-xl px-5 py-4">
+                <span class="text-sm text-theme-dim block">Avance promedio</span>
+                <span class="text-3xl font-bold text-accent" id="kpi-avance-hitos">-%</span>
             </div>
-            <div class="px-5 py-3">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Detenciones / Alertas</span>
-                <span class="text-xl font-bold font-mono text-red-600" id="kpi-detenciones">-</span>
+            <div class="bg-surface-1 border border-theme-dim rounded-xl px-5 py-4">
+                <span class="text-sm text-theme-dim block">Detenidas</span>
+                <span class="text-3xl font-bold text-red-600" id="kpi-detenciones">-</span>
             </div>
-            <div class="px-5 py-3">
-                <span class="text-[10px] font-bold text-theme-dim uppercase tracking-wider block">Tasa de Cierre SLA</span>
-                <span class="text-xl font-bold font-mono text-emerald-600" id="kpi-resolucion">-%</span>
+            <div class="bg-surface-1 border border-theme-dim rounded-xl px-5 py-4">
+                <span class="text-sm text-theme-dim block">Órdenes completadas o finalizadas</span>
+                <span class="text-3xl font-bold text-emerald-600" id="kpi-resolucion">-%</span>
             </div>
         </section>
 
-        <!-- Barra de Filtrado Rápido -->
-        <section class="px-5 py-2.5 bg-surface-1 border-b border-theme-dim flex flex-wrap items-center justify-between gap-3 shrink-0">
-            <div class="flex flex-wrap items-center gap-2 flex-1">
-                <input type="text" id="filtro-texto" oninput="aplicarFiltrosLocal()" placeholder="Filtrar por folio, activo, cliente o especialista..." class="border border-theme-bright rounded px-3 py-1.5 text-xs w-full sm:w-64">
-                
-                <select id="filtro-cliente" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded px-3 py-1.5 text-xs font-semibold">
-                    <option value="TODOS">Todas las Empresas Mandantes</option>
+        <!-- Filtros -->
+        <section class="px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div class="flex flex-wrap items-center gap-2.5 flex-1">
+                <input type="text" id="filtro-texto" oninput="aplicarFiltrosLocal()" placeholder="Buscar por folio, activo, cliente o técnico..." class="border border-theme-bright rounded-lg px-3.5 py-2 text-sm w-full sm:w-80">
+
+                <select id="filtro-cliente" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded-lg px-3.5 py-2 text-sm">
+                    <option value="TODOS">Todos los clientes</option>
                 </select>
 
-                <select id="filtro-estado" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded px-3 py-1.5 text-xs">
-                    <option value="TODOS">Todos los Estados (UNE-EN 13306)</option>
-                    <option value="EMITIDA">EMITIDA</option>
-                    <option value="EN EJECUCIÓN">EN EJECUCIÓN</option>
-                    <option value="EN VALIDACIÓN">EN VALIDACIÓN</option>
-                    <option value="DETENIDA POR ANOMALÍA">DETENIDA POR ANOMALÍA</option>
-                    <option value="OT COMPLETADA">OT COMPLETADA</option>
+                <select id="filtro-estado" onchange="aplicarFiltrosLocal()" class="border border-theme-bright rounded-lg px-3.5 py-2 text-sm">
+                    <option value="TODOS">Todos los estados</option>
+                    <option value="EMITIDA">Emitida</option>
+                    <option value="EN EJECUCIÓN">En ejecución</option>
+                    <option value="EN VALIDACIÓN">En validación</option>
+                    <option value="DETENIDA POR ANOMALÍA">Detenida por anomalía</option>
+                    <option value="OT COMPLETADA">Pendiente de firma</option>
+                    <option value="ORDEN FINALIZADA">Finalizada</option>
                 </select>
+                <button type="button" id="btn-historial" onclick="alternarHistorial()" class="border border-theme-bright rounded-lg px-3.5 py-2 text-sm">Ver historial de órdenes</button>
             </div>
-            <span class="text-[11px] font-mono text-theme-dim" id="contador-resultados">Sincronizando...</span>
+            <span class="text-sm text-theme-dim" id="contador-resultados">Sincronizando...</span>
         </section>
 
-        <!-- Listado Maestro de Órdenes -->
-        <div class="flex-1 overflow-auto p-5">
-            <div class="bg-surface-1 border border-theme-dim rounded shadow-sm overflow-hidden">
+        <!-- Listado de órdenes -->
+        <div class="flex-1 overflow-auto px-6 pb-6">
+            <div class="bg-surface-1 border border-theme-dim rounded-xl shadow-sm overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="border-b border-theme-dim bg-surface-2 text-[10px] font-bold text-theme-dim uppercase">
-                            <th class="px-4 py-3">Folio / Activo Físico</th>
-                            <th class="px-4 py-3">Plazo SLA / Término</th>
-                            <th class="px-4 py-3">Empresa Mandante</th>
-                            <th class="px-4 py-3">Especialista Asignado</th>
-                            <th class="px-4 py-3 min-w-[200px]">Cronograma (Mini Gantt)</th>
-                            <th class="px-4 py-3">Estado Normativo</th>
-                            <th class="px-4 py-3 text-right">Acción</th>
+                        <tr class="border-b border-theme-dim bg-surface-2 uppercase">
+                            <th>Orden / Activo</th>
+                            <th>Cliente</th>
+                            <th>Técnico</th>
+                            <th class="min-w-[130px]">Avance</th>
+                            <th>Plazo</th>
+                            <th>Estado</th>
+                            <th class="text-right">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-body" class="divide-y divide-theme-dim text-xs">
-                        <tr><td colspan="7" class="px-4 py-8 text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
+                    <tbody id="tabla-body" class="divide-y divide-theme-dim text-sm">
+                        <tr><td colspan="7" class="text-center text-theme-dim">Cargando órdenes de trabajo...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- PANEL LATERAL DE INSPECCIÓN -->
-        <div id="backdrop-inspeccion" onclick="cerrarDrawerInspeccion()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden transition-opacity"></div>
+        <!-- PANEL DE INSPECCIÓN -->
+        <div id="backdrop-inspeccion" onclick="cerrarDrawerInspeccion()" class="fixed inset-0 bg-slate-900/50 z-30 hidden transition-opacity"></div>
 
-        <aside id="drawer-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-xl bg-surface-1 border-l-2 border-theme-bright shadow-2xl flex flex-col transform translate-x-full transition-transform duration-200 ease-out">
-            
-            <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex items-center justify-between shrink-0">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono font-bold text-base text-theme-main" id="inspect-ot-code">OT-XXXX</span>
-                        <span id="inspect-fsm-pill" class="text-[10px] font-bold px-2.5 py-0.5 rounded badge-emitida">ESTADO</span>
-                        <button type="button" id="btn-inspect-calendar" class="btn-trigger-calendario p-1 rounded border border-theme-bright hover:bg-surface-3 text-accent transition" title="Ver plazo y minicalendario SLA">
+        <aside id="drawer-inspeccion" class="fixed inset-y-0 right-0 z-40 w-full max-w-2xl bg-surface-1 border-l border-theme-dim shadow-2xl flex flex-col transform translate-x-full transition-transform duration-200 ease-out">
+
+            <div class="px-6 py-5 border-b border-theme-dim flex items-start justify-between shrink-0 gap-4">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <span class="font-mono font-bold text-xl text-theme-main" id="inspect-ot-code">OT-0000</span>
+                        <span id="inspect-fsm-pill" class="text-xs font-semibold px-3 py-1 rounded-full badge-emitida">Estado</span>
+                        <button type="button" id="btn-inspect-calendar" class="btn-trigger-calendario p-1.5 rounded-lg border border-theme-bright hover:bg-surface-3 text-accent transition" title="Ver calendario del plazo">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                             </svg>
                         </button>
                     </div>
-                    <span class="text-[11px] font-semibold text-accent block mt-0.5" id="inspect-cliente-mandante">Mandante: -</span>
-                    <span class="text-[10px] font-mono text-theme-dim block" id="inspect-sla-tiempo">Plazo: Calculando...</span>
+                    <span class="text-sm font-medium text-theme-main block mt-1.5" id="inspect-cliente-mandante">-</span>
+                    <span class="text-sm text-theme-dim block" id="inspect-sla-tiempo">Plazo: calculando...</span>
                 </div>
-                <button onclick="cerrarDrawerInspeccion()" class="px-3 py-1 rounded border border-theme-bright bg-surface-1 hover:bg-surface-3 text-theme-main font-bold text-xs">
+                <button onclick="cerrarDrawerInspeccion()" class="px-3.5 py-2 rounded-lg border border-theme-bright hover:bg-surface-3 text-theme-main font-medium text-sm shrink-0">
                     Cerrar
                 </button>
             </div>
 
-            <!-- 4 Pestañas del Inspector -->
-            <div class="grid grid-cols-4 border-b border-theme-dim bg-surface-2 px-3 pt-2 gap-1 text-[11px] font-bold shrink-0">
-                <button id="tab-btn-gantt" onclick="cambiarTabInspector('GANTT')" class="py-2 px-2 rounded-t border-b-2 border-[#c2410c] text-accent bg-surface-1 text-center truncate">
-                    1. Cronograma Gantt
-                </button>
-                <button id="tab-btn-hitos" onclick="cambiarTabInspector('HITOS')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
-                    2. Checklists
-                </button>
-                <button id="tab-btn-evidencia" onclick="cambiarTabInspector('EVIDENCIA')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
-                    3. Evidencia & Firma
-                </button>
-                <button id="tab-btn-forense" onclick="cambiarTabInspector('FORENSE')" class="py-2 px-2 rounded-t text-theme-muted hover:text-theme-main text-center truncate">
-                    4. Auditoría ISO
-                </button>
-            </div>
+            <div class="p-6 overflow-y-auto flex-1 space-y-7">
 
-            <div class="p-5 overflow-y-auto flex-1 space-y-4">
-
-                <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-1.5">
-                    <div class="flex justify-between text-xs">
-                        <span class="font-bold text-theme-main" id="inspect-asset-tag">Activo: -</span>
-                        <span class="font-mono font-bold text-accent" id="inspect-progress-txt">0%</span>
+                <!-- Resumen -->
+                <section class="space-y-3">
+                    <h2 class="text-sm font-semibold text-theme-main">Resumen de la orden</h2>
+                    <div class="bg-surface-2 rounded-xl p-5 space-y-3">
+                        <div>
+                            <span class="font-semibold text-theme-main text-base block" id="inspect-asset-tag">Activo</span>
+                            <span class="text-sm text-theme-dim block" id="inspect-asset-loc"></span>
+                        </div>
+                        <p class="text-sm text-theme-muted leading-relaxed" id="inspect-ot-desc">-</p>
+                        <div class="text-sm text-theme-dim" id="inspect-ot-crew">Técnico: -</div>
+                        <div>
+                            <div class="flex justify-between text-sm mb-1.5">
+                                <span class="text-theme-dim">Avance</span>
+                                <span class="font-semibold text-theme-main" id="inspect-progress-txt">0%</span>
+                            </div>
+                            <div class="h-2 w-full rounded-full bg-surface-3 overflow-hidden">
+                                <div id="inspect-progress-bar" class="h-full rounded-full bg-[#4f46e5] transition-all" style="width:0%"></div>
+                            </div>
+                        </div>
                     </div>
-                    <!-- Barra de progreso segmentada Gantt -->
-                    <div id="inspect-gantt-segmentos" class="flex gap-1 h-2.5 w-full bg-surface-base rounded overflow-hidden p-0.5 border border-theme-dim"></div>
-                    <p class="text-xs text-theme-muted pt-1 leading-relaxed" id="inspect-ot-desc">-</p>
-                    <div class="text-[11px] font-mono text-theme-dim pt-0.5" id="inspect-ot-crew">Especialista: -</div>
-                </div>
+                </section>
 
-                <!-- Pestaña 1: Mini Carta Gantt Interactiva con Formulario Integrado -->
-                <div id="tab-content-gantt" class="space-y-3">
+                <!-- Evidencia y firma -->
+                <section class="space-y-3">
+                    <h2 class="text-sm font-semibold text-theme-main">Evidencia fotográfica y firma</h2>
+                    <div class="bg-surface-2 rounded-xl p-4">
+                        <span class="text-sm font-medium text-theme-main">Constancia del técnico</span>
+                        <p id="inspect-constancia-tecnico" class="text-sm text-theme-muted mt-1">Pendiente de término del trabajo.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="min-w-0">
+                            <div class="relative bg-surface-2 rounded-xl h-44 flex items-center justify-center overflow-hidden">
+                                <img id="inspect-img-view" src="" alt="Evidencia fotográfica" class="w-full h-full object-cover hidden">
+                                <div id="inspect-img-placeholder" class="text-center p-3">
+                                    <span class="text-sm text-theme-dim block">Sin foto adjunta</span>
+                                </div>
+                            </div>
+                            <span class="text-xs text-theme-dim block mt-1.5" id="inspect-laplacian-score">Sin captura</span>
+                        </div>
+                        <div id="inspect-recepcion-anterior" class="hidden bg-surface-2 rounded-xl p-4 min-w-0 flex-col">
+                            <div class="flex justify-between items-center gap-2 mb-2">
+                                <span class="text-sm font-medium text-theme-main">Firma de recepción anterior</span>
+                                <span id="inspect-sig-status" class="text-xs px-2.5 py-0.5 rounded-full badge-emitida font-semibold">Pendiente</span>
+                            </div>
+                            <div class="flex-1 min-h-[72px] bg-surface-1 rounded-lg flex items-center justify-center overflow-hidden p-2">
+                                <img id="inspect-sig-img" src="" alt="Firma" class="max-h-20 max-w-full object-contain hidden">
+                                <div id="inspect-sig-placeholder" class="text-center text-xs text-theme-dim">
+                                    <span>Pendiente de firma</span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm">
+                                <span id="inspect-encargado-nombre" class="block font-medium text-theme-main">Pendiente</span>
+                                <span id="inspect-encargado-rut" class="block text-xs text-theme-dim">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Etapas -->
+                <section class="space-y-3">
                     <div class="flex justify-between items-center">
                         <div>
-                            <span class="text-xs font-bold text-theme-main uppercase block">Carta Gantt Operativa</span>
-                            <span class="text-[10px] text-theme-dim">Usa las flechas (▲ ▼) para reordenar días</span>
+                            <h2 class="text-sm font-semibold text-theme-main">Etapas</h2>
+                            <span class="text-xs text-theme-dim" id="conteo-etapas-inspector">0 de 0 completadas</span>
                         </div>
-                        <button type="button" onclick="mostrarFormularioNuevoHito()" class="px-2.5 py-1 rounded bg-surface-2 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-[11px] transition">
-                            + Añadir Día / Etapa
+                        <button type="button" id="btn-agregar-etapa" onclick="mostrarFormularioNuevoHito()" class="px-3 py-1.5 rounded-lg border border-theme-bright hover:bg-surface-3 text-accent font-medium text-sm transition">
+                            + Añadir etapa
                         </button>
                     </div>
 
-                    <!-- Formulario integrado en el menú (Cero alertas 'localhost dice') -->
-                    <div id="formulario-agregar-hito-panel" class="hidden bg-surface-2 border-2 border-theme-bright rounded p-3 space-y-2.5 transition-all">
-                        <div class="flex justify-between items-center border-b border-theme-dim pb-1.5">
-                            <span class="text-[11px] font-bold text-theme-main uppercase">Nueva Etapa de Faena</span>
-                            <button type="button" onclick="ocultarFormularioNuevoHito()" class="text-theme-dim hover:text-theme-main font-bold text-xs">✕</button>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2">
+                    <div id="formulario-agregar-hito-panel" class="hidden bg-surface-2 border border-theme-bright rounded-xl p-4 space-y-3">
+                        <div class="grid grid-cols-3 gap-3">
                             <div>
-                                <label class="block text-[10px] font-bold text-theme-dim uppercase mb-0.5">Etiqueta</label>
-                                <input type="text" id="nuevo-hito-tag" class="w-full border rounded p-1.5 text-xs font-mono font-bold" placeholder="Día 5">
+                                <label class="block text-xs font-medium text-theme-dim mb-1">Etiqueta</label>
+                                <input type="text" id="nuevo-hito-tag" class="w-full border rounded-lg p-2 text-sm" placeholder="Etapa 5">
                             </div>
                             <div class="col-span-2">
-                                <label class="block text-[10px] font-bold text-theme-dim uppercase mb-0.5">Actividad Planificada</label>
-                                <input type="text" id="nuevo-hito-titulo" class="w-full border rounded p-1.5 text-xs" placeholder="Describa la tarea del día...">
+                                <label class="block text-xs font-medium text-theme-dim mb-1">Actividad</label>
+                                <input type="text" id="nuevo-hito-titulo" class="w-full border rounded-lg p-2 text-sm" placeholder="Describa la tarea...">
                             </div>
                         </div>
-                        <div class="flex justify-end gap-2 pt-1">
-                            <button type="button" onclick="ocultarFormularioNuevoHito()" class="px-3 py-1 rounded border border-theme-dim text-theme-muted text-xs">Cancelar</button>
-                            <button type="button" onclick="guardarNuevoHitoDesdeFormulario()" class="btn-primary font-bold text-xs px-3.5 py-1 rounded">Guardar en Gantt</button>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" onclick="ocultarFormularioNuevoHito()" class="px-3.5 py-1.5 rounded-lg text-theme-muted text-sm hover:bg-surface-3">Cancelar</button>
+                            <button type="button" onclick="guardarNuevoHitoDesdeFormulario()" class="btn-primary font-medium text-sm px-4 py-1.5 rounded-lg">Guardar</button>
                         </div>
                     </div>
 
-                    <!-- Lista de Hitos de la Carta Gantt con Reordenamiento -->
-                    <div id="contenedor-carta-gantt" class="space-y-2"></div>
-                </div>
+                    <div id="lista-etapas-inspector" class="space-y-2"></div>
+                </section>
 
-                <!-- Pestaña 2: Checklist de Hitos -->
-                <div id="tab-content-hitos" class="hidden space-y-2.5">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-bold text-theme-main uppercase">Actividades Verificables en Faena</span>
-                        <span class="text-[10px] font-mono text-theme-dim" id="conteo-etapas-inspector">0 etapas</span>
-                    </div>
-                    <div id="lista-hitos-inspector" class="space-y-2"></div>
-                </div>
-
-                <!-- Pestaña 3: Foto y Firma -->
-                <div id="tab-content-evidencia" class="hidden space-y-4">
-                    <div class="space-y-1.5">
-                        <div class="flex justify-between items-center">
-                            <span class="text-xs font-bold text-theme-main uppercase">Inspección Visual en Sitio</span>
-                            <span class="font-mono text-[10px] font-bold text-emerald-600" id="inspect-laplacian-score">Sin captura</span>
+                <!-- Integridad -->
+                <details class="border border-theme-dim rounded-xl">
+                    <summary class="cursor-pointer px-4 py-3 text-sm font-medium text-theme-muted hover:text-theme-main">
+                        Registro de integridad (SHA-256)
+                    </summary>
+                    <div class="px-4 pb-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-3">
+                            <span class="text-theme-dim">Coordenadas del activo</span>
+                            <span class="font-mono text-theme-main" id="inspect-gps-val">--</span>
                         </div>
-                        <div class="relative bg-surface-2 border border-theme-dim rounded aspect-video flex items-center justify-center overflow-hidden">
-                            <img id="inspect-img-view" src="" alt="Evidencia Técnica" class="w-full h-full object-cover hidden">
-                            <div id="inspect-img-placeholder" class="text-center p-4">
-                                <span class="text-xs font-semibold text-theme-dim block">Sin respaldo fotográfico adjunto</span>
-                            </div>
+                        <div>
+                            <span class="text-theme-dim block mb-1">Hash de la última transición</span>
+                            <span class="code-pill text-xs break-all block p-2.5 rounded-lg" id="inspect-hash-val">-</span>
                         </div>
                     </div>
-
-                    <div class="bg-surface-2 border border-theme-bright rounded p-3 space-y-2">
-                        <div class="flex justify-between items-center text-[10px] font-bold">
-                            <span class="text-theme-main uppercase">Conformidad del Encargado de Terreno</span>
-                            <span id="inspect-sig-status" class="code-pill text-[9px] px-2 py-0.5 rounded">PENDIENTE</span>
-                        </div>
-                        <div class="text-[10px] text-theme-muted font-mono flex justify-between border-b border-theme-dim pb-1">
-                            <span id="inspect-encargado-nombre">Receptor: -</span>
-                            <span id="inspect-encargado-rut">RUT: -</span>
-                        </div>
-                        <div class="h-24 bg-surface-1 border border-theme-dim rounded flex items-center justify-center overflow-hidden p-2">
-                            <img id="inspect-sig-img" src="" alt="Rúbrica" class="h-full max-w-full object-contain hidden">
-                            <div id="inspect-sig-placeholder" class="text-center text-[11px] font-mono text-theme-dim">
-                                <span>Pendiente de recepción en terreno</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pestaña 4: Cumplimiento Normativo -->
-                <div id="tab-content-forense" class="hidden space-y-3">
-                    <div class="bg-surface-2 border border-theme-dim rounded p-3.5 space-y-2.5 text-xs">
-                        <div class="font-bold text-theme-main border-b border-theme-dim pb-1.5 flex justify-between">
-                            <span>Parámetros de Auditoría Normativa</span>
-                            <span class="text-emerald-600 font-mono text-[10px]">ISO 55001 / D.S. 594</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-theme-dim">Validación Geodésica (WGS84):</span>
-                            <span class="font-mono text-theme-main font-semibold" id="inspect-gps-val">--</span>
-                        </div>
-
-                        <details class="pt-1 border-t border-theme-dim">
-                            <summary class="cursor-pointer font-semibold text-accent text-[11px] py-1">
-                                Desplegar Sello de Integridad SHA-256
-                            </summary>
-                            <div class="mt-2 space-y-1.5">
-                                <span class="text-theme-dim block text-[10px] font-bold uppercase">Hash de Cadena Criptográfica:</span>
-                                <span class="code-pill text-[10px] break-all block p-2 rounded" id="inspect-hash-val">-</span>
-                            </div>
-                        </details>
-                    </div>
-                </div>
-
+                </details>
             </div>
 
-            <div class="p-4 border-t border-theme-dim bg-surface-2 space-y-2 shrink-0">
-                <button onclick="abrirPliegoDesdeConsola()" class="w-full bg-surface-1 hover:bg-surface-3 border border-theme-bright text-theme-main font-bold text-xs py-2.5 px-3 rounded transition">
-                    Exportar Acta Oficial A4 / PDF
+            <div class="p-5 border-t border-theme-dim bg-surface-2 flex gap-3 shrink-0">
+                <button onclick="abrirPliegoDesdeConsola()" class="flex-1 bg-surface-1 hover:bg-surface-3 border border-theme-bright text-theme-main font-medium text-sm py-3 px-3 rounded-lg transition">
+                    Ver documento
                 </button>
-
-                <button onclick="auditarOrdenActiva('COMPLETAR')" id="btn-aprobar-fsm" disabled class="w-full btn-primary font-bold py-2.5 rounded text-xs uppercase tracking-wide transition">
-                    Visar Protocolo y Cerrar Orden
+                <button onclick="auditarOrdenActiva('COMPLETAR')" id="btn-aprobar-fsm" disabled class="flex-1 btn-primary font-semibold py-3 rounded-lg text-sm transition">
+                    Firmar y finalizar
                 </button>
             </div>
         </aside>
@@ -329,113 +297,115 @@
     </main>
 
     <!-- MODAL DE EMISIÓN -->
-    <div id="modal-ot" class="fixed inset-0 bg-black/75 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
-        <div class="bg-surface-1 border-2 border-theme-bright rounded-lg max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
-            
-            <div class="px-5 py-3.5 border-b border-theme-dim bg-surface-2 flex justify-between items-center shrink-0">
+    <div id="modal-ot" class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 p-4">
+        <div class="bg-surface-1 border border-theme-dim rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[92vh]">
+
+            <div class="px-6 py-4 border-b border-theme-dim flex justify-between items-center shrink-0">
                 <div>
-                    <span class="font-bold text-theme-main text-sm block">Emisión de Orden de Trabajo</span>
-                    <span class="text-[10px] font-mono text-theme-dim">Asignación relacional y planificación de cronograma multidía</span>
+                    <span class="font-bold text-theme-main text-lg block">Nueva orden de trabajo</span>
+                    <span class="text-sm text-theme-dim">Asignación de técnico y plan de etapas</span>
                 </div>
-                <button type="button" onclick="cerrarModalOT()" class="px-2.5 py-1 rounded border border-theme-dim bg-surface-1 text-theme-main font-bold text-xs">
+                <button type="button" onclick="cerrarModalOT()" class="px-3.5 py-2 rounded-lg border border-theme-bright text-theme-main font-medium text-sm hover:bg-surface-3">
                     Cerrar
                 </button>
             </div>
 
-            <form id="form-emitir-ot" class="p-5 space-y-3.5 overflow-y-auto flex-1" onsubmit="enviarNuevaOT(event)">
-                
+            <form id="form-emitir-ot" class="p-6 space-y-4 overflow-y-auto flex-1" onsubmit="enviarNuevaOT(event)">
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Folio OT</label>
-                        <input type="text" id="form-codigo" required class="w-full border rounded p-2 text-xs font-mono font-bold">
+                        <label class="block text-xs font-medium text-theme-muted mb-1">Folio</label>
+                        <input type="text" id="form-codigo" required class="w-full border rounded-lg p-2.5 text-sm font-mono font-semibold">
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Empresa Mandante (Contrato SLA)</label>
-                        <input type="text" id="form-cliente" list="lista-empresas-mandantes" required class="w-full border rounded p-2 text-xs font-bold" placeholder="Seleccione o escriba razón social...">
+                        <label class="block text-xs font-medium text-theme-muted mb-1">Cliente</label>
+                        <input type="text" id="form-cliente" list="lista-empresas-mandantes" required class="w-full border rounded-lg p-2.5 text-sm" placeholder="Seleccione o escriba la razón social...">
                         <datalist id="lista-empresas-mandantes"></datalist>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Activo Industrial</label>
-                        <select id="form-activo" required class="w-full border rounded p-2 text-xs font-semibold"></select>
+                        <label class="block text-xs font-medium text-theme-muted mb-1">Activo de red</label>
+                        <select id="form-activo" required class="w-full border rounded-lg p-2.5 text-sm"></select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Tipo Intervención</label>
-                        <select id="form-tipo" required onchange="aplicarPlantillaProtocolo(this.value)" class="w-full border rounded p-2 text-xs font-semibold">
-                            <option value="PREVENTIVO">PREVENTIVO</option>
-                            <option value="CORRECTIVO">CORRECTIVO</option>
-                            <option value="INSPECCION">INSPECCIÓN TÉCNICA</option>
+                        <label class="block text-xs font-medium text-theme-muted mb-1">Tipo de intervención</label>
+                        <select id="form-tipo" required onchange="actualizarSugerenciaPlantilla(this.value)" class="w-full border rounded-lg p-2.5 text-sm">
+                            <option value="PREVENTIVO">Preventivo</option>
+                            <option value="CORRECTIVO">Correctivo</option>
+                            <option value="INSPECCION">Inspección técnica</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Prioridad SLA</label>
-                        <select id="form-prioridad" required class="w-full border rounded p-2 text-xs font-semibold">
-                            <option value="ALTA">ALTA (Crítica - 24h)</option>
-                            <option value="MEDIA">MEDIA (Programada - 72h)</option>
-                            <option value="BAJA">BAJA (Rutinaria - 7 Días)</option>
+                        <label class="block text-xs font-medium text-theme-muted mb-1">Prioridad</label>
+                        <select id="form-prioridad" required class="w-full border rounded-lg p-2.5 text-sm">
+                            <option value="ALTA">Alta · 24 h</option>
+                            <option value="MEDIA">Media · 72 h</option>
+                            <option value="BAJA">Baja · 7 días</option>
                         </select>
                     </div>
                 </div>
 
-                <div class="bg-surface-2 border border-theme-dim rounded p-3 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <label class="text-[11px] font-bold text-theme-main uppercase">Especialista Asignado a Terreno</label>
-                        <select id="selector-tecnico-bd" onchange="seleccionarTecnicoDesdeBD(this.value)" class="border rounded px-2 py-1 text-[11px] font-semibold">
+                <div class="bg-surface-2 rounded-xl p-4 space-y-2.5">
+                    <div class="flex justify-between items-center gap-2">
+                        <label class="text-sm font-medium text-theme-main">Técnico asignado</label>
+                        <select id="selector-tecnico-bd" onchange="seleccionarTecnicoDesdeBD(this.value)" class="border rounded-lg px-2.5 py-1.5 text-sm">
                             <option value="">Seleccionar del personal registrado...</option>
                         </select>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <input type="text" id="form-operario" required class="w-full border rounded p-2 text-xs font-semibold" placeholder="Nombre completo del especialista">
-                        </div>
-                        <div>
-                            <input type="text" id="form-rut" required class="w-full border rounded p-2 text-xs font-mono" placeholder="RUT (Ej: 15.902.438-2)">
-                        </div>
+                        <input type="text" id="form-operario" required class="w-full border rounded-lg p-2.5 text-sm" placeholder="Nombre completo">
+                        <input type="text" id="form-rut" required class="w-full border rounded-lg p-2.5 text-sm font-mono" placeholder="RUT (Ej: 15.902.438-2)">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-[11px] font-bold text-theme-muted uppercase mb-1">Alcance Técnico del Trabajo</label>
-                    <textarea id="form-descripcion" rows="2" required class="w-full border rounded p-2 text-xs" placeholder="Describa las actividades principales y requerimientos de seguridad..."></textarea>
+                    <label class="block text-xs font-medium text-theme-muted mb-1">Alcance del trabajo</label>
+                    <textarea id="form-descripcion" rows="2" required class="w-full border rounded-lg p-2.5 text-sm" placeholder="Describa las actividades principales..."></textarea>
                 </div>
 
-                <div class="bg-surface-2 border border-theme-dim rounded p-3.5 space-y-2.5">
-                    <div class="flex flex-wrap justify-between items-center gap-2 border-b border-theme-dim pb-2">
+                <div class="bg-surface-2 rounded-xl p-4 space-y-3">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
                         <div>
-                            <span class="text-[11px] font-bold text-theme-main uppercase block">Cronograma de Faena (Hitos Multidía)</span>
-                            <span class="text-[10px] text-theme-dim" id="label-total-dias-constructor">Total: 4 etapas planificadas</span>
+                            <span class="text-sm font-medium text-theme-main block">Plan de etapas</span>
+                            <span class="text-xs text-theme-dim" id="label-total-dias-constructor">Total: 4 etapas planificadas</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <select id="selector-plantilla-hitos" onchange="aplicarPlantillaProtocolo(this.value)" class="border rounded px-2 py-1 text-[11px] font-semibold">
-                                <option value="SEMANA_7D">Faena Zonal: Semana Corrida (7 Días)</option>
-                                <option value="RF_MW">Pauta: Enlace Microondas (4 Días)</option>
-                                <option value="FIBRA_OTDR">Pauta: Fusión Fibra Óptica (4 Días)</option>
-                                <option value="UPS_LOTO">Pauta: Respaldo Eléctrico UPS (4 Días)</option>
+                        <div class="flex items-center gap-2">
+                            <select id="selector-plantilla-hitos" onchange="aplicarPlantillaProtocolo(this.value)" class="border rounded-lg px-2.5 py-1.5 text-sm">
+                                <option value="ENLACE_RF">Mantenimiento enlace microondas (RF)</option>
+                                <option value="FIBRA_OTDR">Empalme y certificación de fibra (OTDR)</option>
+                                <option value="ENERGIA_UPS">Respaldo de energía en nodo (UPS)</option>
+                                <option value="DUOC">Inspección Duoc UC Puerto Montt</option>
                             </select>
-                            <button type="button" onclick="agregarFilaHitoConstructor()" class="px-2.5 py-1 rounded bg-surface-1 hover:bg-surface-3 border border-theme-bright text-accent font-bold text-[11px] transition">
-                                + Añadir Día / Etapa
+                            <button type="button" onclick="agregarFilaHitoConstructor()" class="px-3 py-1.5 rounded-lg border border-theme-bright hover:bg-surface-3 text-accent font-medium text-sm transition">
+                                + Etapa
                             </button>
                         </div>
                     </div>
 
+                    <div class="space-y-2 border-t border-theme-dim pt-3">
+                        <p id="sugerencia-plantilla" class="text-xs text-theme-muted" aria-live="polite"></p>
+                        <button type="button" id="btn-aplicar-plantilla-sugerida" onclick="aplicarPlantillaSugerida()" class="px-3 py-1.5 rounded-lg border border-theme-bright text-accent font-medium text-sm">
+                            Aplicar plantilla sugerida
+                        </button>
+                    </div>
                     <div id="constructor-hitos-filas" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
                 </div>
 
-                <div class="pt-2 border-t border-theme-dim flex justify-end gap-2 shrink-0">
-                    <button type="button" onclick="cerrarModalOT()" class="px-4 py-2 border border-theme-dim text-theme-muted text-xs font-semibold rounded hover:bg-surface-2">
+                <div class="pt-3 border-t border-theme-dim flex justify-end gap-2">
+                    <button type="button" onclick="cerrarModalOT()" class="px-4 py-2.5 text-theme-muted text-sm font-medium rounded-lg hover:bg-surface-2">
                         Cancelar
                     </button>
-                    <button type="submit" class="btn-primary font-bold text-xs px-5 py-2 rounded shadow">
-                        Emitir y Asignar Orden
+                    <button type="submit" class="btn-primary font-semibold text-sm px-5 py-2.5 rounded-lg shadow-sm">
+                        Emitir orden
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="static/js/config.js?v=3.5"></script>
-    <script src="static/js/dashboard.js?v=6.0"></script>
+    <script src="static/js/config.js?v=3.6"></script>
+    <script src="static/js/dashboard.js?v=7.10"></script>
 </body>
 </html>

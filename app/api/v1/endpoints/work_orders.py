@@ -1,27 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.database import get_db
+from app.core.security import hashear_password
 from app.models import operational as models
 from app.schemas import operational as schemas
-from app.api.v1.endpoints.auth import hashear_password
 
 router = APIRouter()
 
 
 def generar_hitos_telecom_por_defecto(tipo: str) -> list:
     return [
-        {"id": 1, "dia": "Etapa 1", "titulo": "Permiso de acceso a sitio, charla PTS y bloqueo LOTO (D.S. 594)", "completado": False},
-        {"id": 2, "dia": "Etapa 2", "titulo": f"Inspección física de infraestructura y tendido/desmontaje ({tipo})", "completado": False},
-        {"id": 3, "dia": "Etapa 3", "titulo": "Empalme / alineación de enlace y calibración de parámetros RF/FO", "completado": False},
+        {"id": 1, "dia": "Etapa 1", "titulo": "Acceso al sitio, charla de seguridad y revisión de EPP", "completado": False},
+        {"id": 2, "dia": "Etapa 2", "titulo": f"Inspección física de la infraestructura de red ({tipo.lower()})", "completado": False},
+        {"id": 3, "dia": "Etapa 3", "titulo": "Intervención y ajuste de parámetros del enlace o equipo", "completado": False},
         {"id": 4, "dia": "Etapa 4", "titulo": "Pruebas de potencia (OTDR/VSWR), foto nítida y firma de recepción", "completado": False},
     ]
 
 
 def calcular_porcentaje_hitos(lista_hitos: list, estado_actual: str) -> int:
-    if estado_actual == "OT COMPLETADA":
+    if estado_actual in ("OT COMPLETADA", "ORDEN FINALIZADA"):
         return 100
     if not lista_hitos:
         return 25 if estado_actual == "EMITIDA" else 50
@@ -35,7 +35,7 @@ def hidratar_orden(o: models.OrdenTrabajo) -> schemas.OrdenTrabajoOut:
             "id": h.orden_secuencia,
             "dia": h.dia,
             "titulo": h.titulo,
-            "completado": True if o.estado_actual == "OT COMPLETADA" else h.completado
+            "completado": True if o.estado_actual in ("OT COMPLETADA", "ORDEN FINALIZADA") else h.completado
         }
         for h in o.hitos
     ]
@@ -51,12 +51,20 @@ def hidratar_orden(o: models.OrdenTrabajo) -> schemas.OrdenTrabajoOut:
     firma_data = None
     encargado_nombre = None
     encargado_rut = None
+    constancia_tecnico = None
 
     if o.transiciones:
         ultima = max(o.transiciones, key=lambda t: t.id)
         hash_cadena = ultima.hash_cadena
 
         for t in reversed(o.transiciones):
+            if not constancia_tecnico and t.registro_terreno and t.registro_terreno.tipo == "CIERRE":
+                constancia_tecnico = schemas.ConstanciaTecnico(
+                    usuario_id=t.usuario_id,
+                    nombre=t.usuario.nombre_completo,
+                    fecha_dispositivo=t.registro_terreno.fecha_dispositivo,
+                    fecha_recepcion=t.timestamp,
+                )
             if not evidencia_url and t.evidencias:
                 ult_ev = t.evidencias[-1]
                 evidencia_url = ult_ev.url_almacenamiento
@@ -82,13 +90,17 @@ def hidratar_orden(o: models.OrdenTrabajo) -> schemas.OrdenTrabajoOut:
         avance_pct=avance_pct,
         hitos=lista_hitos,
         created_at=o.created_at,
+        fecha_limite=o.fecha_limite or o.created_at + timedelta(
+            hours={"ALTA": 24, "MEDIA": 72, "BAJA": 168}.get(o.prioridad, 72)
+        ),
         activo=o.activo,
         hash_cadena=hash_cadena,
         evidencia_url=evidencia_url,
         laplacian_score=laplacian_score,
         encargado_nombre=encargado_nombre,
         encargado_rut=encargado_rut,
-        firma_data=firma_data
+        firma_data=firma_data,
+        constancia_tecnico=constancia_tecnico,
     )
 
 
@@ -182,6 +194,8 @@ def actualizar_hitos_orden(codigo_ot: str, payload: schemas.HitosUpdatePayload, 
     orden = db.query(models.OrdenTrabajo).filter(models.OrdenTrabajo.codigo_ot == codigo_ot.strip()).first()
     if not orden:
         raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada.")
+    if orden.estado_actual in ("OT COMPLETADA", "ORDEN FINALIZADA"):
+        raise HTTPException(status_code=409, detail="No se pueden modificar las etapas de una orden completada.")
 
     lista_hitos = [h.model_dump() for h in payload.hitos]
     db.query(models.HitoOrden).filter(models.HitoOrden.orden_id == orden.id).delete()

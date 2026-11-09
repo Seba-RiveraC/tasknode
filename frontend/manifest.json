@@ -1,0 +1,8 @@
+{
+  "name": "TaskNode Terreno",
+  "short_name": "TaskNode",
+  "start_url": "/app/terminal.html",
+  "display": "standalone",
+  "background_color": "#08090c",
+  "theme_color": "#4f46e5"
+}

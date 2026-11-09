@@ -1,23 +1,46 @@
-import hashlib
 import secrets
+import json
+import hashlib
+from datetime import datetime, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.security import SALT_SISTEMA, hashear_password
 from app.models import operational as models
 from app.schemas import operational as schemas
 
 router = APIRouter()
 
-SALT_SISTEMA = "TASKNODE_RELATIONAL_AUTH_2026"
+
+@router.get("/demo/configuracion")
+def configuracion_demo():
+    return {"habilitado": settings.PERMITIR_AUTOCOMPLETADO_DEMO}
 
 
-def hashear_password(password_plano: str) -> str:
-    texto = f"{SALT_SISTEMA}:{password_plano.strip()}"
-    return hashlib.sha256(texto.encode("utf-8")).hexdigest()
-
+@router.post("/demo/autocompletar")
+def autocompletar_demo(payload: schemas.DemoCuentaRequest, response: Response, db: Session = Depends(get_db)):
+    if not settings.PERMITIR_AUTOCOMPLETADO_DEMO:
+        raise HTTPException(status_code=404, detail="Autocompletado no disponible.")
+    try:
+        credenciales = json.loads(settings.DEMO_CREDENCIALES_JSON or "{}")
+        if not isinstance(credenciales, dict) or not all(
+            isinstance(correo, str) and isinstance(clave, str)
+            for correo, clave in credenciales.items()
+        ):
+            raise ValueError("Formato de credenciales inválido")
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=503, detail="Configuración de autocompletado inválida.") from exc
+    correo = payload.email.strip().lower()
+    usuario = db.query(models.Usuario).filter(models.Usuario.email.ilike(correo)).first()
+    clave = credenciales.get(correo)
+    if not usuario or not usuario.activo or usuario.rol.upper() not in ("SUPERVISOR", "CLIENTE") or not clave:
+        raise HTTPException(status_code=404, detail="No hay credenciales configuradas para esta cuenta.")
+    response.headers["Cache-Control"] = "no-store"
+    return {"email": correo, "password": clave}
 
 def serializar_usuario(u: models.Usuario) -> schemas.UsuarioOut:
     return schemas.UsuarioOut(
@@ -35,20 +58,38 @@ def serializar_usuario(u: models.Usuario) -> schemas.UsuarioOut:
 
 @router.post("/login", response_model=schemas.LoginResponse)
 def iniciar_sesion(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+    return autenticar_usuario(payload, db)
+
+
+@router.post("/login/panel", response_model=schemas.LoginResponse)
+def iniciar_sesion_panel(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+    return autenticar_usuario(payload, db, solo_panel=True)
+
+
+@router.post("/logout", status_code=204)
+def cerrar_sesion(authorization: str = Header(default=""), db: Session = Depends(get_db)):
+    if authorization.startswith("Bearer "):
+        token_hash = hashlib.sha256(authorization[7:].encode()).hexdigest()
+        db.query(models.SesionPanel).filter_by(token_hash=token_hash).delete()
+        db.commit()
+    return Response(status_code=204)
+
+
+def autenticar_usuario(payload: schemas.LoginRequest, db: Session, solo_panel: bool = False):
     ident = payload.identificador.strip().lower()
     pwd_hash = hashear_password(payload.password)
 
-    usuario = db.query(models.Usuario).filter(
-        or_(
-            models.Usuario.email.ilike(ident),
-            models.Usuario.rut.ilike(ident)
-        )
-    ).first()
+    consulta = db.query(models.Usuario)
+    if solo_panel:
+        consulta = consulta.filter(models.Usuario.email.ilike(ident))
+    else:
+        consulta = consulta.filter(or_(models.Usuario.email.ilike(ident), models.Usuario.rut.ilike(ident)))
+    usuario = consulta.first()
 
-    if not usuario or usuario.password_hash != pwd_hash:
+    if not usuario or usuario.password_hash != pwd_hash or (solo_panel and usuario.rol.upper() not in ("SUPERVISOR", "CLIENTE")):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas. Verifique su correo o RUT y contraseña."
+            detail="Credenciales inválidas."
         )
 
     if not usuario.activo:
@@ -59,7 +100,13 @@ def iniciar_sesion(payload: schemas.LoginRequest, db: Session = Depends(get_db))
 
     rol_upper = usuario.rol.upper()
     redirect_url = "/app/terminal.html" if rol_upper == "TRABAJADOR" else "/app/monitor.html"
-    token = f"tn_{rol_upper.lower()}_{secrets.token_hex(12)}"
+    token = secrets.token_urlsafe(32)
+    db.add(models.SesionPanel(
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+        usuario_id=usuario.id,
+        expira_en=datetime.utcnow() + timedelta(hours=8),
+    ))
+    db.commit()
 
     return schemas.LoginResponse(
         token=token,

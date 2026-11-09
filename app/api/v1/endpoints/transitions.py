@@ -1,39 +1,24 @@
 import json
-import hashlib
 import threading
 from datetime import datetime
+from uuid import UUID
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.api.deps import supervisor_actual
+from app.core.config import settings
+from app.core.security import GENESIS_HASH, construir_payload_canonico, sha256_cadena
 from app.models import operational as models
 from app.schemas import operational as schemas
 from app.services import fsm_service, storage_service, vision_service
 
 router = APIRouter()
+GPS_PRUEBA = "PRUEBA_SIN_GPS"
 
 _ledger_lock = threading.Lock()
-GENESIS_HASH = "GENESIS_HASH_TASKNODE_0000000000000000000000000000000000000000"
-
-
-def sha256_cadena(texto: str) -> str:
-    return hashlib.sha256(texto.encode("utf-8")).hexdigest()
-
-
-def construir_payload_canonico(
-    hash_previo: str,
-    codigo_ot: str,
-    estado_anterior: str,
-    estado_nuevo: str,
-    rut_responsable: str,
-    coordenadas_gps: str,
-    timestamp_iso: str
-) -> str:
-    return f"{hash_previo}|{codigo_ot}|{estado_anterior}|{estado_nuevo}|{rut_responsable}|{coordenadas_gps}|{timestamp_iso}"
-
-
 def hidratar_transicion(t: models.BitacoraTransicion) -> schemas.TransicionOut:
     codigo_ot = t.orden.codigo_ot if t.orden else f"OT-{t.orden_id}"
     operario_nom = t.usuario.nombre_completo if t.usuario else "Técnico Terreno"
@@ -52,6 +37,8 @@ def hidratar_transicion(t: models.BitacoraTransicion) -> schemas.TransicionOut:
                 ev_score = prev_t.evidencias[-1].laplacian_score
                 break
 
+    registro = t._sa_instance_state.session.query(models.RegistroTerreno).filter_by(transicion_id=t.id).first()
+    prueba_sin_geocerca = t._sa_instance_state.session.query(models.PruebaSinGeocerca).filter_by(transicion_id=t.id).first() is not None
     return schemas.TransicionOut(
         id=t.id,
         orden_id=t.orden_id,
@@ -66,12 +53,35 @@ def hidratar_transicion(t: models.BitacoraTransicion) -> schemas.TransicionOut:
         hash_previo=t.hash_previo,
         hash_cadena=t.hash_cadena,
         timestamp=t.timestamp,
+        tipo_registro=registro.tipo if registro else None,
+        fecha_dispositivo=registro.fecha_dispositivo if registro else None,
+        prueba_sin_geocerca=prueba_sin_geocerca,
         evidencia_url=ev_url,
         laplacian_score=ev_score,
         encargado_nombre=t.encargado_nombre,
         encargado_rut=t.encargado_rut,
         firma_data=t.firma_data
     )
+
+
+@router.get("/configuracion")
+def configuracion_terminal(db: Session = Depends(get_db)):
+    trabajador = None
+    if settings.TERMINAL_TRABAJADOR_PRUEBA_EMAIL:
+        usuario = db.query(models.Usuario).filter(
+            models.Usuario.email.ilike(settings.TERMINAL_TRABAJADOR_PRUEBA_EMAIL.strip()),
+            models.Usuario.rol == "TRABAJADOR",
+            models.Usuario.activo.is_(True),
+        ).first()
+        if not usuario:
+            raise HTTPException(status_code=503, detail="El trabajador de prueba configurado no existe o está inactivo.")
+        trabajador = {"id": usuario.id, "nombre": usuario.nombre_completo}
+    return {
+        "permitir_prueba_sin_gps": settings.PERMITIR_PRUEBA_SIN_GPS,
+        "permitir_prueba_sin_geocerca": settings.PERMITIR_PRUEBA_SIN_GEOCERCA,
+        "radio_geocerca_metros": settings.GEOCERCA_RADIO_METROS,
+        "trabajador_prueba": trabajador,
+    }
 
 
 @router.get("/", response_model=List[schemas.TransicionOut])
@@ -130,17 +140,62 @@ async def registrar_transicion(
     operario_id: int = Form(45),
     estado_nuevo: str = Form(...),
     coordenadas_gps: str = Form(...),
+    sin_gps_prueba: bool = Form(False),
+    sin_geocerca_prueba: bool = Form(False),
     observacion: Optional[str] = Form(None),
     encargado_nombre: Optional[str] = Form(None),
     encargado_rut: Optional[str] = Form(None),
     firma_data: Optional[str] = Form(None),
     hitos_json: Optional[str] = Form(None),
+    tipo_registro: Optional[str] = Form(None),
+    registro_id: Optional[str] = Form(None),
+    fecha_dispositivo: Optional[str] = Form(None),
     foto: Optional[UploadFile] = File(default=None),
     db: Session = Depends(get_db)
 ):
     codigo_ot = codigo_ot.strip()
     estado_nuevo = estado_nuevo.strip()
     coordenadas_gps = coordenadas_gps.strip()
+
+    tipos = {"LLEGADA", "REANUDACION", "ANOMALIA", "FIN_JORNADA", "CIERRE"}
+    if tipo_registro:
+        if tipo_registro not in tipos or not registro_id or not fecha_dispositivo:
+            raise HTTPException(status_code=422, detail="Datos del registro de terreno incompletos.")
+        try:
+            registro_id = str(UUID(registro_id))
+            fecha = datetime.fromisoformat(fecha_dispositivo.replace("Z", "+00:00"))
+            if fecha.utcoffset() is None:
+                raise ValueError("Se requiere zona horaria")
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Identificador o fecha del dispositivo inválidos.")
+        estados = {
+            "LLEGADA": "EN EJECUCIÓN", "REANUDACION": "EN EJECUCIÓN",
+            "ANOMALIA": "DETENIDA POR ANOMALÍA", "FIN_JORNADA": "EN VALIDACIÓN",
+            "CIERRE": "OT COMPLETADA",
+        }
+        if estado_nuevo != estados[tipo_registro]:
+            raise HTTPException(status_code=422, detail="El estado no corresponde a la acción solicitada.")
+        if tipo_registro in ("ANOMALIA", "FIN_JORNADA") and not (observacion or "").strip():
+            raise HTTPException(status_code=422, detail="Escribe una descripción para esta acción.")
+        if tipo_registro != "REANUDACION" and not (foto and foto.filename):
+            raise HTTPException(status_code=422, detail="Esta acción requiere una foto.")
+    elif registro_id or fecha_dispositivo:
+        raise HTTPException(status_code=422, detail="Falta el tipo de registro de terreno.")
+
+    if sin_gps_prueba:
+        if not settings.PERMITIR_PRUEBA_SIN_GPS:
+            raise HTTPException(status_code=403, detail="El modo de prueba sin GPS está desactivado.")
+        if coordenadas_gps != GPS_PRUEBA:
+            raise HTTPException(status_code=422, detail="Marca de prueba sin GPS inválida.")
+    elif coordenadas_gps == GPS_PRUEBA:
+        raise HTTPException(status_code=422, detail="La ubicación de prueba requiere autorización explícita.")
+
+    if sin_geocerca_prueba:
+        if not settings.PERMITIR_PRUEBA_SIN_GEOCERCA:
+            raise HTTPException(status_code=403, detail="La prueba sin geocerca está desactivada.")
+        if sin_gps_prueba or not tipo_registro:
+            raise HTTPException(status_code=422, detail="La prueba sin geocerca requiere un registro de terreno con GPS real.")
+        fsm_service.parsear_coordenadas(coordenadas_gps)
 
     # 1. Compuerta Óptica
     contenido_foto = None
@@ -149,35 +204,68 @@ async def registrar_transicion(
 
     if foto and getattr(foto, "filename", None):
         contenido_foto = await foto.read()
-        if contenido_foto:
-            score_laplacian, es_nitida = vision_service.calcular_nitidez_laplaciana(contenido_foto)
-            if not es_nitida:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Foto borrosa rechazada: Nitidez Laplaciana ({score_laplacian}) menor al mínimo (100.0)."
-                )
+        if not contenido_foto:
+            raise HTTPException(status_code=422, detail="La foto está vacía.")
+        score_laplacian, es_nitida = vision_service.calcular_nitidez_laplaciana(contenido_foto)
+        if not es_nitida:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Foto borrosa rechazada: Nitidez Laplaciana ({score_laplacian}) menor al mínimo ({vision_service.UMBRAL_NITIDEZ})."
+            )
 
     # 2. Compuerta Anti-Forking
     with _ledger_lock:
+        if registro_id:
+            existente = db.query(models.RegistroTerreno).filter_by(id=registro_id).first()
+            if existente:
+                transicion_existente = db.query(models.BitacoraTransicion).filter_by(id=existente.transicion_id).one()
+                if transicion_existente.orden.codigo_ot != codigo_ot or existente.tipo != tipo_registro:
+                    raise HTTPException(status_code=409, detail="El identificador ya corresponde a otro registro.")
+                return hidratar_transicion(transicion_existente)
         orden = db.query(models.OrdenTrabajo).filter(models.OrdenTrabajo.codigo_ot == codigo_ot).first()
         if not orden:
             raise HTTPException(status_code=404, detail=f"Orden '{codigo_ot}' no encontrada.")
+        if estado_nuevo == "ORDEN FINALIZADA" or orden.estado_actual in ("OT COMPLETADA", "ORDEN FINALIZADA"):
+            raise HTTPException(status_code=422, detail="La aprobación final debe realizarla un supervisor desde el panel.")
+        if tipo_registro and operario_id != orden.operario_id:
+            raise HTTPException(status_code=403, detail="El técnico no está asignado a esta orden.")
 
         # 3B. Compuerta Geocerca Haversine
-        if orden.activo:
+        if orden.activo and not sin_gps_prueba and not sin_geocerca_prueba:
             fsm_service.validar_geocerca_wgs84(
                 coordenadas_gps,
                 orden.activo.latitud_referencia,
                 orden.activo.longitud_referencia
             )
 
-        operario_user = orden.operario
+        usuario_form = db.query(models.Usuario).filter(models.Usuario.id == operario_id).first()
+        operario_user = usuario_form if usuario_form else orden.operario
         operario_rut = operario_user.rut if operario_user else "15.902.438-2"
         usuario_fk_id = operario_user.id if operario_user else 1
         estado_anterior = orden.estado_actual
+        if tipo_registro:
+            permitidos = {
+                "LLEGADA": ("EMITIDA", "ASIGNADA"),
+                "REANUDACION": ("DETENIDA POR ANOMALÍA", "EN VALIDACIÓN"),
+                "ANOMALIA": ("EMITIDA", "ASIGNADA", "EN EJECUCIÓN"),
+                "FIN_JORNADA": ("EN EJECUCIÓN", "DETENIDA POR ANOMALÍA"),
+                "CIERRE": ("EN EJECUCIÓN", "EN VALIDACIÓN"),
+            }
+            if estado_anterior not in permitidos[tipo_registro]:
+                raise HTTPException(status_code=422, detail=f"La acción no está permitida desde '{estado_anterior}'.")
+            if tipo_registro == "CIERRE":
+                try:
+                    hitos_recibidos = json.loads(hitos_json) if hitos_json else []
+                    if not isinstance(hitos_recibidos, list) or not all(isinstance(h, dict) for h in hitos_recibidos):
+                        raise ValueError("Formato de etapas inválido")
+                    completados = {h.get("id") for h in hitos_recibidos if h.get("completado") is True}
+                except (ValueError, TypeError):
+                    raise HTTPException(status_code=422, detail="Las etapas enviadas no son válidas.")
+                if not orden.hitos or any(h.orden_secuencia not in completados for h in orden.hitos):
+                    raise HTTPException(status_code=422, detail="Completa todas las etapas antes de cerrar la orden.")
 
         # Puenteo Ágil Bajo el Capó para PyMEs
-        if estado_anterior in ("EMITIDA", "DETENIDA POR ANOMALÍA") and estado_nuevo in ("EN VALIDACIÓN", "OT COMPLETADA"):
+        if (estado_anterior in ("EMITIDA", "DETENIDA POR ANOMALÍA") and estado_nuevo in ("EN VALIDACIÓN", "OT COMPLETADA")) or (estado_anterior in ("EMITIDA", "ASIGNADA") and tipo_registro == "ANOMALIA"):
             ult_pre = db.query(models.BitacoraTransicion).order_by(models.BitacoraTransicion.id.desc()).first()
             hash_prev_auto = ult_pre.hash_cadena if (ult_pre and ult_pre.hash_cadena) else GENESIS_HASH
             ts_auto = datetime.utcnow().replace(microsecond=0)
@@ -206,6 +294,8 @@ async def registrar_transicion(
             )
             db.add(trans_puente)
             db.flush()
+            if sin_geocerca_prueba:
+                db.add(models.PruebaSinGeocerca(transicion_id=trans_puente.id))
             estado_anterior = "EN EJECUCIÓN"
             orden.estado_actual = "EN EJECUCIÓN"
 
@@ -275,12 +365,21 @@ async def registrar_transicion(
             hash_previo=hash_previo,
             hash_cadena=hash_cadena,
             timestamp=timestamp_actual,
-            encargado_nombre=nom_enc_previo or "Carlos Valenzuela M.",
-            encargado_rut=rut_enc_previo or "14.285.631-8",
+            encargado_nombre=nom_enc_previo,
+            encargado_rut=rut_enc_previo,
             firma_data=firma_previa
         )
         db.add(nueva_transicion)
         db.flush()
+
+        if sin_geocerca_prueba:
+            db.add(models.PruebaSinGeocerca(transicion_id=nueva_transicion.id))
+
+        if tipo_registro:
+            db.add(models.RegistroTerreno(
+                id=registro_id, transicion_id=nueva_transicion.id,
+                tipo=tipo_registro, fecha_dispositivo=fecha_dispositivo,
+            ))
 
         if contenido_foto and foto.filename:
             url_archivo = storage_service.almacenar_evidencia(foto.filename, contenido_foto)
@@ -296,3 +395,38 @@ async def registrar_transicion(
         db.commit()
         db.refresh(nueva_transicion)
         return hidratar_transicion(nueva_transicion)
+
+
+@router.post("/{codigo_ot}/finalizar", response_model=schemas.TransicionOut)
+def finalizar_orden(
+    codigo_ot: str,
+    supervisor: models.Usuario = Depends(supervisor_actual),
+    db: Session = Depends(get_db),
+):
+    with _ledger_lock:
+        orden = db.query(models.OrdenTrabajo).filter_by(codigo_ot=codigo_ot.strip()).first()
+        if not orden:
+            raise HTTPException(status_code=404, detail="Orden de trabajo no encontrada.")
+        if orden.estado_actual != "OT COMPLETADA":
+            raise HTTPException(status_code=409, detail="Solo se pueden aprobar órdenes completadas por el técnico.")
+        ultima = db.query(models.BitacoraTransicion).order_by(models.BitacoraTransicion.id.desc()).first()
+        previo = ultima.hash_cadena if ultima else GENESIS_HASH
+        timestamp = datetime.utcnow().replace(microsecond=0)
+        coordenadas = "APROBACION_PANEL"
+        payload = construir_payload_canonico(
+            hash_previo=previo, codigo_ot=orden.codigo_ot,
+            estado_anterior="OT COMPLETADA", estado_nuevo="ORDEN FINALIZADA",
+            rut_responsable=supervisor.rut, coordenadas_gps=coordenadas,
+            timestamp_iso=timestamp.isoformat(),
+        )
+        transicion = models.BitacoraTransicion(
+            orden_id=orden.id, usuario_id=supervisor.id,
+            estado_anterior="OT COMPLETADA", estado_nuevo="ORDEN FINALIZADA",
+            coordenadas_gps=coordenadas,             observacion="Firma y finalización confirmadas por supervisión.",
+            hash_previo=previo, hash_cadena=sha256_cadena(payload), timestamp=timestamp,
+        )
+        orden.estado_actual = "ORDEN FINALIZADA"
+        db.add(transicion)
+        db.commit()
+        db.refresh(transicion)
+        return hidratar_transicion(transicion)

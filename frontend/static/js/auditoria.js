@@ -16,9 +16,24 @@ function escaparHTML(str) {
 function obtenerClaseBadgeAudit(estado) {
     if (estado === "EN EJECUCIÓN") return "badge-ejecucion";
     if (estado === "DETENIDA POR ANOMALÍA") return "badge-detenida";
-    if (estado === "OT COMPLETADA") return "badge-completada";
+    if (estado === "OT COMPLETADA" || estado === "ORDEN FINALIZADA") return "badge-completada";
     if (estado === "EN VALIDACIÓN") return "badge-validacion";
     return "badge-emitida";
+}
+
+function describirUbicacionAudit(coordenadas, pruebaSinGeocerca = false) {
+    if (coordenadas === 'APROBACION_PANEL') return 'Aprobación desde el panel · ubicación no registrada';
+    if (pruebaSinGeocerca) return `${coordenadas} · PRUEBA SIN GEOCERCA · Presencia en el activo no verificada`;
+    return coordenadas === 'PRUEBA_SIN_GPS'
+        ? 'PRUEBA SIN GPS · Presencia no verificada'
+        : (coordenadas || 'No disponible');
+}
+
+function formatearFechaAudit(valor, utcPorDefecto = false) {
+    if (!valor) return '';
+    const texto = String(valor);
+    const fecha = new Date(utcPorDefecto && !/(Z|[+-]\d{2}:\d{2})$/i.test(texto) ? `${texto}Z` : texto);
+    return Number.isNaN(fecha.getTime()) ? texto : fecha.toLocaleString('es-CL');
 }
 
 async function cargarBitacoraAuditoria(mapaDiscrepancias = {}) {
@@ -44,6 +59,8 @@ async function cargarBitacoraAuditoria(mapaDiscrepancias = {}) {
         cacheTransicionesAudit.forEach((t, idx) => {
             const anterior = escaparHTML(t.estado_anterior || 'INICIO');
             const nuevo = escaparHTML(t.estado_nuevo || 'REGISTRADO');
+            const tipos = { LLEGADA: 'Llegada · en terreno', REANUDACION: 'Reanudación · en terreno', ANOMALIA: 'Anomalía', FIN_JORNADA: 'Fin de jornada · fuera de turno', CIERRE: 'Cierre de orden' };
+            const tipoRegistro = tipos[t.tipo_registro] || '';
             const codigoOT = escaparHTML(t.codigo_ot);
             const operario = escaparHTML(t.operario_responsable);
             const rut = escaparHTML(t.rut_responsable || '');
@@ -54,10 +71,7 @@ async function cargarBitacoraAuditoria(mapaDiscrepancias = {}) {
             }
             const bloqueCorrupto = !eslabonOk || Boolean(mapaDiscrepancias[t.id]);
 
-            let fechaDisplay = escaparHTML(t.timestamp);
-            try {
-                fechaDisplay = new Date(t.timestamp).toLocaleString('es-CL');
-            } catch (e) {}
+            const fechaDisplay = escaparHTML(formatearFechaAudit(t.timestamp, true));
 
             const badgeEstado = obtenerClaseBadgeAudit(t.estado_nuevo);
             const etiquetaVerif = bloqueCorrupto
@@ -85,10 +99,12 @@ async function cargarBitacoraAuditoria(mapaDiscrepancias = {}) {
                     <div class="text-[11px] text-theme-muted mt-1 max-w-md truncate" title="${escaparHTML(t.observacion || '')}">
                         ${escaparHTML(t.observacion || 'Sin observación')}
                     </div>
+                    ${tipoRegistro ? `<div class="text-xs font-semibold text-theme-main">${escaparHTML(tipoRegistro)}</div>` : ''}
                 </td>
                 <td class="px-4 py-3 font-mono text-[11px] text-theme-muted whitespace-nowrap">
-                    <div>${fechaDisplay}</div>
-                    <div class="text-[10px] text-theme-dim">GPS: ${escaparHTML(t.coordenadas_gps)}</div>
+                    <div>Servidor: ${fechaDisplay}</div>
+                    ${t.fecha_dispositivo ? `<div class="text-[10px] text-theme-dim">Dispositivo: ${escaparHTML(formatearFechaAudit(t.fecha_dispositivo))}</div>` : ''}
+                    <div class="text-[10px] text-theme-dim">GPS: ${escaparHTML(describirUbicacionAudit(t.coordenadas_gps, t.prueba_sin_geocerca))}</div>
                 </td>
                 <td class="px-4 py-3 text-right whitespace-nowrap">
                     <button onclick="abrirModalHash(${t.id})" class="px-3 py-1.5 rounded border border-theme-bright bg-surface-2 hover:bg-surface-3 text-theme-main font-semibold text-[11px] transition">
@@ -109,7 +125,7 @@ function abrirModalHash(idBloque) {
 
     document.getElementById('modal-hash-titulo').innerText = `Auditoría del Registro #${t.id} (${t.codigo_ot})`;
     document.getElementById('modal-hash-operario').innerText = `${t.operario_responsable} (${t.rut_responsable})`;
-    document.getElementById('modal-hash-gps').innerText = t.coordenadas_gps;
+    document.getElementById('modal-hash-gps').innerText = describirUbicacionAudit(t.coordenadas_gps, t.prueba_sin_geocerca);
     document.getElementById('modal-hash-previo').innerText = t.hash_previo;
     document.getElementById('modal-hash-actual').innerText = t.hash_cadena;
 

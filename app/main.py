@@ -1,38 +1,36 @@
 from pathlib import Path
-from sqlalchemy import inspect
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from sqlalchemy import inspect, text
 
 from app.core.database import engine, Base, SessionLocal
 from app.models.operational import OrdenTrabajo, Usuario
 from app.api.v1.router import api_router
 
-Base.metadata.create_all(bind=engine)
+logger = logging.getLogger(__name__)
 
 
 def asegurar_esquema_y_datos():
-    inspector = inspect(engine)
-    tablas = inspector.get_table_names()
-    requiere_seed = False
-
-    tablas_3fn = {"empresa_mandante", "usuario", "activo_industrial", "orden_trabajo", "hito_orden", "bitacora_transicion", "evidencia_multimedia"}
-    if not tablas_3fn.issubset(set(tablas)):
-        requiere_seed = True
-    else:
-        db = SessionLocal()
-        try:
-            if db.query(OrdenTrabajo).count() == 0 or db.query(Usuario).count() == 0:
-                requiere_seed = True
-        except Exception:
-            requiere_seed = True
-        finally:
-            db.close()
-
-    if requiere_seed:
-        import seed
-        seed.poblar_sistema()
+    Base.metadata.create_all(bind=engine)
+    with engine.begin() as conn:
+        if "fecha_limite" not in {col["name"] for col in inspect(conn).get_columns("orden_trabajo")}:
+            if engine.dialect.name == "postgresql":
+                conn.execute(text("ALTER TABLE orden_trabajo ADD COLUMN IF NOT EXISTS fecha_limite TIMESTAMP"))
+            elif engine.dialect.name == "sqlite":
+                conn.execute(text("ALTER TABLE orden_trabajo ADD COLUMN fecha_limite DATETIME"))
+            else:
+                raise RuntimeError(f"Migración de fecha_limite no soportada para {engine.dialect.name}")
+    with SessionLocal() as db:
+        sin_usuarios = db.query(Usuario.id).first() is None
+        sin_ordenes = db.query(OrdenTrabajo.id).first() is None
+    if sin_usuarios or sin_ordenes:
+        logger.warning(
+            "La base no tiene usuarios o no tiene órdenes. No se cargarán datos "
+            "automáticamente; consulte readme.md para preparar una demo."
+        )
 
 
 asegurar_esquema_y_datos()
